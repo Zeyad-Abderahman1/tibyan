@@ -343,16 +343,18 @@ export class GroupService {
 
     const nowIso = new Date().toISOString();
     const today = this.dateProvider.today();
+    const nowTime = this.dateProvider.nowTime();
 
     const result = this.client.transaction((tx) => {
       const groupRepoTx = new GroupRepository(tx as any);
       const sessionRepoTx = new SessionRepository(tx as any);
       const auditRepoTx = new AcademicAuditRepository(tx as any);
 
-      // 1. Prune future untouched SCHEDULED sessions associated with previous schedules
+      // 1. Prune strictly future untouched SCHEDULED sessions associated with previous schedules
       const removedSessionsCount = sessionRepoTx.deleteUntouchedFutureScheduledSessions(
         group.id,
-        today
+        today,
+        nowTime
       );
 
       // 2. Remove obsolete schedule template rows

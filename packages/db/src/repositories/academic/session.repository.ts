@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, asc, inArray, isNull } from 'drizzle-orm';
+import { eq, and, gte, lte, asc, inArray, isNull, gt, or } from 'drizzle-orm';
 import { type AcademicDrizzle, getAcademicDatabase } from '../../connection.js';
 import {
   sessions,
@@ -93,13 +93,24 @@ export class SessionRepository {
   deleteUntouchedFutureScheduledSessions(
     groupId: string,
     fromDate: string,
+    fromTime?: string,
     scheduleIds?: string[]
   ): number {
+    const isStrictlyFuture = fromTime
+      ? or(
+          gt(sessions.effectiveDate, fromDate),
+          and(
+            eq(sessions.effectiveDate, fromDate),
+            gt(sessions.effectiveStartTime, fromTime)
+          )
+        )
+      : gte(sessions.effectiveDate, fromDate);
+
     const conditions = [
       eq(sessions.groupId, groupId),
       eq(sessions.status, 'SCHEDULED'),
-      gte(sessions.effectiveDate, fromDate),
       isNull(sessions.rescheduleReason),
+      isStrictlyFuture,
     ];
     if (scheduleIds && scheduleIds.length > 0) {
       conditions.push(inArray(sessions.scheduleId, scheduleIds));

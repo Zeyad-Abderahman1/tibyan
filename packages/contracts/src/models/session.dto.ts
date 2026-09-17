@@ -53,6 +53,7 @@ export interface SessionDto {
   status: z.infer<typeof SessionStatusSchema>;
   rescheduleReason: string | null;
   rescheduledAt: string | null;
+  cancellationReason: string | null;
   notes: string | null;
   studentCount?: number;
   createdAt: string;

@@ -252,6 +252,12 @@ export const ACADEMIC_MIGRATIONS: Migration[] = [
       END;
     `,
   },
+  {
+    id: '0002_glamorous_sunspot',
+    sql: `
+      ALTER TABLE \`sessions\` ADD \`cancellation_reason\` text;
+    `,
+  },
 ];
 
 function initMigrationTrackingTable(db: Database.Database): void {

@@ -86,10 +86,10 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     expect(appliedSys).toEqual(['0000_initial_schema', '0001_audit_triggers']);
 
     const appliedAcad = migrateAcademicDatabase(acadRaw);
-    expect(appliedAcad).toEqual(['0000_initial_schema', '0001_audit_triggers']);
+    expect(appliedAcad).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_glamorous_sunspot']);
 
     expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers']);
-    expect(getAppliedMigrations(acadRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers']);
+    expect(getAppliedMigrations(acadRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_glamorous_sunspot']);
 
     sysRaw.close();
     acadRaw.close();
@@ -111,7 +111,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     expect(secondAcad).toEqual([]);
 
     expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers']);
-    expect(getAppliedMigrations(acadRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers']);
+    expect(getAppliedMigrations(acadRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_glamorous_sunspot']);
 
     sysRaw.close();
     acadRaw.close();

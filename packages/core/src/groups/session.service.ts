@@ -58,8 +58,22 @@ export function generateOccurrenceKey(scheduleId: string, scheduledDate: string)
 }
 
 /**
+ * Determines whether a database error is specifically a UNIQUE constraint collision on sessions.occurrence_key.
+ */
+export function isOccurrenceCollisionError(err: any): boolean {
+  if (!err) return false;
+  const message = String(err.message || '');
+  const code = String(err.code || '');
+  return (
+    (code === 'SQLITE_CONSTRAINT_UNIQUE' || code === 'SQLITE_CONSTRAINT') &&
+    message.includes('sessions.occurrence_key')
+  );
+}
+
+/**
  * Computes exactly N calendar dates starting from startDateYmd (inclusive: day 0 through day N - 1).
  * For N = 28, this produces exactly today through today + 27 days.
+ * Uses pure calendar arithmetic without UTC timezone shifts.
  */
 export function computeHorizonDates(
   startDateYmd: string,
@@ -72,7 +86,8 @@ export function computeHorizonDates(
   const result: Array<{ dateStr: string; weekday: number }> = [];
 
   for (let offset = 0; offset < count; offset++) {
-    const dt = new Date(Date.UTC(y, m - 1, d + offset));
+    // 12:00 UTC noon avoids daylight saving time boundary shifts
+    const dt = new Date(Date.UTC(y, m - 1, d + offset, 12, 0, 0));
     const year = dt.getUTCFullYear();
     const month = String(dt.getUTCMonth() + 1).padStart(2, '0');
     const day = String(dt.getUTCDate()).padStart(2, '0');
@@ -155,6 +170,7 @@ export class SessionService {
       status: row.status as any,
       rescheduleReason: row.rescheduleReason,
       rescheduledAt: row.rescheduledAt,
+      cancellationReason: row.cancellationReason ?? null,
       notes: row.notes,
       studentCount,
       createdAt: row.createdAt,
@@ -165,6 +181,7 @@ export class SessionService {
   /**
    * Materializes sessions over an exact 28-calendar-day rolling horizon (today through today + 27 days).
    * Deterministic and idempotent: skips any occurrenceKey that already exists in any status.
+   * Concurrency-safe: handles concurrent INSERT-time collisions gracefully without swallowing unrelated errors.
    */
   async materializeRollingHorizon(
     options: { groupId?: string; horizonDays?: number } = {},
@@ -216,26 +233,37 @@ export class SessionService {
                 continue;
               }
 
-              // Materialize new session
-              sessionRepoTx.create({
-                id: crypto.randomUUID(),
-                groupId: group.id,
-                scheduleId: slot.id,
-                occurrenceKey,
-                scheduledDate: dateStr,
-                scheduledStartTime: slot.startTime,
-                effectiveDate: dateStr,
-                effectiveStartTime: slot.startTime,
-                durationMinutes: slot.durationMinutes,
-                status: 'SCHEDULED',
-                rescheduleReason: null,
-                rescheduledAt: null,
-                notes: null,
-                createdAt: nowIso,
-                updatedAt: nowIso,
-              });
+              // Materialize new session with collision-safe INSERT
+              try {
+                sessionRepoTx.create({
+                  id: crypto.randomUUID(),
+                  groupId: group.id,
+                  scheduleId: slot.id,
+                  occurrenceKey,
+                  scheduledDate: dateStr,
+                  scheduledStartTime: slot.startTime,
+                  effectiveDate: dateStr,
+                  effectiveStartTime: slot.startTime,
+                  durationMinutes: slot.durationMinutes,
+                  status: 'SCHEDULED',
+                  rescheduleReason: null,
+                  rescheduledAt: null,
+                  cancellationReason: null,
+                  notes: null,
+                  createdAt: nowIso,
+                  updatedAt: nowIso,
+                });
 
-              createdCount++;
+                createdCount++;
+              } catch (err: any) {
+                // If another process inserted this occurrence concurrently, treat as already materialized
+                if (isOccurrenceCollisionError(err)) {
+                  existingCount++;
+                  continue;
+                }
+                // Do not swallow any other database or invariant errors
+                throw err;
+              }
             }
           }
         }
@@ -338,7 +366,9 @@ export class SessionService {
 
   /**
    * Cancels a session (setting status = CANCELLED_BY_TEACHER).
-   * Preserves occurrenceKey and scheduled/effective times. Records reason in notes and audit metadata.
+   * Stores cancellation reason in the dedicated cancellationReason column.
+   * Leaves general notes semantically untouched.
+   * Preserves occurrenceKey and scheduled/effective times.
    */
   async cancelSession(input: CancelSessionInput, actor: AnyActor): Promise<SessionDto> {
     const validated = this.parseSchema(CancelSessionSchema, input);
@@ -358,10 +388,6 @@ export class SessionService {
     }
 
     const nowIso = new Date().toISOString();
-    const cancellationNote = `[سبب الإلغاء]: ${validated.reason}`;
-    const combinedNotes = existing.notes
-      ? `${existing.notes}\n${cancellationNote}`
-      : cancellationNote;
 
     const updated = this.client.transaction((tx) => {
       const sessionRepoTx = new SessionRepository(tx as any);
@@ -369,7 +395,8 @@ export class SessionService {
 
       const updatedRow = sessionRepoTx.update(existing.id, {
         status: 'CANCELLED_BY_TEACHER',
-        notes: combinedNotes,
+        cancellationReason: validated.reason,
+        // notes remain completely untouched and independent
         updatedAt: nowIso,
       })!;
 
@@ -431,7 +458,7 @@ export class SessionService {
 
   /**
    * Regenerates future sessions for a group after schedule changes:
-   * Prunes untouched future SCHEDULED sessions and materializes the new slots across the 28-day horizon.
+   * Prunes strictly future untouched SCHEDULED sessions and materializes the new slots across the 28-day horizon.
    */
   async regenerateFutureSessionsAfterScheduleChange(
     groupId: string,
@@ -445,10 +472,12 @@ export class SessionService {
     }
 
     const today = this.dateProvider.today();
+    const nowTime = this.dateProvider.nowTime();
 
     const removedCount = this.sessionRepo.deleteUntouchedFutureScheduledSessions(
       group.id,
-      today
+      today,
+      nowTime
     );
 
     const result = await this.materializeRollingHorizon({ groupId }, actor);

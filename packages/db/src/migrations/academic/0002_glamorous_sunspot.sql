@@ -1,0 +1,1 @@
+ALTER TABLE `sessions` ADD `cancellation_reason` text;

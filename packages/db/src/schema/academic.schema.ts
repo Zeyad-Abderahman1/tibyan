@@ -163,6 +163,7 @@ export const sessions = sqliteTable(
     status: text('status').$type<SessionStatus>().notNull().default('SCHEDULED'),
     rescheduleReason: text('reschedule_reason'),
     rescheduledAt: text('rescheduled_at'),
+    cancellationReason: text('cancellation_reason'),
     notes: text('notes'),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
