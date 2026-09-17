@@ -12,7 +12,7 @@ export const EnrollStudentSchema = z.object({
     .optional()
     .default(null),
 });
-export type EnrollStudentInput = z.infer<typeof EnrollStudentSchema>;
+export type EnrollStudentInput = z.input<typeof EnrollStudentSchema>;
 
 export const UpdateEnrollmentPaymentSchema = z.object({
   enrollmentId: z.string().uuid('Invalid enrollment ID format'),

@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, asc, inArray } from 'drizzle-orm';
+import { eq, and, gte, lte, asc, inArray, isNull } from 'drizzle-orm';
 import { type AcademicDrizzle, getAcademicDatabase } from '../../connection.js';
 import {
   sessions,
@@ -74,17 +74,40 @@ export class SessionRepository {
       .all();
   }
 
-  listByDateRange(startDate: string, endDate: string): SessionRow[] {
+  listByDateRange(startDate: string, endDate: string, groupId?: string): SessionRow[] {
+    const conditions = [
+      gte(sessions.effectiveDate, startDate),
+      lte(sessions.effectiveDate, endDate),
+    ];
+    if (groupId) {
+      conditions.push(eq(sessions.groupId, groupId));
+    }
     return this.client
       .select()
       .from(sessions)
-      .where(
-        and(
-          gte(sessions.effectiveDate, startDate),
-          lte(sessions.effectiveDate, endDate)
-        )
-      )
+      .where(and(...conditions))
       .orderBy(asc(sessions.effectiveDate), asc(sessions.effectiveStartTime))
       .all();
+  }
+
+  deleteUntouchedFutureScheduledSessions(
+    groupId: string,
+    fromDate: string,
+    scheduleIds?: string[]
+  ): number {
+    const conditions = [
+      eq(sessions.groupId, groupId),
+      eq(sessions.status, 'SCHEDULED'),
+      gte(sessions.effectiveDate, fromDate),
+      isNull(sessions.rescheduleReason),
+    ];
+    if (scheduleIds && scheduleIds.length > 0) {
+      conditions.push(inArray(sessions.scheduleId, scheduleIds));
+    }
+    const result = this.client
+      .delete(sessions)
+      .where(and(...conditions))
+      .run();
+    return result.changes;
   }
 }

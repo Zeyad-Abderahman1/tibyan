@@ -22,7 +22,7 @@ export const WeeklyScheduleSlotInputSchema = z.object({
     .positive('Duration must be greater than 0 minutes')
     .default(120),
 });
-export type WeeklyScheduleSlotInput = z.infer<typeof WeeklyScheduleSlotInputSchema>;
+export type WeeklyScheduleSlotInput = z.input<typeof WeeklyScheduleSlotInputSchema>;
 
 export const CreateGroupSchema = z.object({
   name: z.string().trim().min(1, 'Group name cannot be empty'),
@@ -36,7 +36,7 @@ export const CreateGroupSchema = z.object({
     .nonnegative('Default payment amount cannot be negative'),
   schedules: z.array(WeeklyScheduleSlotInputSchema).default([]),
 });
-export type CreateGroupInput = z.infer<typeof CreateGroupSchema>;
+export type CreateGroupInput = z.input<typeof CreateGroupSchema>;
 
 export const UpdateGroupSchema = z.object({
   groupId: z.string().uuid('Invalid group ID format'),

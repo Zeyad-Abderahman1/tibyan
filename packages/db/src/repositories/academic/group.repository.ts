@@ -97,4 +97,8 @@ export class GroupRepository {
   deleteSchedule(scheduleId: string): void {
     this.client.delete(groupSchedules).where(eq(groupSchedules.id, scheduleId)).run();
   }
+
+  deleteSchedulesByGroup(groupId: string): void {
+    this.client.delete(groupSchedules).where(eq(groupSchedules.groupId, groupId)).run();
+  }
 }

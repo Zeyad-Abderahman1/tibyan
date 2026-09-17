@@ -1,4 +1,5 @@
 import { eq, and } from 'drizzle-orm';
+import type { PaymentType } from '@tibyan/contracts';
 import { type AcademicDrizzle, getAcademicDatabase } from '../../connection.js';
 import {
   groupEnrollments,
@@ -89,5 +90,25 @@ export class EnrollmentRepository {
       .from(groupEnrollments)
       .where(eq(groupEnrollments.studentId, studentId))
       .all();
+  }
+
+  updatePaymentOverrides(
+    id: string,
+    paymentTypeOverride: PaymentType | null | undefined,
+    paymentAmountOverride: number | null | undefined
+  ): GroupEnrollmentRow | null {
+    const updates: Partial<GroupEnrollmentRow> = {};
+    if (paymentTypeOverride !== undefined) {
+      updates.paymentTypeOverride = paymentTypeOverride;
+    }
+    if (paymentAmountOverride !== undefined) {
+      updates.paymentAmountOverride = paymentAmountOverride;
+    }
+    this.client
+      .update(groupEnrollments)
+      .set(updates)
+      .where(eq(groupEnrollments.id, id))
+      .run();
+    return this.findById(id);
   }
 }
