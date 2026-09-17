@@ -360,11 +360,17 @@
       "sha": "a88be7f",
       "type": "base",
       "message": "feat(desktop): build student management, profile, notes, and photo UI"
+    },
+    {
+      "task": 13,
+      "sha": "34169ba",
+      "type": "hardening",
+      "message": "fix(desktop): harden student photo transport and media authorization"
     }
   ],
   "testBaseline": {
     "totalTestFiles": 19,
-    "totalTests": 397,
+    "totalTests": 415,
     "packages": {
       "@tibyan/contracts": {
         "testFiles": 1,
@@ -384,7 +390,7 @@
       },
       "@tibyan/desktop": {
         "testFiles": 6,
-        "testsPassed": 105
+        "testsPassed": 123
       }
     },
     "typecheckErrors": 0,

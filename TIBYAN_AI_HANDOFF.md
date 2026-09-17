@@ -5,10 +5,10 @@
 > **Target Audience:** Incoming Autonomous AI Engineering Agents  
 > **Approved Architecture Version:** `v2.1` (Final Alignment)  
 > **Current Project Phase:** Phase 1 — Foundation & Desktop Core  
-> **Tasks Completed:** Tasks 1 through 12 inclusive (Final commit: `f79c8a3`)  
-> **Immediate Next Task:** **Task 13 — Student Management UI**  
-> **Task 13 Status:** **NOT STARTED** (Zero Task 13 code has been implemented)  
-> **Regression Test Baseline:** 18 test files, 373 passing tests across 5 packages  
+> **Tasks Completed:** Tasks 1 through 13 inclusive (Original commit: `a88be7f`, Hardening commit: `34169ba`)  
+> **Immediate Next Task:** **Task 14 — Group Management UI, Enrollment Picker & Reschedule Modal**  
+> **Task 14 Status:** **NOT STARTED** (Zero Task 14 code has been implemented)  
+> **Regression Test Baseline:** 19 test files, 415 passing tests across 5 packages  
 > **Official Logo SHA-256:** `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`  
 
 ---
@@ -21,7 +21,7 @@ Welcome, agent. This document is the **single canonical, durable, and authoritat
 1. **Inspect Actual Source Before Changing Architecture:** Do not trust memory or assume conventions. Before modifying any behavior, inspect the actual source code, migration files, and active tests.
 2. **Current Source Code Trumps Stale Walkthroughs:** If an older plan document or early design sketch contradicts the current production TypeScript files or latest database migrations in `packages/`, the **current production code and migration journals are authoritative**. Report any discrepancies before proposing architectural changes.
 3. **Architecture is v2.1:** All development conforms strictly to the revised v2.1 architectural alignments detailed in [TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md](file:///F:/tebyan/TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md).
-4. **Tasks 1 through 13 are COMPLETE:** All foundation, dual-database, domain core services (auth, student, group, session, backup, dashboard), design system, Electron shell/wizard, PIN login screen, and student management UI are built, fully tested, and hardened up to commit `a88be7f`.
+4. **Tasks 1 through 13 are COMPLETE:** All foundation, dual-database, domain core services (auth, student, group, session, backup, dashboard), design system, Electron shell/wizard, PIN login screen, and student management UI are built, fully tested, and hardened up to commit `34169ba` (Original: `a88be7f`).
 5. **Task 14 Has NOT Started:** Do not assume Task 14 is underway. Task 14 is the Group Management UI, Enrollment Picker & Reschedule Modal.
 6. **One Task at a Time:** Always follow the strict workflow: understand requirements, inspect target files, formulate an implementation plan, obtain user approval, execute, verify against regression tests, and halt for review. Never batch multiple tasks.
 
@@ -438,7 +438,7 @@ All commits have been extracted directly from the live Git log:
 | **Task 10** | Electron Desktop Shell & Typed IPC | COMPLETE | `b207312` | `56724e2` | Electron shell, secure preload bridge, native module packaging, typed IPC handlers. |
 | **Task 11** | Desktop AppShell & First-Run Wizard | COMPLETE | `a6c0d04` | `145e0d3` | RTL layout, official logo sidebar, topbar, First-Run Wizard, atomic recovery on setup error. |
 | **Task 12** | 4-Digit PIN Auth Screen & Session Store | COMPLETE | `f79c8a3` | — | UserCard, LoginScreen with account-scoped cooldown and absolute deadline derivation, safe LoginUserDto projection, RootLayout splash/retry boot, cross-user cache isolation, immediate PIN wipe. |
-| **Task 13** | Student Management UI | COMPLETE | `a88be7f` | — | StudentsPage directory with search/filters, StudentCreateModal with independent dimensions and phone validation, StudentProfilePage, StudentNotesView with distinct tag badges, opaque photo token selection, custom `tibyan-media://` protocol. |
+| **Task 13** | Student Management UI | COMPLETE | `a88be7f` | `34169ba` | StudentsPage directory with search/filters, StudentCreateModal with independent dimensions and phone validation, StudentProfilePage, StudentNotesView with distinct tag badges, opaque photo token selection, custom `tibyan-media://` protocol. |
 
 ---
 
@@ -446,19 +446,19 @@ All commits have been extracted directly from the live Git log:
 
 The repository has been empirically verified with zero failures across all packages:
 
-- **Vitest Unit & Integration Tests (19 files, 397 tests):**
+- **Vitest Unit & Integration Tests (19 files, 415 tests):**
   - `@tibyan/contracts`: 1 test file, **42 passed**
   - `@tibyan/db`: 1 test file, **25 passed**
   - `@tibyan/core`: 10 test files, **196 passed**
   - `@tibyan/design-system`: 1 test file, **29 passed**
-  - `@tibyan/desktop`: 6 test files, **105 passed**
-  - **Monorepo Total:** **397 tests passed (0 failed)**
+  - `@tibyan/desktop`: 6 test files, **123 passed**
+  - **Monorepo Total:** **415 tests passed (0 failed)**
 - **TypeScript Typecheck (`pnpm -r typecheck`):** **0 errors** across all 5 workspace projects.
 - **Production Desktop Build (`pnpm --filter @tibyan/desktop build`):** **0 errors**, full Vite and Electron bundles built.
 - **Database Schema Drift (`pnpm --filter @tibyan/db db:generate`):** **Zero schema drift** ("No schema changes, nothing to migrate 😴").
 - **Official Logo Integrity:** SHA-256 is exactly `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`.
 - **Lint Scripts:** Package-level lint scripts are currently unconfigured in `package.json` (as expected).
-- **Working Tree:** Clean at Task 13 commit `a88be7f`.
+- **Working Tree:** Clean at Task 13 hardening commit `34169ba` (Original: `a88be7f`).
 
 ---
 
@@ -473,36 +473,33 @@ The repository has been empirically verified with zero failures across all packa
 
 ---
 
-## 21. Task 13 Starting Context
+## 21. Task 14 Starting Context
 
-Task 13 is the **immediate next task** to execute.
+Task 14 is the **immediate next task** to execute.
 
 > [!IMPORTANT]
-> **Task 13 is NOT STARTED.** Zero Task 13 code has been written. Await explicit user approval of the Task 13 plan before writing any Task 13 code.
+> **Task 14 is NOT STARTED.** Zero Task 14 code has been written. Await explicit user approval of the Task 14 plan before writing any Task 14 code.
 
 ### 21.1 Task Objective
-Build the Student Management user interface for the desktop application:
-1. Student Directory / List Table (`StudentsPage.tsx`): High-density, RTL data table displaying active students with searchable names, student code (`TB-XXXX`), grade level badge, education system badge, and enrolled groups count.
-2. Student Creation Modal (`StudentCreateModal.tsx`): Dialog for onboarding a new student with photo upload/preview, academic system, grade level, language track, parent WhatsApp phone, and optional group enrollment.
-3. Student Profile / Details View (`StudentProfilePage.tsx`): Detailed student card showing personal information, attendance rate, payment status, and notes timeline.
-4. Student Notes Timeline (`StudentNotesView.tsx`): Chronological note stream supporting `NEEDS_FOLLOW_UP`, `ACADEMIC_WEAKNESS`, `BEHAVIOR`, and `GENERAL` notes.
-5. TanStack Query Integration Hook (`useStudents.ts`): Typed queries and mutations interfacing with `window.tibyan.student`.
-6. Unit & Component Tests (`StudentsPage.test.tsx`): Vitest tests covering student listing, filtering, search, and modal interactions.
+Build the Group Management, Student Enrollment, and Session Rescheduling UI:
+1. **Groups Directory & Schedule Grid (`GroupsPage.tsx`):** High-density view of all academic groups, day/time schedule slots, active student counts, and grade badges.
+2. **Group Creation & Edit Modal (`GroupCreateModal.tsx`):** Create and edit groups with name, grade level, language track, weekly recurring schedule slots, default payment type, and default monthly/per-session fee.
+3. **Group Details & Enrollment Roster (`GroupDetailsPage.tsx`):** Detailed group view showing active schedule, enrolled students table with effective payment rates (inherited vs overridden), attendance summaries, and session timeline.
+4. **Student Enrollment Modal (`EnrollmentModal.tsx`):** Enroll student into group with optional payment override (`paymentTypeOverride`, `paymentAmountOverride`). Re-enrolling historical students preserves audit trail.
+5. **Session Reschedule Modal (`RescheduleSessionModal.tsx`):** Single-session exception reschedule modal (date/time mutation of single session without altering the recurring group schedule or duplicating occurrences).
+6. **TanStack Query Hook (`useGroups.ts`):** Cached hooks for groups, enrollments, and session scheduling interfacing with `window.tibyan.groups`, `window.tibyan.enrollments`, and `window.tibyan.sessions`.
+7. **Unit & Component Tests (`GroupsPage.test.tsx`):** Vitest test suite covering group creation, enrollment payment calculation, session rescheduling, and permission enforcement.
 
-### 21.2 Available IPC Integration Surface (`window.tibyan.student`):
-- `list(filter?: StudentFilterInput)`: Returns `IpcResult<StudentDto[]>`.
-- `getById(id: string)`: Returns `IpcResult<StudentDto>`.
-- `create(input: CreateStudentInput)`: Returns `IpcResult<StudentDto>`.
-- `update(input: UpdateStudentInput)`: Returns `IpcResult<StudentDto>`.
-- `delete(id: string)`: Returns `IpcResult<void>`.
-- `addNote(input: AddStudentNoteInput)`: Returns `IpcResult<StudentNoteDto>`.
-- `getNotes(studentId: string)`: Returns `IpcResult<StudentNoteDto[]>`.
-- `uploadPhoto(input: UploadPhotoInput)`: Returns `IpcResult<{ photoUrl: string }>`.
+### 21.2 Available IPC Integration Surface:
+- `window.tibyan.groups`: `list()`, `getById(groupId)`, `create(input)`, `update(input)`, `setSchedule(input)`
+- `window.tibyan.enrollments`: `listByGroup(groupId)`, `enroll(input)`, `updatePayment(input)`, `end(input)`
+- `window.tibyan.sessions`: `materializeRollingSessions()`, `listByRange(input)`, `reschedule(input)`, `cancel(input)`
 
-### 21.3 Key Invariants for Task 13:
-- **Strict Isolation:** UI components must interact exclusively via `window.tibyan.student` IPC API.
-- **RTL & Brand Standards:** Follow Arabic typography, brand colors (`#0B3D3D`, `#C59B27`), and design system primitives.
-- **Do NOT Start Task 14:** Complete Task 13 in isolation and await user review before proceeding.
+### 21.3 Key Invariants for Task 14:
+- **Rescheduled Occurrence Idempotency:** Rescheduling updates `effective_date` and `effective_start_time` while preserving the immutable `occurrence_key`. The 28-day materializer must never recreate a duplicate session for the original recurring slot.
+- **Enrollment-Scoped Payment Independence:** Overrides live on `GroupEnrollment`. A student enrolled in multiple groups must maintain independent pricing terms per group.
+- **Strict Isolation:** UI components must interact exclusively via typed IPC methods.
+- **Do NOT Start Task 15:** Complete Task 14 in isolation and await user review before proceeding.
 
 ---
 

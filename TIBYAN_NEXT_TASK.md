@@ -76,6 +76,6 @@ The Electron Main process and `@tibyan/core` already provide complete, verified 
 - [ ] Run `pnpm --filter @tibyan/desktop test` — all existing and new group UI tests pass.
 - [ ] Run `pnpm -r typecheck` — 0 TypeScript errors.
 - [ ] Verify group creation, schedule slots, enrollment with/without payment override, and session rescheduling.
-- [ ] Run full workspace tests `pnpm -r test` (baseline is 397 + new Task 14 tests).
+- [ ] Run full workspace tests `pnpm -r test` (baseline is 415 + new Task 14 tests).
 - [ ] Verify zero schema drift (`pnpm --filter @tibyan/db db:generate`).
 - [ ] Halt and await user review.
