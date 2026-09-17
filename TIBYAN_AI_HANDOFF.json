@@ -14,10 +14,10 @@
     "phaseName": "Foundation & Desktop Core",
     "totalTasks": 17
   },
-  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
   "nextTask": {
-    "taskNumber": 13,
-    "taskName": "Student Management UI",
+    "taskNumber": 14,
+    "taskName": "Group Management UI, Enrollment Picker & Reschedule Modal",
     "isStarted": false
   },
   "taskStatus": {
@@ -33,8 +33,8 @@
     "10": "COMPLETE",
     "11": "COMPLETE",
     "12": "COMPLETE",
-    "13": "NOT_STARTED",
-    "14": "PENDING",
+    "13": "COMPLETE",
+    "14": "NOT_STARTED",
     "15": "PENDING",
     "16": "PENDING",
     "17": "PENDING"
@@ -354,11 +354,17 @@
       "sha": "f79c8a3",
       "type": "base",
       "message": "feat(desktop): implement PIN login screen and session presentation store"
+    },
+    {
+      "task": 13,
+      "sha": "a88be7f",
+      "type": "base",
+      "message": "feat(desktop): build student management, profile, notes, and photo UI"
     }
   ],
   "testBaseline": {
-    "totalTestFiles": 18,
-    "totalTests": 373,
+    "totalTestFiles": 19,
+    "totalTests": 397,
     "packages": {
       "@tibyan/contracts": {
         "testFiles": 1,
@@ -377,8 +383,8 @@
         "testsPassed": 29
       },
       "@tibyan/desktop": {
-        "testFiles": 5,
-        "testsPassed": 81
+        "testFiles": 6,
+        "testsPassed": 105
       }
     },
     "typecheckErrors": 0,
@@ -388,11 +394,6 @@
     "workingTreeClean": true
   },
   "remainingTasks": [
-    {
-      "task": 13,
-      "title": "Student Management UI",
-      "scope": "StudentsPage, StudentCreateModal, StudentProfilePage, StudentNotesView, useStudents hook"
-    },
     {
       "task": 14,
       "title": "Group Management UI, Enrollment Picker & Reschedule Modal",

@@ -21,8 +21,8 @@ Welcome, agent. This document is the **single canonical, durable, and authoritat
 1. **Inspect Actual Source Before Changing Architecture:** Do not trust memory or assume conventions. Before modifying any behavior, inspect the actual source code, migration files, and active tests.
 2. **Current Source Code Trumps Stale Walkthroughs:** If an older plan document or early design sketch contradicts the current production TypeScript files or latest database migrations in `packages/`, the **current production code and migration journals are authoritative**. Report any discrepancies before proposing architectural changes.
 3. **Architecture is v2.1:** All development conforms strictly to the revised v2.1 architectural alignments detailed in [TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md](file:///F:/tebyan/TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md).
-4. **Tasks 1 through 12 are COMPLETE:** All foundation, dual-database, domain core services (auth, student, group, session, backup, dashboard), design system, Electron shell/wizard, PIN login screen, and session presentation store are built, fully tested, and hardened up to commit `f79c8a3`.
-5. **Task 13 Has NOT Started:** Do not assume Task 13 is underway. Task 13 is the Student Management UI.
+4. **Tasks 1 through 13 are COMPLETE:** All foundation, dual-database, domain core services (auth, student, group, session, backup, dashboard), design system, Electron shell/wizard, PIN login screen, and student management UI are built, fully tested, and hardened up to commit `a88be7f`.
+5. **Task 14 Has NOT Started:** Do not assume Task 14 is underway. Task 14 is the Group Management UI, Enrollment Picker & Reschedule Modal.
 6. **One Task at a Time:** Always follow the strict workflow: understand requirements, inspect target files, formulate an implementation plan, obtain user approval, execute, verify against regression tests, and halt for review. Never batch multiple tasks.
 
 ---
@@ -420,7 +420,7 @@ The onboarding flow was implemented in Task 11 (`a6c0d04`, hardened in `145e0d3`
 
 ---
 
-## 18. Completed Task Ledger (Tasks 1–12)
+## 18. Completed Task Ledger (Tasks 1–13)
 
 All commits have been extracted directly from the live Git log:
 
@@ -438,6 +438,7 @@ All commits have been extracted directly from the live Git log:
 | **Task 10** | Electron Desktop Shell & Typed IPC | COMPLETE | `b207312` | `56724e2` | Electron shell, secure preload bridge, native module packaging, typed IPC handlers. |
 | **Task 11** | Desktop AppShell & First-Run Wizard | COMPLETE | `a6c0d04` | `145e0d3` | RTL layout, official logo sidebar, topbar, First-Run Wizard, atomic recovery on setup error. |
 | **Task 12** | 4-Digit PIN Auth Screen & Session Store | COMPLETE | `f79c8a3` | — | UserCard, LoginScreen with account-scoped cooldown and absolute deadline derivation, safe LoginUserDto projection, RootLayout splash/retry boot, cross-user cache isolation, immediate PIN wipe. |
+| **Task 13** | Student Management UI | COMPLETE | `a88be7f` | — | StudentsPage directory with search/filters, StudentCreateModal with independent dimensions and phone validation, StudentProfilePage, StudentNotesView with distinct tag badges, opaque photo token selection, custom `tibyan-media://` protocol. |
 
 ---
 
@@ -445,27 +446,27 @@ All commits have been extracted directly from the live Git log:
 
 The repository has been empirically verified with zero failures across all packages:
 
-- **Vitest Unit & Integration Tests (18 files, 373 tests):**
+- **Vitest Unit & Integration Tests (19 files, 397 tests):**
   - `@tibyan/contracts`: 1 test file, **42 passed**
   - `@tibyan/db`: 1 test file, **25 passed**
   - `@tibyan/core`: 10 test files, **196 passed**
   - `@tibyan/design-system`: 1 test file, **29 passed**
-  - `@tibyan/desktop`: 5 test files, **81 passed**
-  - **Monorepo Total:** **373 tests passed (0 failed)**
+  - `@tibyan/desktop`: 6 test files, **105 passed**
+  - **Monorepo Total:** **397 tests passed (0 failed)**
 - **TypeScript Typecheck (`pnpm -r typecheck`):** **0 errors** across all 5 workspace projects.
+- **Production Desktop Build (`pnpm --filter @tibyan/desktop build`):** **0 errors**, full Vite and Electron bundles built.
 - **Database Schema Drift (`pnpm --filter @tibyan/db db:generate`):** **Zero schema drift** ("No schema changes, nothing to migrate 😴").
 - **Official Logo Integrity:** SHA-256 is exactly `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`.
 - **Lint Scripts:** Package-level lint scripts are currently unconfigured in `package.json` (as expected).
-- **Working Tree:** Clean at Task 12 commit `f79c8a3`.
+- **Working Tree:** Clean at Task 13 commit `a88be7f`.
 
 ---
 
-## 20. Remaining Phase 1 Tasks (Tasks 13–17)
+## 20. Remaining Phase 1 Tasks (Tasks 14–17)
 
 | Task # | Task Name | Status | Primary Responsibilities |
 |---|---|---|---|
-| **Task 13** | Student Management UI | **NEXT** | Student list table, search, create/edit modal with `EducationSystem` & `GradeLevel`, photo upload, profile, notes timeline. |
-| **Task 14** | Group Management UI, Enrollment Picker & Reschedule Modal | PENDING | Group cards/table, recurring schedule picker, student enrollment modal with fee overrides, session reschedule modal. |
+| **Task 14** | Group Management UI, Enrollment Picker & Reschedule Modal | **NEXT** | Group cards/table, recurring schedule picker, student enrollment modal with fee overrides, session reschedule modal. |
 | **Task 15** | Real-Data Today Dashboard UI | PENDING | Today's scheduled/rescheduled classes using live SQLite data, quick stats, `NEEDS_FOLLOW_UP` attention card. |
 | **Task 16** | Settings, Academic Year Switcher & Backup Tab | PENDING | Academic year manager (create/switch), user & assistant account management, manual backup trigger & status view. |
 | **Task 17** | Windows Packaging, Playwright Smoke Tests & Hardening | PENDING | End-to-end smoke tests against packaged NSIS binary, ASAR native binary verification, release hardening. |
