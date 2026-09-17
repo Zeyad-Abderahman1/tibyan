@@ -1,0 +1,341 @@
+import { describe, it, expect } from 'vitest';
+import {
+  PinSchema,
+  EgyptianGuardianPhoneSchema,
+  EducationSystemSchema,
+  GradeLevelSchema,
+  LanguageTrackSchema,
+  MathBranchSchema,
+  PaymentTypeSchema,
+  UserRoleSchema,
+  ActorTypeSchema,
+  PermissionCodeSchema,
+  StudentStatusSchema,
+  StudentNoteTagSchema,
+  SessionStatusSchema,
+  WeekdaySchema,
+  CreateStudentSchema,
+  CreateGroupSchema,
+  EnrollStudentSchema,
+  RescheduleSessionSchema,
+  CreateAuditEntrySchema,
+  CreateAcademicYearSchema,
+  normalizeEgyptianPhone,
+} from '../src/index.js';
+
+const VALID_UUID = 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d';
+
+describe('Contracts — PIN Validation', () => {
+  it('accepts valid 4-digit numeric PINs', () => {
+    expect(PinSchema.parse('1234')).toBe('1234');
+    expect(PinSchema.parse('0000')).toBe('0000');
+    expect(PinSchema.parse('9876')).toBe('9876');
+    expect(PinSchema.parse('0123')).toBe('0123');
+  });
+
+  it('rejects invalid PINs', () => {
+    expect(() => PinSchema.parse('123')).toThrow(); // too short (3 digits)
+    expect(() => PinSchema.parse('12345')).toThrow(); // too long (5 digits)
+    expect(() => PinSchema.parse('abcd')).toThrow(); // alphabetic
+    expect(() => PinSchema.parse('12a4')).toThrow(); // mixed alphanumeric
+    expect(() => PinSchema.parse('')).toThrow(); // empty
+    expect(() => PinSchema.parse('12.4')).toThrow(); // decimal
+    expect(() => PinSchema.parse('-123')).toThrow(); // negative
+  });
+});
+
+describe('Contracts — Egyptian Guardian Phone Validation', () => {
+  it('accepts and normalizes local 11-digit Egyptian mobile numbers', () => {
+    expect(EgyptianGuardianPhoneSchema.parse('01012345678')).toBe('01012345678');
+    expect(EgyptianGuardianPhoneSchema.parse('01198765432')).toBe('01198765432');
+    expect(EgyptianGuardianPhoneSchema.parse('01200000000')).toBe('01200000000');
+    expect(EgyptianGuardianPhoneSchema.parse('01599999999')).toBe('01599999999');
+  });
+
+  it('accepts and normalizes international Egyptian mobile numbers (+20 and 0020)', () => {
+    expect(EgyptianGuardianPhoneSchema.parse('+201012345678')).toBe('01012345678');
+    expect(EgyptianGuardianPhoneSchema.parse('00201198765432')).toBe('01198765432');
+    expect(EgyptianGuardianPhoneSchema.parse('+2001234567890')).toBe('01234567890');
+  });
+
+  it('rejects invalid mobile numbers and landlines', () => {
+    expect(() => EgyptianGuardianPhoneSchema.parse('01312345678')).toThrow(); // 013 is Qalyubia landline
+    expect(() => EgyptianGuardianPhoneSchema.parse('0223456789')).toThrow(); // Cairo landline
+    expect(() => EgyptianGuardianPhoneSchema.parse('010123456')).toThrow(); // 9 digits (too short)
+    expect(() => EgyptianGuardianPhoneSchema.parse('010123456789')).toThrow(); // 12 digits (too long)
+    expect(() => EgyptianGuardianPhoneSchema.parse('abc')).toThrow();
+    expect(() => EgyptianGuardianPhoneSchema.parse('+15551234567')).toThrow(); // US format
+  });
+
+  it('normalizes spaces and hyphens cleanly', () => {
+    expect(normalizeEgyptianPhone('010-1234-5678')).toBe('01012345678');
+    expect(normalizeEgyptianPhone('+20 11 9876 5432')).toBe('01198765432');
+  });
+});
+
+describe('Contracts — EducationSystem & GradeLevel Independence', () => {
+  it('accepts GENERAL and EGYPTIAN_BACCALAUREATE independently', () => {
+    expect(EducationSystemSchema.parse('GENERAL')).toBe('GENERAL');
+    expect(EducationSystemSchema.parse('EGYPTIAN_BACCALAUREATE')).toBe('EGYPTIAN_BACCALAUREATE');
+  });
+
+  it('rejects removed/unsupported baccalaureate formats', () => {
+    expect(() => EducationSystemSchema.parse('FRENCH_BACCALAUREATE')).toThrow();
+    expect(() => EducationSystemSchema.parse('BACCALAUREATE')).toThrow(); // Must be EGYPTIAN_BACCALAUREATE
+  });
+
+  it('accepts all standard grade levels independently from education system', () => {
+    const grades = ['PREP_1', 'PREP_2', 'PREP_3', 'SEC_1', 'SEC_2', 'SEC_3'] as const;
+    grades.forEach((g) => {
+      expect(GradeLevelSchema.parse(g)).toBe(g);
+    });
+  });
+
+  it('creates student with EducationSystem and GradeLevel modeled separately', () => {
+    const student = CreateStudentSchema.parse({
+      fullName: 'أحمد محمود',
+      educationSystem: 'EGYPTIAN_BACCALAUREATE',
+      gradeLevel: 'SEC_2',
+      languageTrack: 'LANG_ENGLISH',
+      guardianPhone: '01012345678',
+    });
+
+    expect(student.educationSystem).toBe('EGYPTIAN_BACCALAUREATE');
+    expect(student.gradeLevel).toBe('SEC_2');
+    expect(student.languageTrack).toBe('LANG_ENGLISH');
+    expect(student.guardianPhone).toBe('01012345678');
+  });
+});
+
+describe('Contracts — Core Domain Enums Validation', () => {
+  it('validates LanguageTrack values', () => {
+    expect(LanguageTrackSchema.parse('ARABIC')).toBe('ARABIC');
+    expect(LanguageTrackSchema.parse('LANG_ENGLISH')).toBe('LANG_ENGLISH');
+    expect(() => LanguageTrackSchema.parse('FRENCH')).toThrow();
+  });
+
+  it('validates MathBranch values', () => {
+    const branches = [
+      'GENERAL_MATH',
+      'ALGEBRA',
+      'GEOMETRY',
+      'TRIGONOMETRY',
+      'CALCULUS',
+      'STATISTICS',
+      'APPLIED_MATH',
+    ] as const;
+    branches.forEach((b) => {
+      expect(MathBranchSchema.parse(b)).toBe(b);
+    });
+    expect(() => MathBranchSchema.parse('PHYSICS')).toThrow();
+  });
+
+  it('validates PaymentType values', () => {
+    expect(PaymentTypeSchema.parse('MONTHLY')).toBe('MONTHLY');
+    expect(PaymentTypeSchema.parse('PER_SESSION')).toBe('PER_SESSION');
+    expect(() => PaymentTypeSchema.parse('YEARLY')).toThrow();
+  });
+
+  it('validates UserRole and ActorType values', () => {
+    expect(UserRoleSchema.parse('OWNER')).toBe('OWNER');
+    expect(UserRoleSchema.parse('ASSISTANT')).toBe('ASSISTANT');
+    expect(() => UserRoleSchema.parse('ADMIN')).toThrow();
+
+    expect(ActorTypeSchema.parse('USER')).toBe('USER');
+    expect(ActorTypeSchema.parse('SYSTEM')).toBe('SYSTEM');
+    expect(() => ActorTypeSchema.parse('BOT')).toThrow();
+  });
+
+  it('validates PermissionCode values', () => {
+    const permissions = [
+      'STUDENTS_READ',
+      'STUDENTS_WRITE',
+      'GROUPS_READ',
+      'GROUPS_WRITE',
+      'SESSIONS_MANAGE',
+      'ATTENDANCE_WRITE',
+      'PAYMENTS_READ',
+      'PAYMENTS_WRITE',
+      'REPORTS_READ',
+      'SETTINGS_WRITE',
+      'USERS_MANAGE',
+      'BACKUP_MANAGE',
+    ] as const;
+    permissions.forEach((p) => {
+      expect(PermissionCodeSchema.parse(p)).toBe(p);
+    });
+    expect(() => PermissionCodeSchema.parse('INVALID_PERMISSION')).toThrow();
+  });
+
+  it('validates StudentStatus and StudentNoteTag values', () => {
+    expect(StudentStatusSchema.parse('ACTIVE')).toBe('ACTIVE');
+    expect(StudentStatusSchema.parse('INACTIVE')).toBe('INACTIVE');
+    expect(() => StudentStatusSchema.parse('SUSPENDED')).toThrow();
+
+    const tags = ['GENERAL', 'ACADEMIC_WEAKNESS', 'EXCELLENT', 'BEHAVIOR', 'NEEDS_FOLLOW_UP'] as const;
+    tags.forEach((t) => {
+      expect(StudentNoteTagSchema.parse(t)).toBe(t);
+    });
+  });
+
+  it('validates SessionStatus and Weekday values', () => {
+    const statuses = ['SCHEDULED', 'COMPLETED', 'RESCHEDULED', 'CANCELLED_BY_TEACHER'] as const;
+    statuses.forEach((s) => {
+      expect(SessionStatusSchema.parse(s)).toBe(s);
+    });
+
+    for (let day = 0; day <= 6; day++) {
+      expect(WeekdaySchema.parse(day)).toBe(day);
+    }
+    expect(() => WeekdaySchema.parse(7)).toThrow();
+    expect(() => WeekdaySchema.parse(-1)).toThrow();
+  });
+});
+
+describe('Contracts — Enrollment Payment Overrides', () => {
+  it('defaults payment overrides to null on enrollment', () => {
+    const enrollment = EnrollStudentSchema.parse({
+      groupId: VALID_UUID,
+      studentId: VALID_UUID,
+    });
+
+    expect(enrollment.paymentTypeOverride).toBeNull();
+    expect(enrollment.paymentAmountOverride).toBeNull();
+  });
+
+  it('allows explicit payment overrides on enrollment', () => {
+    const enrollment = EnrollStudentSchema.parse({
+      groupId: VALID_UUID,
+      studentId: VALID_UUID,
+      paymentTypeOverride: 'PER_SESSION',
+      paymentAmountOverride: 175.5,
+    });
+
+    expect(enrollment.paymentTypeOverride).toBe('PER_SESSION');
+    expect(enrollment.paymentAmountOverride).toBe(175.5);
+  });
+
+  it('rejects negative payment amounts on overrides', () => {
+    expect(() =>
+      EnrollStudentSchema.parse({
+        groupId: VALID_UUID,
+        studentId: VALID_UUID,
+        paymentAmountOverride: -50,
+      })
+    ).toThrow();
+  });
+
+  it('rejects negative default payment amount on groups', () => {
+    expect(() =>
+      CreateGroupSchema.parse({
+        name: 'مجموعة 3ث لغات',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'SEC_3',
+        languageTrack: 'LANG_ENGLISH',
+        defaultPaymentType: 'MONTHLY',
+        defaultPaymentAmount: -300,
+      })
+    ).toThrow();
+  });
+});
+
+describe('Contracts — Audit Actor Requirements (USER vs SYSTEM)', () => {
+  it('accepts SYSTEM actor with null actorUserId', () => {
+    const entry = CreateAuditEntrySchema.parse({
+      actorType: 'SYSTEM',
+      actorUserId: null,
+      actorNameSnapshot: 'BackupEngine',
+      action: 'BACKUP_CREATE',
+      entityType: 'SYSTEM',
+      entityId: 'backup-001',
+    });
+
+    expect(entry.actorType).toBe('SYSTEM');
+    expect(entry.actorUserId).toBeNull();
+    expect(entry.actorNameSnapshot).toBe('BackupEngine');
+  });
+
+  it('accepts USER actor with valid actorUserId', () => {
+    const entry = CreateAuditEntrySchema.parse({
+      actorType: 'USER',
+      actorUserId: VALID_UUID,
+      actorNameSnapshot: 'الأستاذ أحمد',
+      action: 'STUDENT_CREATE',
+      entityType: 'STUDENT',
+      entityId: VALID_UUID,
+    });
+
+    expect(entry.actorType).toBe('USER');
+    expect(entry.actorUserId).toBe(VALID_UUID);
+  });
+
+  it('rejects USER actor when actorUserId is null', () => {
+    expect(() =>
+      CreateAuditEntrySchema.parse({
+        actorType: 'USER',
+        actorUserId: null,
+        actorNameSnapshot: 'الأستاذ أحمد',
+        action: 'STUDENT_CREATE',
+        entityType: 'STUDENT',
+        entityId: VALID_UUID,
+      })
+    ).toThrow(/actorUserId is required when actorType is USER/);
+  });
+});
+
+describe('Contracts — Session Rescheduling & Date/Time Validation', () => {
+  it('validates correct rescheduling inputs', () => {
+    const reschedule = RescheduleSessionSchema.parse({
+      sessionId: VALID_UUID,
+      newEffectiveDate: '2026-10-18',
+      newEffectiveStartTime: '17:30',
+      reason: 'سفر مفاجئ للمدرس',
+    });
+
+    expect(reschedule.newEffectiveDate).toBe('2026-10-18');
+    expect(reschedule.newEffectiveStartTime).toBe('17:30');
+    expect(reschedule.reason).toBe('سفر مفاجئ للمدرس');
+  });
+
+  it('rejects invalid dates or times', () => {
+    expect(() =>
+      RescheduleSessionSchema.parse({
+        sessionId: VALID_UUID,
+        newEffectiveDate: '18-10-2026', // wrong date format
+        newEffectiveStartTime: '17:30',
+        reason: 'سبب',
+      })
+    ).toThrow();
+
+    expect(() =>
+      RescheduleSessionSchema.parse({
+        sessionId: VALID_UUID,
+        newEffectiveDate: '2026-10-18',
+        newEffectiveStartTime: '25:00', // invalid hour
+        reason: 'سبب',
+      })
+    ).toThrow();
+
+    expect(() =>
+      RescheduleSessionSchema.parse({
+        sessionId: VALID_UUID,
+        newEffectiveDate: '2026-10-18',
+        newEffectiveStartTime: '17:30',
+        reason: '   ', // whitespace only
+      })
+    ).toThrow();
+  });
+});
+
+describe('Contracts — Academic Year Format', () => {
+  it('accepts valid academic year format YYYY-YYYY', () => {
+    expect(CreateAcademicYearSchema.parse({ name: '2026-2027' }).name).toBe('2026-2027');
+    expect(CreateAcademicYearSchema.parse({ name: '2027-2028' }).name).toBe('2027-2028');
+  });
+
+  it('rejects invalid academic year formats', () => {
+    expect(() => CreateAcademicYearSchema.parse({ name: '2026' })).toThrow();
+    expect(() => CreateAcademicYearSchema.parse({ name: '2026/2027' })).toThrow();
+    expect(() => CreateAcademicYearSchema.parse({ name: '26-27' })).toThrow();
+  });
+});

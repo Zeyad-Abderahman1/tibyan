@@ -1,0 +1,56 @@
+export const IPC_CHANNELS = {
+  // Auth
+  AUTH_LIST_USERS: 'auth:listUsers',
+  AUTH_LOGIN_PIN: 'auth:loginPin',
+  AUTH_LOGOUT: 'auth:logout',
+  AUTH_GET_SESSION: 'auth:getSession',
+  AUTH_CREATE_USER: 'auth:createUser',
+  AUTH_UPDATE_PERMISSIONS: 'auth:updatePermissions',
+  AUTH_CHANGE_STATUS: 'auth:changeStatus',
+  AUTH_RESET_PIN: 'auth:resetPin',
+
+  // Students
+  STUDENTS_LIST: 'students:list',
+  STUDENTS_GET_BY_ID: 'students:getById',
+  STUDENTS_CREATE: 'students:create',
+  STUDENTS_UPDATE: 'students:update',
+  STUDENTS_ADD_NOTE: 'students:addNote',
+  STUDENTS_LIST_NOTES: 'students:listNotes',
+  STUDENTS_CHOOSE_PHOTO_DIALOG: 'students:choosePhotoDialog',
+
+  // Groups
+  GROUPS_LIST: 'groups:list',
+  GROUPS_GET_BY_ID: 'groups:getById',
+  GROUPS_CREATE: 'groups:create',
+  GROUPS_UPDATE: 'groups:update',
+  GROUPS_SET_SCHEDULE: 'groups:setSchedule',
+
+  // Enrollments
+  ENROLLMENTS_LIST_BY_GROUP: 'enrollments:listByGroup',
+  ENROLLMENTS_ENROLL: 'enrollments:enroll',
+  ENROLLMENTS_UPDATE_PAYMENT: 'enrollments:updatePayment',
+  ENROLLMENTS_END: 'enrollments:end',
+
+  // Sessions & Rescheduling
+  SESSIONS_LIST_BY_RANGE: 'sessions:listByRange',
+  SESSIONS_RESCHEDULE: 'sessions:reschedule',
+  SESSIONS_CANCEL: 'sessions:cancel',
+
+  // Dashboard
+  DASHBOARD_GET_TODAY: 'dashboard:getToday',
+
+  // Backup
+  BACKUP_TRIGGER: 'backup:trigger',
+  BACKUP_GET_STATUS: 'backup:getStatus',
+  BACKUP_LIST_RECORDS: 'backup:listRecords',
+
+  // System & Academic Year
+  SYSTEM_GET_INFO: 'system:getInfo',
+  SYSTEM_GET_SETTINGS: 'system:getSettings',
+  SYSTEM_UPDATE_THEME: 'system:updateTheme',
+  SYSTEM_LIST_ACADEMIC_YEARS: 'system:listAcademicYears',
+  SYSTEM_CREATE_ACADEMIC_YEAR: 'system:createAcademicYear',
+  SYSTEM_SWITCH_ACADEMIC_YEAR: 'system:switchAcademicYear',
+} as const;
+
+export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];
