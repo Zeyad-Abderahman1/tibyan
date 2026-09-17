@@ -439,6 +439,7 @@ All commits have been extracted directly from the live Git log:
 | **Task 11** | Desktop AppShell & First-Run Wizard | COMPLETE | `a6c0d04` | `145e0d3` | RTL layout, official logo sidebar, topbar, First-Run Wizard, atomic recovery on setup error. |
 | **Task 12** | 4-Digit PIN Auth Screen & Session Store | COMPLETE | `f79c8a3` | — | UserCard, LoginScreen with account-scoped cooldown and absolute deadline derivation, safe LoginUserDto projection, RootLayout splash/retry boot, cross-user cache isolation, immediate PIN wipe. |
 | **Task 13** | Student Management UI | COMPLETE | `a88be7f` | `34169ba` | StudentsPage directory with search/filters, StudentCreateModal with independent dimensions and phone validation, StudentProfilePage, StudentNotesView with distinct tag badges, opaque photo token selection, custom `tibyan-media://` protocol. |
+| **Task 14** | Group Management UI, Enrollment Picker & Reschedule Modal | COMPLETE | `5b0c0ad` | — | Real groups directory, multi-slot schedule editor with duplicate check, student enrollment modal with fee overrides, single-session reschedule modal, useGroups hook. |
 
 ---
 
@@ -446,60 +447,55 @@ All commits have been extracted directly from the live Git log:
 
 The repository has been empirically verified with zero failures across all packages:
 
-- **Vitest Unit & Integration Tests (19 files, 415 tests):**
+- **Vitest Unit & Integration Tests (20 files, 432 tests):**
   - `@tibyan/contracts`: 1 test file, **42 passed**
   - `@tibyan/db`: 1 test file, **25 passed**
   - `@tibyan/core`: 10 test files, **196 passed**
   - `@tibyan/design-system`: 1 test file, **29 passed**
-  - `@tibyan/desktop`: 6 test files, **123 passed**
-  - **Monorepo Total:** **415 tests passed (0 failed)**
+  - `@tibyan/desktop`: 7 test files, **140 passed**
+  - **Monorepo Total:** **432 tests passed (0 failed)**
 - **TypeScript Typecheck (`pnpm -r typecheck`):** **0 errors** across all 5 workspace projects.
 - **Production Desktop Build (`pnpm --filter @tibyan/desktop build`):** **0 errors**, full Vite and Electron bundles built.
 - **Database Schema Drift (`pnpm --filter @tibyan/db db:generate`):** **Zero schema drift** ("No schema changes, nothing to migrate 😴").
 - **Official Logo Integrity:** SHA-256 is exactly `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`.
 - **Lint Scripts:** Package-level lint scripts are currently unconfigured in `package.json` (as expected).
-- **Working Tree:** Clean at Task 13 hardening commit `34169ba` (Original: `a88be7f`).
+- **Working Tree:** Clean at Task 14 commit `5b0c0ad`.
 
 ---
 
-## 20. Remaining Phase 1 Tasks (Tasks 14–17)
+## 20. Remaining Phase 1 Tasks (Tasks 15–17)
 
 | Task # | Task Name | Status | Primary Responsibilities |
 |---|---|---|---|
-| **Task 14** | Group Management UI, Enrollment Picker & Reschedule Modal | **NEXT** | Group cards/table, recurring schedule picker, student enrollment modal with fee overrides, session reschedule modal. |
-| **Task 15** | Real-Data Today Dashboard UI | PENDING | Today's scheduled/rescheduled classes using live SQLite data, quick stats, `NEEDS_FOLLOW_UP` attention card. |
+| **Task 15** | Real-Data Today Dashboard UI | **NEXT** | Today's scheduled/rescheduled classes using live SQLite data, quick stats, `NEEDS_FOLLOW_UP` attention card. |
 | **Task 16** | Settings, Academic Year Switcher & Backup Tab | PENDING | Academic year manager (create/switch), user & assistant account management, manual backup trigger & status view. |
 | **Task 17** | Windows Packaging, Playwright Smoke Tests & Hardening | PENDING | End-to-end smoke tests against packaged NSIS binary, ASAR native binary verification, release hardening. |
 
 ---
 
-## 21. Task 14 Starting Context
+## 21. Task 15 Starting Context
 
-Task 14 is the **immediate next task** to execute.
+Task 15 is the **immediate next task** to execute.
 
 > [!IMPORTANT]
-> **Task 14 is NOT STARTED.** Zero Task 14 code has been written. Await explicit user approval of the Task 14 plan before writing any Task 14 code.
+> **Task 15 is NOT STARTED.** Zero Task 15 code has been written. Await explicit user approval of the Task 15 plan before writing any Task 15 code.
 
 ### 21.1 Task Objective
-Build the Group Management, Student Enrollment, and Session Rescheduling UI:
-1. **Groups Directory & Schedule Grid (`GroupsPage.tsx`):** High-density view of all academic groups, day/time schedule slots, active student counts, and grade badges.
-2. **Group Creation & Edit Modal (`GroupCreateModal.tsx`):** Create and edit groups with name, grade level, language track, weekly recurring schedule slots, default payment type, and default monthly/per-session fee.
-3. **Group Details & Enrollment Roster (`GroupDetailsPage.tsx`):** Detailed group view showing active schedule, enrolled students table with effective payment rates (inherited vs overridden), attendance summaries, and session timeline.
-4. **Student Enrollment Modal (`EnrollmentModal.tsx`):** Enroll student into group with optional payment override (`paymentTypeOverride`, `paymentAmountOverride`). Re-enrolling historical students preserves audit trail.
-5. **Session Reschedule Modal (`RescheduleSessionModal.tsx`):** Single-session exception reschedule modal (date/time mutation of single session without altering the recurring group schedule or duplicating occurrences).
-6. **TanStack Query Hook (`useGroups.ts`):** Cached hooks for groups, enrollments, and session scheduling interfacing with `window.tibyan.groups`, `window.tibyan.enrollments`, and `window.tibyan.sessions`.
-7. **Unit & Component Tests (`GroupsPage.test.tsx`):** Vitest test suite covering group creation, enrollment payment calculation, session rescheduling, and permission enforcement.
+Build the Real-Data Today Dashboard UI:
+1. **Today Dashboard View (`TodayPage.tsx`):** Teacher's primary daily command center displaying today's scheduled and rescheduled classes.
+2. **Class Schedule Card (`ClassScheduleCard.tsx`):** Real-time class session cards sorted by `effectiveStartTime` with occurrence badges (rescheduled, cancelled, active).
+3. **Needs Attention Card (`NeedsAttentionCard.tsx`):** Direct action alerts derived exclusively from `NEEDS_FOLLOW_UP` student notes.
+4. **Dashboard Hook (`useDashboard.ts`):** TanStack Query hook interfacing with `window.tibyan.dashboard.getTodaySummary()`.
+5. **Unit & Component Tests (`TodayPage.test.tsx`):** Vitest test suite covering dashboard metrics, schedule rendering, and follow-up flags.
 
 ### 21.2 Available IPC Integration Surface:
-- `window.tibyan.groups`: `list()`, `getById(groupId)`, `create(input)`, `update(input)`, `setSchedule(input)`
-- `window.tibyan.enrollments`: `listByGroup(groupId)`, `enroll(input)`, `updatePayment(input)`, `end(input)`
-- `window.tibyan.sessions`: `materializeRollingSessions()`, `listByRange(input)`, `reschedule(input)`, `cancel(input)`
+- `window.tibyan.dashboard`: `getTodaySummary(date?)`
 
-### 21.3 Key Invariants for Task 14:
-- **Rescheduled Occurrence Idempotency:** Rescheduling updates `effective_date` and `effective_start_time` while preserving the immutable `occurrence_key`. The 28-day materializer must never recreate a duplicate session for the original recurring slot.
-- **Enrollment-Scoped Payment Independence:** Overrides live on `GroupEnrollment`. A student enrolled in multiple groups must maintain independent pricing terms per group.
-- **Strict Isolation:** UI components must interact exclusively via typed IPC methods.
-- **Do NOT Start Task 15:** Complete Task 14 in isolation and await user review before proceeding.
+### 21.3 Key Invariants for Task 15:
+- **Strictly Read-Only:** Dashboard queries perform zero mutations and trigger zero session materializations.
+- **Rescheduled Session Visuals:** Clear visual distinction for sessions whose effective date/time differs from scheduled date/time.
+- **Strict Layer Isolation:** Renderer interacts exclusively via typed IPC methods.
+- **Do NOT Start Task 16:** Complete Task 15 in isolation and await user review before proceeding.
 
 ---
 

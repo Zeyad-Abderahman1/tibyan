@@ -14,10 +14,10 @@
     "phaseName": "Foundation & Desktop Core",
     "totalTasks": 17
   },
-  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
   "nextTask": {
-    "taskNumber": 14,
-    "taskName": "Group Management UI, Enrollment Picker & Reschedule Modal",
+    "taskNumber": 15,
+    "taskName": "Real-Data Today Dashboard UI",
     "isStarted": false
   },
   "taskStatus": {
@@ -34,8 +34,8 @@
     "11": "COMPLETE",
     "12": "COMPLETE",
     "13": "COMPLETE",
-    "14": "NOT_STARTED",
-    "15": "PENDING",
+    "14": "COMPLETE",
+    "15": "NOT_STARTED",
     "16": "PENDING",
     "17": "PENDING"
   },
@@ -366,11 +366,17 @@
       "sha": "34169ba",
       "type": "hardening",
       "message": "fix(desktop): harden student photo transport and media authorization"
+    },
+    {
+      "task": 14,
+      "sha": "5b0c0ad",
+      "type": "base",
+      "message": "feat(desktop): build group management UI, enrollment picker, and reschedule modal"
     }
   ],
   "testBaseline": {
-    "totalTestFiles": 19,
-    "totalTests": 415,
+    "totalTestFiles": 20,
+    "totalTests": 432,
     "packages": {
       "@tibyan/contracts": {
         "testFiles": 1,
@@ -389,8 +395,8 @@
         "testsPassed": 29
       },
       "@tibyan/desktop": {
-        "testFiles": 6,
-        "testsPassed": 123
+        "testFiles": 7,
+        "testsPassed": 140
       }
     },
     "typecheckErrors": 0,
@@ -400,11 +406,6 @@
     "workingTreeClean": true
   },
   "remainingTasks": [
-    {
-      "task": 14,
-      "title": "Group Management UI, Enrollment Picker & Reschedule Modal",
-      "scope": "GroupsPage, GroupCreateModal, GroupDetailsPage, EnrollmentModal, RescheduleSessionModal, useGroups hook"
-    },
     {
       "task": 15,
       "title": "Real-Data Today Dashboard UI",
