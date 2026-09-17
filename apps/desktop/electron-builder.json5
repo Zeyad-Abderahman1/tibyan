@@ -1,0 +1,19 @@
+{
+  "appId": "com.tibyan.desktop",
+  "productName": "تِبيان",
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "dist/**/*",
+    "dist-electron/**/*"
+  ],
+  "asar": true,
+  "asarUnpack": [
+    "**/*.node"
+  ],
+  "win": {
+    "target": "nsis"
+  },
+  "npmRebuild": true
+}
