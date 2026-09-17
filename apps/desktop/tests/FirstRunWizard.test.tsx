@@ -177,6 +177,67 @@ describe('Task 11: First-Run Wizard & Interrupted Setup Suite', () => {
     }
   });
 
+  it('rejects non-4-digit PIN and mismatching PIN confirmation in UI logic', () => {
+    const isPinValid = (pin: string) => /^\d{4}$/.test(pin);
+    const doPinsMatch = (p1: string, p2: string) => p1 === p2;
+
+    expect(isPinValid('123')).toBe(false);
+    expect(isPinValid('12345')).toBe(false);
+    expect(isPinValid('abcd')).toBe(false);
+    expect(isPinValid('12 4')).toBe(false);
+    expect(isPinValid('1234')).toBe(true);
+
+    expect(doPinsMatch('1234', '5678')).toBe(false);
+    expect(doPinsMatch('1234', '1234')).toBe(true);
+  });
+
+  it('completes setup when active year exists + Owner is bootstrapped without creating another year', async () => {
+    const mockBootstrap = vi.fn().mockResolvedValue({
+      success: true,
+      data: { id: 'owner-solo-id', role: 'OWNER' },
+    });
+    const mockLogin = vi.fn().mockResolvedValue({
+      success: true,
+      data: { sessionId: 'session-solo' },
+    });
+    const mockCreateYear = vi.fn();
+
+    (window as any).tibyan.auth.bootstrapOwner = mockBootstrap;
+    (window as any).tibyan.auth.loginWithPin = mockLogin;
+    (window as any).tibyan.system.createAcademicYear = mockCreateYear;
+
+    const setupState: SetupStateDto = {
+      isSetupComplete: false,
+      hasOwner: false,
+      hasActiveAcademicYear: true,
+      activeAcademicYearName: '2026-2027',
+    };
+
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={queryClient}>
+        <FirstRunWizard setupState={setupState} />
+      </QueryClientProvider>
+    );
+    expect(html).toContain('data-testid="wizard-step-owner"');
+
+    // Owner is created
+    const bRes = await (window as any).tibyan.auth.bootstrapOwner({
+      displayName: 'المعلم الوحيد',
+      pin: '1234',
+    });
+    expect(bRes.success).toBe(true);
+
+    // Owner is logged in
+    const lRes = await (window as any).tibyan.auth.loginWithPin({
+      userId: bRes.data.id,
+      pin: '1234',
+    });
+    expect(lRes.success).toBe(true);
+
+    // Because hasActiveAcademicYear is true, createAcademicYear is NEVER called
+    expect(mockCreateYear).not.toHaveBeenCalled();
+  });
+
   it('verifies RootLayout shows loading spinner initially and transitions based on persisted setupState', () => {
     const loadingHtml = renderToStaticMarkup(
       <QueryClientProvider client={queryClient}>

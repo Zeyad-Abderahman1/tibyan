@@ -452,4 +452,237 @@ describe('Task 10 — Typed IPC Bridge & Main Session Authority', () => {
     expect(runtime.paths.backupRootDir).toBe(path.join(runtime.paths.appDataDir, 'backups'));
     expect((runtime.backupService as any).backupRootDir).toBe(path.resolve(runtime.paths.appDataDir, 'backups'));
   });
+
+  it('interrupted onboarding: active academic year exists + no Owner preserves year and completes upon Owner bootstrap', async () => {
+    // 1. Manually insert an academic year into system database
+    const year = runtime.academicYearRepo.create({
+      id: 'year-existing-1',
+      name: '2026-2027',
+      dbFilename: 'tibyan-2026-2027.sqlite',
+      isActive: true,
+      isArchived: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    runtime.mountAcademicYear(year);
+
+    // Initial state: has active year but no owner
+    const setup1 = await invoke(IPC_CHANNELS.SYSTEM_GET_SETUP_STATE);
+    expect(setup1.success).toBe(true);
+    expect(setup1.data.hasOwner).toBe(false);
+    expect(setup1.data.hasActiveAcademicYear).toBe(true);
+    expect(setup1.data.isSetupComplete).toBe(false);
+
+    // 2. Create the missing Owner
+    const ownerRes = await invoke(IPC_CHANNELS.AUTH_BOOTSTRAP_OWNER, {
+      fullName: 'أحمد المسؤول',
+      username: 'owner-solo',
+      pin: '5678',
+    });
+    expect(ownerRes.success).toBe(true);
+
+    // 3. Authenticate the Owner
+    const loginRes = await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, {
+      userId: ownerRes.data.id,
+      pin: '5678',
+    });
+    expect(loginRes.success).toBe(true);
+
+    // 4. Setup state is now complete, without creating another year
+    const setup2 = await invoke(IPC_CHANNELS.SYSTEM_GET_SETUP_STATE);
+    expect(setup2.success).toBe(true);
+    expect(setup2.data.hasOwner).toBe(true);
+    expect(setup2.data.hasActiveAcademicYear).toBe(true);
+    expect(setup2.data.isSetupComplete).toBe(true);
+
+    // Verify exactly one academic year exists (the preserved one)
+    const allYears = runtime.academicYearRepo.listAll();
+    expect(allYears.length).toBe(1);
+    expect(allYears[0]?.id).toBe('year-existing-1');
+  });
+
+  it('interrupted onboarding: Owner exists + no academic year rejects duplicate Owner bootstrap and resumes', async () => {
+    // 1. Bootstrap owner
+    const ownerRes = await invoke(IPC_CHANNELS.AUTH_BOOTSTRAP_OWNER, {
+      fullName: 'أحمد المسؤول',
+      username: 'owner-existing',
+      pin: '1234',
+    });
+    expect(ownerRes.success).toBe(true);
+
+    // Setup state: has owner but no academic year
+    const setup1 = await invoke(IPC_CHANNELS.SYSTEM_GET_SETUP_STATE);
+    expect(setup1.success).toBe(true);
+    expect(setup1.data.hasOwner).toBe(true);
+    expect(setup1.data.hasActiveAcademicYear).toBe(false);
+    expect(setup1.data.isSetupComplete).toBe(false);
+
+    // 2. Attempting to bootstrap a second owner is rejected
+    const secondBootstrap = await invoke(IPC_CHANNELS.AUTH_BOOTSTRAP_OWNER, {
+      fullName: 'معلم آخر',
+      username: 'another-owner',
+      pin: '9999',
+    });
+    expect(secondBootstrap.success).toBe(false);
+    expect(secondBootstrap.error.code).toBe('OWNER_ALREADY_EXISTS');
+
+    // 3. Authenticate existing owner
+    const loginRes = await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, {
+      userId: ownerRes.data.id,
+      pin: '1234',
+    });
+    expect(loginRes.success).toBe(true);
+
+    // 4. Complete setup by creating initial academic year
+    const yearRes = await invoke(IPC_CHANNELS.SYSTEM_CREATE_ACADEMIC_YEAR, {
+      name: '2026-2027',
+    });
+    expect(yearRes.success).toBe(true);
+
+    const setup2 = await invoke(IPC_CHANNELS.SYSTEM_GET_SETUP_STATE);
+    expect(setup2.success).toBe(true);
+    expect(setup2.data.isSetupComplete).toBe(true);
+  });
+
+  it('rejects non-consecutive academic year names at trusted IPC boundary', async () => {
+    const ownerRes = await invoke(IPC_CHANNELS.AUTH_BOOTSTRAP_OWNER, {
+      fullName: 'المعلم',
+      username: 'teacher-validation',
+      pin: '1234',
+    });
+    await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, { userId: ownerRes.data.id, pin: '1234' });
+
+    // Non-consecutive: 2026-2028
+    const res1 = await invoke(IPC_CHANNELS.SYSTEM_CREATE_ACADEMIC_YEAR, { name: '2026-2028' });
+    expect(res1.success).toBe(false);
+    expect(res1.error.code).toBe('VALIDATION_ERROR');
+
+    // Same year: 2026-2026
+    const res2 = await invoke(IPC_CHANNELS.SYSTEM_CREATE_ACADEMIC_YEAR, { name: '2026-2026' });
+    expect(res2.success).toBe(false);
+    expect(res2.error.code).toBe('VALIDATION_ERROR');
+
+    // Inverted: 2027-2026
+    const res3 = await invoke(IPC_CHANNELS.SYSTEM_CREATE_ACADEMIC_YEAR, { name: '2027-2026' });
+    expect(res3.success).toBe(false);
+    expect(res3.error.code).toBe('VALIDATION_ERROR');
+
+    // Valid consecutive: 2026-2027 succeeds
+    const res4 = await invoke(IPC_CHANNELS.SYSTEM_CREATE_ACADEMIC_YEAR, { name: '2026-2027' });
+    expect(res4.success).toBe(true);
+  });
+
+  it('repeated academic year creation cannot create duplicate registry rows or overwrite file', async () => {
+    const ownerRes = await invoke(IPC_CHANNELS.AUTH_BOOTSTRAP_OWNER, {
+      fullName: 'المعلم',
+      username: 'teacher-repeat',
+      pin: '1234',
+    });
+    await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, { userId: ownerRes.data.id, pin: '1234' });
+
+    const first = await invoke(IPC_CHANNELS.SYSTEM_CREATE_ACADEMIC_YEAR, { name: '2026-2027' });
+    expect(first.success).toBe(true);
+
+    // Repeated call with same name must fail
+    const repeated = await invoke(IPC_CHANNELS.SYSTEM_CREATE_ACADEMIC_YEAR, { name: '2026-2027' });
+    expect(repeated.success).toBe(false);
+    expect(repeated.error.code).toBe('ACADEMIC_YEAR_ALREADY_EXISTS');
+    expect(repeated.error.message).toContain('already exists');
+
+    // Only one row in registry
+    const all = runtime.academicYearRepo.listAll();
+    expect(all.length).toBe(1);
+  });
+
+  it('compensates and deletes partial database file when registry insertion fails', async () => {
+    const diskDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tibyan-compensation-test-'));
+    const diskRuntime = new Runtime({ inMemory: false, customAppDataDir: diskDir });
+    diskRuntime.initialize();
+
+    unregisterAllIpcHandlers();
+    registerAllIpcHandlers(diskRuntime, mockWindow);
+
+    try {
+      const ownerRes = await invoke(IPC_CHANNELS.AUTH_BOOTSTRAP_OWNER, {
+        fullName: 'المعلم التعويضي',
+        username: 'teacher-comp',
+        pin: '1234',
+      });
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, {
+        userId: ownerRes.data.id,
+        pin: '1234',
+      });
+
+      const targetDbFile = path.join(diskRuntime.paths.academicYearsDbDir, 'tibyan-2026-2027.sqlite');
+      expect(fs.existsSync(targetDbFile)).toBe(false);
+
+      // Force registry creation to fail
+      vi.spyOn(diskRuntime.academicYearRepo, 'create').mockImplementationOnce(() => {
+        throw new Error('SIMULATED_REGISTRY_WRITE_FAILURE');
+      });
+
+      const createRes = await invoke(IPC_CHANNELS.SYSTEM_CREATE_ACADEMIC_YEAR, {
+        name: '2026-2027',
+      });
+
+      expect(createRes.success).toBe(false);
+
+      // Crucial: The newly created SQLite file must have been cleaned up (compensation)
+      expect(fs.existsSync(targetDbFile)).toBe(false);
+
+      // Crucial: No orphan registry row exists
+      expect(diskRuntime.academicYearRepo.listAll().length).toBe(0);
+    } finally {
+      unregisterAllIpcHandlers();
+      diskRuntime.close();
+      registerAllIpcHandlers(runtime, mockWindow);
+      try {
+        fs.rmSync(diskDir, { recursive: true, force: true });
+      } catch {}
+    }
+  });
+
+  it('rejects creation and never overwrites an existing database file on disk', async () => {
+    const diskDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tibyan-collision-test-'));
+    const diskRuntime = new Runtime({ inMemory: false, customAppDataDir: diskDir });
+    diskRuntime.initialize();
+
+    unregisterAllIpcHandlers();
+    registerAllIpcHandlers(diskRuntime, mockWindow);
+
+    try {
+      const ownerRes = await invoke(IPC_CHANNELS.AUTH_BOOTSTRAP_OWNER, {
+        fullName: 'المعلم',
+        username: 'teacher-collision',
+        pin: '1234',
+      });
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, {
+        userId: ownerRes.data.id,
+        pin: '1234',
+      });
+
+      // Pre-create an existing file on disk with custom sentinel content
+      const targetDbFile = path.join(diskRuntime.paths.academicYearsDbDir, 'tibyan-2026-2027.sqlite');
+      fs.writeFileSync(targetDbFile, 'PRE_EXISTING_FILE_CONTENT');
+
+      const createRes = await invoke(IPC_CHANNELS.SYSTEM_CREATE_ACADEMIC_YEAR, {
+        name: '2026-2027',
+      });
+
+      // Creation must be rejected due to collision
+      expect(createRes.success).toBe(false);
+      expect(createRes.error.code).toBe('DATABASE_FILE_COLLISION');
+
+      // The pre-existing file must NEVER be deleted or overwritten
+      expect(fs.existsSync(targetDbFile)).toBe(true);
+      expect(fs.readFileSync(targetDbFile, 'utf8')).toBe('PRE_EXISTING_FILE_CONTENT');
+    } finally {
+      unregisterAllIpcHandlers();
+      diskRuntime.close();
+      registerAllIpcHandlers(runtime, mockWindow);
+      try {
+        fs.rmSync(diskDir, { recursive: true, force: true });
+      } catch {}
+    }
+  });
 });

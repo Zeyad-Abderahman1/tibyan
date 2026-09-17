@@ -12,7 +12,8 @@ import {
   type SetupStateDto,
   type AcademicYearDto,
 } from '@tibyan/contracts';
-import type { AcademicYearRow } from '@tibyan/db';
+import type { AcademicYearRow, DatabaseType } from '@tibyan/db';
+import { createRawDatabase, migrateAcademicDatabase } from '@tibyan/db';
 import { requirePermission } from '@tibyan/core';
 import type { Runtime } from '../runtime.js';
 import { safeIpcCall } from './errors.js';
@@ -134,30 +135,85 @@ export function registerSystemIpcHandlers(runtime: Runtime, mainWindow: BrowserW
         throw new Error(`Academic year database ${dbFilename} is already registered.`);
       }
 
-      // Check for existing physical file collision on disk
-      const targetFilePath = path.resolve(runtime.paths.academicYearsDbDir, dbFilename);
+      // Security check: dbFilename traversal and boundary escape
+      const normalized = path.normalize(dbFilename);
+      if (path.isAbsolute(normalized) || normalized.includes('..') || path.basename(normalized) !== normalized) {
+        throw new Error(`SECURITY_ERROR: Invalid academic year dbFilename traversal detected: ${dbFilename}`);
+      }
+
+      const resolvedCanonicalDir = path.resolve(runtime.paths.academicYearsDbDir);
+      const targetFilePath = runtime.inMemory
+        ? ':memory:'
+        : path.resolve(resolvedCanonicalDir, normalized);
+
+      if (!runtime.inMemory && !targetFilePath.startsWith(resolvedCanonicalDir)) {
+        throw new Error(`SECURITY_ERROR: Academic year database path escaped canonical root: ${targetFilePath}`);
+      }
+
+      // Check for existing physical file collision on disk before mutating anything
       if (!runtime.inMemory && fs.existsSync(targetFilePath)) {
         throw new Error(`DATABASE_FILE_COLLISION: File already exists on disk: ${dbFilename}`);
       }
 
+      let fileCreatedByThisOperation = false;
+
+      // 1. Create and migrate the NEW academic SQLite database BEFORE committing registry row
+      if (!runtime.inMemory) {
+        let tempRaw: DatabaseType | null = null;
+        try {
+          tempRaw = createRawDatabase(targetFilePath);
+          fileCreatedByThisOperation = true;
+          migrateAcademicDatabase(tempRaw);
+        } catch (dbErr) {
+          if (tempRaw?.open) {
+            tempRaw.close();
+          }
+          // Remove only the new/partial file created by this operation
+          if (fileCreatedByThisOperation && fs.existsSync(targetFilePath)) {
+            try {
+              fs.unlinkSync(targetFilePath);
+            } catch {}
+          }
+          throw dbErr;
+        } finally {
+          if (tempRaw?.open) {
+            tempRaw.close();
+          }
+        }
+      }
+
       const shouldActivate = allYears.length === 0;
 
-      const created = runtime.academicYearRepo.create({
-        id: yearId,
-        name: validated.name,
-        dbFilename,
-        isActive: shouldActivate,
-        isArchived: false,
-        createdAt: now,
-        updatedAt: now,
-      });
+      // 2. Commit the registry row in system database
+      let created: AcademicYearRow;
+      try {
+        created = runtime.academicYearRepo.create({
+          id: yearId,
+          name: validated.name,
+          dbFilename,
+          isActive: shouldActivate,
+          isArchived: false,
+          createdAt: now,
+          updatedAt: now,
+        });
+      } catch (registryErr) {
+        // If database creation succeeded but registry insertion fails, delete only the newly created database file
+        if (!runtime.inMemory && fileCreatedByThisOperation && fs.existsSync(targetFilePath)) {
+          try {
+            fs.unlinkSync(targetFilePath);
+          } catch {}
+        }
+        throw registryErr;
+      }
 
+      // 3. Mount the year if shouldActivate
       if (shouldActivate) {
         try {
           runtime.mountAcademicYear(created);
         } catch (mountErr) {
-          // If mounting fails after registry creation, do not delete registry row silently;
-          // throw error so caller can report recovery
+          // If final runtime mount fails after both resources are valid,
+          // preserve the registered year and valid database file so startup/recovery can retry.
+          // Do not silently destroy them.
           throw mountErr;
         }
       }

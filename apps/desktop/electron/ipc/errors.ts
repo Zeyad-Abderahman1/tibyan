@@ -83,6 +83,15 @@ export function mapErrorToIpcResult(err: unknown): IpcResult<never> {
     if (err.message.includes('NOT_FOUND') || err.message.includes('not found')) {
       return errorResult('NOT_FOUND', 'The requested resource was not found.');
     }
+    if (err.message.includes('DATABASE_FILE_COLLISION')) {
+      return errorResult('DATABASE_FILE_COLLISION', 'An academic year database file already exists on disk.');
+    }
+    if (err.message.includes('already exists') || err.message.includes('already registered')) {
+      return errorResult('ACADEMIC_YEAR_ALREADY_EXISTS', err.message);
+    }
+    if (err.message.includes('SECURITY_ERROR')) {
+      return errorResult('SECURITY_ERROR', 'A security restriction prevented this operation.');
+    }
   }
 
   // 10. Fallback: completely sanitized internal error (never leaks stack or host paths)

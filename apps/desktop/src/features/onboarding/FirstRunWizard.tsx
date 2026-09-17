@@ -114,8 +114,16 @@ export function FirstRunWizard({ setupState, onComplete }: FirstRunWizardProps) 
         return;
       }
 
-      // 4. Advance to Academic Year Step
-      setStep('academic-year');
+      // 4. Invalidate system/setup queries
+      await queryClient.invalidateQueries({ queryKey: ['systemSettings'] });
+      await queryClient.invalidateQueries({ queryKey: ['setupState'] });
+
+      // If active academic year already exists (interrupted setup recovery), transition to complete
+      if (setupState?.hasActiveAcademicYear) {
+        setStep('complete');
+      } else {
+        setStep('academic-year');
+      }
     } catch (err: any) {
       setErrorMessage(err.message || 'حدث خطأ غير متوقع أثناء إعداد الحساب.');
     } finally {
