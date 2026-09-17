@@ -1,32 +1,37 @@
 import { z } from 'zod';
 import { ActorTypeSchema } from '../enums/auth.js';
 
-export const CreateAuditEntrySchema = z
-  .object({
-    actorType: ActorTypeSchema,
-    actorUserId: z.string().uuid('Invalid actor user ID').nullable(),
-    actorNameSnapshot: z.string().trim().min(1, 'Actor name snapshot cannot be empty'),
-    action: z.string().trim().min(1, 'Action cannot be empty'),
-    entityType: z.string().trim().min(1, 'Entity type cannot be empty'),
-    entityId: z.string().trim().min(1, 'Entity ID cannot be empty'),
-    beforeJson: z.string().nullable().optional().default(null),
-    afterJson: z.string().nullable().optional().default(null),
-    metadataJson: z.string().nullable().optional().default(null),
-  })
-  .refine(
-    (data) => {
-      // USER events require a valid non-null user ID
-      if (data.actorType === 'USER') {
-        return typeof data.actorUserId === 'string' && data.actorUserId.length > 0;
-      }
-      // SYSTEM events allow null actorUserId
-      return true;
-    },
-    {
-      message: 'actorUserId is required when actorType is USER',
-      path: ['actorUserId'],
-    }
-  );
+const BaseAuditEntrySchema = z.object({
+  actorNameSnapshot: z.string().trim().min(1, 'Actor name snapshot cannot be empty'),
+  action: z.string().trim().min(1, 'Action cannot be empty'),
+  entityType: z.string().trim().min(1, 'Entity type cannot be empty'),
+  entityId: z.string().trim().min(1, 'Entity ID cannot be empty'),
+  beforeJson: z.string().nullable().optional().default(null),
+  afterJson: z.string().nullable().optional().default(null),
+  metadataJson: z.string().nullable().optional().default(null),
+});
+
+export const UserAuditEntrySchema = BaseAuditEntrySchema.extend({
+  actorType: z.literal('USER'),
+  actorUserId: z.string().uuid('Invalid actor user ID for USER actor'),
+});
+export type UserAuditEntryInput = z.infer<typeof UserAuditEntrySchema>;
+
+export const SystemAuditEntrySchema = BaseAuditEntrySchema.extend({
+  actorType: z.literal('SYSTEM'),
+  actorUserId: z.literal(null).default(null),
+});
+export type SystemAuditEntryInput = z.infer<typeof SystemAuditEntrySchema>;
+
+/**
+ * Discriminated union schema enforcing strict audit actor invariants:
+ * - When actorType is 'USER', actorUserId must be a valid non-null UUID.
+ * - When actorType is 'SYSTEM', actorUserId must be strictly null.
+ */
+export const CreateAuditEntrySchema = z.discriminatedUnion('actorType', [
+  UserAuditEntrySchema,
+  SystemAuditEntrySchema,
+]);
 export type CreateAuditEntryInput = z.infer<typeof CreateAuditEntrySchema>;
 
 export const AuditQueryFilterSchema = z.object({

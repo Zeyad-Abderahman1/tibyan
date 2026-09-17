@@ -20,6 +20,8 @@ import {
   RescheduleSessionSchema,
   CreateAuditEntrySchema,
   CreateAcademicYearSchema,
+  CalendarDateSchema,
+  isValidCalendarDate,
   normalizeEgyptianPhone,
 } from '../src/index.js';
 
@@ -239,8 +241,8 @@ describe('Contracts — Enrollment Payment Overrides', () => {
   });
 });
 
-describe('Contracts — Audit Actor Requirements (USER vs SYSTEM)', () => {
-  it('accepts SYSTEM actor with null actorUserId', () => {
+describe('Contracts — Audit Actor Invariants (Discriminated Union)', () => {
+  it('SYSTEM actor with actorUserId null passes.', () => {
     const entry = CreateAuditEntrySchema.parse({
       actorType: 'SYSTEM',
       actorUserId: null,
@@ -255,7 +257,20 @@ describe('Contracts — Audit Actor Requirements (USER vs SYSTEM)', () => {
     expect(entry.actorNameSnapshot).toBe('BackupEngine');
   });
 
-  it('accepts USER actor with valid actorUserId', () => {
+  it('SYSTEM actor with non-null actorUserId fails.', () => {
+    expect(() =>
+      CreateAuditEntrySchema.parse({
+        actorType: 'SYSTEM',
+        actorUserId: VALID_UUID,
+        actorNameSnapshot: 'BackupEngine',
+        action: 'BACKUP_CREATE',
+        entityType: 'SYSTEM',
+        entityId: 'backup-001',
+      })
+    ).toThrow();
+  });
+
+  it('USER actor with valid UUID passes.', () => {
     const entry = CreateAuditEntrySchema.parse({
       actorType: 'USER',
       actorUserId: VALID_UUID,
@@ -269,7 +284,7 @@ describe('Contracts — Audit Actor Requirements (USER vs SYSTEM)', () => {
     expect(entry.actorUserId).toBe(VALID_UUID);
   });
 
-  it('rejects USER actor when actorUserId is null', () => {
+  it('USER actor with null actorUserId fails.', () => {
     expect(() =>
       CreateAuditEntrySchema.parse({
         actorType: 'USER',
@@ -279,7 +294,31 @@ describe('Contracts — Audit Actor Requirements (USER vs SYSTEM)', () => {
         entityType: 'STUDENT',
         entityId: VALID_UUID,
       })
-    ).toThrow(/actorUserId is required when actorType is USER/);
+    ).toThrow();
+  });
+});
+
+describe('Contracts — Real Calendar Date Validation', () => {
+  it('Date 2026-02-30 fails.', () => {
+    expect(isValidCalendarDate('2026-02-30')).toBe(false);
+    expect(() => CalendarDateSchema.parse('2026-02-30')).toThrow();
+  });
+
+  it('Date 2028-02-29 passes.', () => {
+    expect(isValidCalendarDate('2028-02-29')).toBe(true);
+    expect(CalendarDateSchema.parse('2028-02-29')).toBe('2028-02-29');
+  });
+
+  it('Date 2027-02-29 fails.', () => {
+    expect(isValidCalendarDate('2027-02-29')).toBe(false);
+    expect(() => CalendarDateSchema.parse('2027-02-29')).toThrow();
+  });
+
+  it('rejects impossible months like 2026-13-01 and 2026-00-10', () => {
+    expect(isValidCalendarDate('2026-13-01')).toBe(false);
+    expect(isValidCalendarDate('2026-00-10')).toBe(false);
+    expect(() => CalendarDateSchema.parse('2026-13-01')).toThrow();
+    expect(() => CalendarDateSchema.parse('2026-00-10')).toThrow();
   });
 });
 
@@ -297,43 +336,63 @@ describe('Contracts — Session Rescheduling & Date/Time Validation', () => {
     expect(reschedule.reason).toBe('سفر مفاجئ للمدرس');
   });
 
-  it('rejects invalid dates or times', () => {
+  it('rejects invalid dates or times in session rescheduling', () => {
+    // Non-existent date 2026-02-30
     expect(() =>
       RescheduleSessionSchema.parse({
         sessionId: VALID_UUID,
-        newEffectiveDate: '18-10-2026', // wrong date format
+        newEffectiveDate: '2026-02-30',
         newEffectiveStartTime: '17:30',
         reason: 'سبب',
       })
     ).toThrow();
 
+    // Invalid hour
     expect(() =>
       RescheduleSessionSchema.parse({
         sessionId: VALID_UUID,
         newEffectiveDate: '2026-10-18',
-        newEffectiveStartTime: '25:00', // invalid hour
+        newEffectiveStartTime: '25:00',
         reason: 'سبب',
       })
     ).toThrow();
 
+    // Whitespace only reason
     expect(() =>
       RescheduleSessionSchema.parse({
         sessionId: VALID_UUID,
         newEffectiveDate: '2026-10-18',
         newEffectiveStartTime: '17:30',
-        reason: '   ', // whitespace only
+        reason: '   ',
       })
     ).toThrow();
   });
 });
 
-describe('Contracts — Academic Year Format', () => {
-  it('accepts valid academic year format YYYY-YYYY', () => {
+describe('Contracts — Academic Year Semantic Validation', () => {
+  it('Academic year 2026-2027 passes.', () => {
     expect(CreateAcademicYearSchema.parse({ name: '2026-2027' }).name).toBe('2026-2027');
-    expect(CreateAcademicYearSchema.parse({ name: '2027-2028' }).name).toBe('2027-2028');
   });
 
-  it('rejects invalid academic year formats', () => {
+  it('Academic year 2026-2028 fails.', () => {
+    expect(() => CreateAcademicYearSchema.parse({ name: '2026-2028' })).toThrow(
+      /Ending year must equal starting year \+ 1/
+    );
+  });
+
+  it('Academic year 2026-2026 fails.', () => {
+    expect(() => CreateAcademicYearSchema.parse({ name: '2026-2026' })).toThrow(
+      /Ending year must equal starting year \+ 1/
+    );
+  });
+
+  it('rejects reversed academic year ranges like 2027-2026', () => {
+    expect(() => CreateAcademicYearSchema.parse({ name: '2027-2026' })).toThrow(
+      /Ending year must equal starting year \+ 1/
+    );
+  });
+
+  it('rejects malformed academic year strings', () => {
     expect(() => CreateAcademicYearSchema.parse({ name: '2026' })).toThrow();
     expect(() => CreateAcademicYearSchema.parse({ name: '2026/2027' })).toThrow();
     expect(() => CreateAcademicYearSchema.parse({ name: '26-27' })).toThrow();

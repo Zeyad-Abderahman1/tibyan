@@ -5,14 +5,11 @@ import {
   GradeLevelSchema,
   LanguageTrackSchema,
 } from '../enums/academic.js';
-import { DATE_YYYYMMDD_REGEX, TIME_HHMM_REGEX } from '../common/regex.js';
+import { CalendarDateSchema, TIME_HHMM_REGEX } from '../common/regex.js';
 
 export const RescheduleSessionSchema = z.object({
   sessionId: z.string().uuid('Invalid session ID format'),
-  newEffectiveDate: z
-    .string()
-    .trim()
-    .regex(DATE_YYYYMMDD_REGEX, 'Date must be in YYYY-MM-DD format'),
+  newEffectiveDate: CalendarDateSchema,
   newEffectiveStartTime: z
     .string()
     .trim()
@@ -28,14 +25,8 @@ export const CancelSessionSchema = z.object({
 export type CancelSessionInput = z.infer<typeof CancelSessionSchema>;
 
 export const ListSessionsByDateRangeSchema = z.object({
-  startDate: z
-    .string()
-    .trim()
-    .regex(DATE_YYYYMMDD_REGEX, 'Start date must be in YYYY-MM-DD format'),
-  endDate: z
-    .string()
-    .trim()
-    .regex(DATE_YYYYMMDD_REGEX, 'End date must be in YYYY-MM-DD format'),
+  startDate: CalendarDateSchema,
+  endDate: CalendarDateSchema,
   groupId: z.string().uuid().optional(),
 });
 export type ListSessionsByDateRangeInput = z.infer<typeof ListSessionsByDateRangeSchema>;

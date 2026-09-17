@@ -1,11 +1,24 @@
 import { z } from 'zod';
 
-export const CreateAcademicYearSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .regex(/^\d{4}-\d{4}$/, 'Academic year must be in format YYYY-YYYY (e.g. 2026-2027)'),
-});
+export const CreateAcademicYearSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{4}$/, 'Academic year must be in format YYYY-YYYY (e.g. 2026-2027)'),
+  })
+  .refine(
+    (data) => {
+      const parts = data.name.split('-');
+      const startYear = parseInt(parts[0]!, 10);
+      const endYear = parseInt(parts[1]!, 10);
+      return endYear === startYear + 1;
+    },
+    {
+      message: 'Ending year must equal starting year + 1 (e.g. 2026-2027)',
+      path: ['name'],
+    }
+  );
 export type CreateAcademicYearInput = z.infer<typeof CreateAcademicYearSchema>;
 
 export const SwitchAcademicYearSchema = z.object({
