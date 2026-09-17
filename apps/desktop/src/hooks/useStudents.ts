@@ -2,8 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type {
   StudentDto,
   StudentNoteDto,
-  CreateStudentInput,
-  UpdateStudentInput,
+  CreateStudentIpcInput,
+  UpdateStudentIpcInput,
   CreateStudentNoteInput,
   StudentFilterInput,
   PhotoSelectionDto,
@@ -73,7 +73,7 @@ export function useCreateStudent() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: CreateStudentInput): Promise<IpcResult<StudentDto>> => {
+    mutationFn: async (input: CreateStudentIpcInput): Promise<IpcResult<StudentDto>> => {
       if (typeof window !== 'undefined' && window.tibyan?.students?.create) {
         return window.tibyan.students.create(input);
       }
@@ -92,7 +92,7 @@ export function useUpdateStudent() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: UpdateStudentInput): Promise<IpcResult<StudentDto>> => {
+    mutationFn: async (input: UpdateStudentIpcInput): Promise<IpcResult<StudentDto>> => {
       if (typeof window !== 'undefined' && window.tibyan?.students?.update) {
         return window.tibyan.students.update(input);
       }

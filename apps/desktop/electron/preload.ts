@@ -14,8 +14,8 @@ import {
   type ResetUserPinInput,
   type StudentDto,
   type StudentNoteDto,
-  type CreateStudentInput,
-  type UpdateStudentInput,
+  type CreateStudentIpcInput,
+  type UpdateStudentIpcInput,
   type CreateStudentNoteInput,
   type StudentFilterInput,
   type PhotoSelectionDto,
@@ -87,10 +87,10 @@ export const tibyanApi: TibyanApi = {
     getById(studentId: string): Promise<IpcResult<StudentDto>> {
       return ipcRenderer.invoke(IPC_CHANNELS.STUDENTS_GET_BY_ID, studentId);
     },
-    create(input: CreateStudentInput): Promise<IpcResult<StudentDto>> {
+    create(input: CreateStudentIpcInput): Promise<IpcResult<StudentDto>> {
       return ipcRenderer.invoke(IPC_CHANNELS.STUDENTS_CREATE, input);
     },
-    update(input: UpdateStudentInput): Promise<IpcResult<StudentDto>> {
+    update(input: UpdateStudentIpcInput): Promise<IpcResult<StudentDto>> {
       return ipcRenderer.invoke(IPC_CHANNELS.STUDENTS_UPDATE, input);
     },
     addNote(input: CreateStudentNoteInput): Promise<IpcResult<StudentNoteDto>> {

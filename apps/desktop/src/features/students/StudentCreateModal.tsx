@@ -11,8 +11,10 @@ import type {
   EducationSystem,
   GradeLevel,
   LanguageTrack,
+  CreateStudentIpcInput,
+  UpdateStudentIpcInput,
 } from '@tibyan/contracts';
-import { EGYPTIAN_PHONE_REGEX } from '@tibyan/contracts';
+import { EgyptianGuardianPhoneSchema } from '@tibyan/contracts';
 import { useCreateStudent, useUpdateStudent, useChooseStudentPhoto } from '../../hooks/useStudents.js';
 
 export interface StudentCreateModalProps {
@@ -129,8 +131,11 @@ export function StudentCreateModal({
     const trimmedPhone = guardianPhone.trim();
     if (!trimmedPhone) {
       errs.guardianPhone = 'رقم هاتف ولي الأمر مطلوب';
-    } else if (!EGYPTIAN_PHONE_REGEX.test(trimmedPhone)) {
-      errs.guardianPhone = 'رقم الهاتف غير صالح. يجب أن يكون 11 رقماً ويبدأ بـ 010 أو 011 أو 012 أو 015';
+    } else {
+      const phoneParse = EgyptianGuardianPhoneSchema.safeParse(trimmedPhone);
+      if (!phoneParse.success) {
+        errs.guardianPhone = 'رقم الهاتف غير صالح. يجب أن يكون رقماً مصرياً يبدأ بـ 010 أو 011 أو 012 أو 015 (مثال: 01012345678 أو +201012345678 أو 00201012345678)';
+      }
     }
 
     setErrors(errs);
@@ -145,7 +150,7 @@ export function StudentCreateModal({
 
     try {
       if (isEdit && initialStudent) {
-        const updatePayload: any = {
+        const updatePayload: UpdateStudentIpcInput = {
           studentId: initialStudent.id,
           fullName: fullName.trim(),
           educationSystem,
@@ -155,10 +160,11 @@ export function StudentCreateModal({
         };
 
         if (photoToken) {
-          updatePayload.photoPath = photoToken;
+          updatePayload.photoToken = photoToken;
         } else if (photoRemoved) {
-          updatePayload.photoPath = null;
+          updatePayload.photoToken = null;
         }
+        // photoToken undefined preserves existing photo
 
         const res = await updateMutation.mutateAsync(updatePayload);
         if (res.success) {
@@ -168,13 +174,13 @@ export function StudentCreateModal({
           setSubmitError(res.error.message || 'فشل تحديث بيانات الطالب');
         }
       } else {
-        const createPayload = {
+        const createPayload: CreateStudentIpcInput = {
           fullName: fullName.trim(),
           educationSystem,
           gradeLevel,
           languageTrack,
           guardianPhone: guardianPhone.trim(),
-          photoPath: photoToken ?? null,
+          photoToken: photoToken ?? null,
           initialNote: initialNote.trim() ? initialNote.trim() : undefined,
         };
 

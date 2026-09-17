@@ -11,11 +11,14 @@ import { StudentProfilePage } from '../src/features/students/StudentProfilePage.
 import { StudentCreateModal } from '../src/features/students/StudentCreateModal.js';
 import { StudentNotesView } from '../src/features/students/StudentNotesView.js';
 import { useAuthStore } from '../src/features/auth/auth.state.js';
-import type {
-  StudentDto,
-  StudentNoteDto,
-  UserSessionDto,
-  PhotoSelectionDto,
+import {
+  type StudentDto,
+  type StudentNoteDto,
+  type UserSessionDto,
+  type PhotoSelectionDto,
+  EgyptianGuardianPhoneSchema,
+  CreateStudentIpcSchema,
+  UpdateStudentIpcSchema,
 } from '@tibyan/contracts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -539,6 +542,112 @@ describe('Task 13: Student Management UI Suite', () => {
       expect(content).not.toMatch(/from ['"]path['"]/);
       expect(content).not.toMatch(/from ['"]electron['"]/);
       expect(content).not.toContain('ipcRenderer');
+    });
+  });
+
+  // 8. Guardian Phone Schema & Renderer Contract Hardening
+  describe('Guardian Phone Canonical Contract & Form Hardening', () => {
+    it('accepts every format currently supported by EgyptianGuardianPhoneSchema', () => {
+      const validNumbers = [
+        '01012345678', // Vodafone local
+        '01198765432', // Etisalat local
+        '01200000000', // Orange local
+        '01599999999', // WE local
+        '+201012345678', // International with +20
+        '+201198765432',
+        '+2001234567890', // International with +20 and leading zero
+        '00201012345678', // International with 0020
+        '00201198765432',
+      ];
+
+      for (const num of validNumbers) {
+        const parsed = EgyptianGuardianPhoneSchema.safeParse(num);
+        expect(parsed.success, `Expected ${num} to be valid`).toBe(true);
+        if (parsed.success) {
+          expect(parsed.data).toMatch(/^01[0125]\d{8}$/);
+        }
+      }
+    });
+
+    it('rejects unsupported phone formats, landlines, and invalid lengths', () => {
+      const invalidNumbers = [
+        '01312345678', // Qalyubia landline
+        '0223456789', // Cairo landline
+        '010123456', // 9 digits (too short)
+        '010123456789', // 12 digits (too long)
+        'abc', // Alphabetic
+        '+15551234567', // US format
+        '', // Empty
+        '01412345678', // Invalid carrier prefix
+      ];
+
+      for (const num of invalidNumbers) {
+        const parsed = EgyptianGuardianPhoneSchema.safeParse(num);
+        expect(parsed.success, `Expected ${num} to be rejected`).toBe(false);
+      }
+    });
+
+    it('validates that CreateStudentIpcSchema strictly accepts photoToken and rejects photoPath', () => {
+      const valid = {
+        fullName: 'أحمد محمود',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+        photoToken: '12345678-1234-4234-8234-123456789012',
+      };
+      expect(CreateStudentIpcSchema.safeParse(valid).success).toBe(true);
+
+      // photoPath must be rejected by schema refinement
+      const withPhotoPath = {
+        ...valid,
+        photoPath: 'C:\\photo.jpg',
+      };
+      const pathResult = CreateStudentIpcSchema.safeParse(withPhotoPath);
+      expect(pathResult.success).toBe(false);
+
+      // Arbitrary host string in photoToken must be rejected by UUID format check
+      const withBadToken = {
+        ...valid,
+        photoToken: 'C:\\photo.jpg',
+      };
+      const tokenResult = CreateStudentIpcSchema.safeParse(withBadToken);
+      expect(tokenResult.success).toBe(false);
+    });
+
+    it('validates UpdateStudentIpcSchema handles photoToken undefined, null, and UUID string states', () => {
+      const base = {
+        studentId: '12345678-1234-4234-8234-123456789012',
+        fullName: 'أحمد محمود',
+      };
+
+      // 1. photoToken undefined (preserves existing photo)
+      const undefRes = UpdateStudentIpcSchema.safeParse(base);
+      expect(undefRes.success).toBe(true);
+      if (undefRes.success) {
+        expect(undefRes.data.photoToken).toBeUndefined();
+      }
+
+      // 2. photoToken null (explicit photo removal)
+      const nullRes = UpdateStudentIpcSchema.safeParse({ ...base, photoToken: null });
+      expect(nullRes.success).toBe(true);
+      if (nullRes.success) {
+        expect(nullRes.data.photoToken).toBeNull();
+      }
+
+      // 3. photoToken string (valid UUID replacement)
+      const uuidRes = UpdateStudentIpcSchema.safeParse({
+        ...base,
+        photoToken: '87654321-4321-4321-8321-210987654321',
+      });
+      expect(uuidRes.success).toBe(true);
+      if (uuidRes.success) {
+        expect(uuidRes.data.photoToken).toBe('87654321-4321-4321-8321-210987654321');
+      }
+
+      // 4. photoPath must be rejected
+      const pathRes = UpdateStudentIpcSchema.safeParse({ ...base, photoPath: 'C:\\photo.jpg' });
+      expect(pathRes.success).toBe(false);
     });
   });
 });

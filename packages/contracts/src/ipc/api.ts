@@ -13,8 +13,8 @@ import {
 import {
   StudentDto,
   StudentNoteDto,
-  CreateStudentInput,
-  UpdateStudentInput,
+  CreateStudentIpcInput,
+  UpdateStudentIpcInput,
   CreateStudentNoteInput,
   StudentFilterInput,
   PhotoSelectionDto,
@@ -69,8 +69,8 @@ export interface TibyanApi {
   students: {
     list(filter?: StudentFilterInput): Promise<IpcResult<StudentDto[]>>;
     getById(studentId: string): Promise<IpcResult<StudentDto>>;
-    create(input: CreateStudentInput): Promise<IpcResult<StudentDto>>;
-    update(input: UpdateStudentInput): Promise<IpcResult<StudentDto>>;
+    create(input: CreateStudentIpcInput): Promise<IpcResult<StudentDto>>;
+    update(input: UpdateStudentIpcInput): Promise<IpcResult<StudentDto>>;
     addNote(input: CreateStudentNoteInput): Promise<IpcResult<StudentNoteDto>>;
     listNotes(studentId: string): Promise<IpcResult<StudentNoteDto[]>>;
     choosePhotoDialog(): Promise<IpcResult<PhotoSelectionDto | null>>;

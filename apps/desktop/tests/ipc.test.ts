@@ -50,6 +50,10 @@ vi.mock('electron', () => {
     contextBridge: {
       exposeInMainWorld: vi.fn(),
     },
+    protocol: {
+      handle: vi.fn(),
+      registerSchemesAsPrivileged: vi.fn(),
+    },
   };
 });
 
@@ -59,6 +63,12 @@ import os from 'os';
 import { Runtime } from '../electron/runtime.js';
 import { registerAllIpcHandlers, unregisterAllIpcHandlers } from '../electron/ipc/index.js';
 import { mapErrorToIpcResult } from '../electron/ipc/errors.js';
+import { handleMediaProtocolRequest } from '../electron/media-protocol.js';
+import {
+  registerPhotoTokenForTesting,
+  clearPhotoTokensForTesting,
+  photoTokenRegistry,
+} from '../electron/ipc/students.ipc.js';
 import { IPC_CHANNELS } from '@tibyan/contracts';
 
 describe('Task 10 — Typed IPC Bridge & Main Session Authority', () => {
@@ -684,5 +694,493 @@ describe('Task 10 — Typed IPC Bridge & Main Session Authority', () => {
         fs.rmSync(diskDir, { recursive: true, force: true });
       } catch {}
     }
+  });
+
+  describe('Task 13 — Student Photo Transport, Token Lifecycle, and Media Authorization', () => {
+    const MINIMAL_JPEG = Buffer.from([
+      0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
+      0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xff, 0xdb, 0x00, 0x43,
+      0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08, 0x07, 0x07, 0x07, 0x09,
+      0x09, 0x08, 0x0a, 0x0c, 0x14, 0x0d, 0x0c, 0x0b, 0x0b, 0x0c, 0x19, 0x12,
+      0x13, 0x0f, 0x14, 0x1d, 0x1a, 0x1f, 0x1e, 0x1d, 0x1a, 0x1c, 0x1c, 0x20,
+      0x24, 0x2e, 0x27, 0x20, 0x22, 0x2c, 0x23, 0x1c, 0x1c, 0x28, 0x37, 0x29,
+      0x2c, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1f, 0x27, 0x39, 0x3d, 0x38, 0x32,
+      0x3c, 0x2e, 0x33, 0x34, 0x32, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01,
+      0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xc4, 0x00, 0x1f, 0x00, 0x00,
+      0x01, 0x05, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+      0x09, 0x0a, 0x0b, 0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f,
+      0x00, 0xbf, 0x00, 0xff, 0xd9,
+    ]);
+
+    let ownerUserId: string;
+    let activeYearId: string;
+    let validPhotoFilePath: string;
+
+    beforeEach(async () => {
+      clearPhotoTokensForTesting();
+
+      // 1. Bootstrap owner and login
+      const ownerRes = await invoke(IPC_CHANNELS.AUTH_BOOTSTRAP_OWNER, {
+        fullName: 'الأستاذ أحمد الشريف',
+        username: 'teacher-task13',
+        pin: '1234',
+      });
+      ownerUserId = ownerRes.data.id;
+
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, {
+        userId: ownerUserId,
+        pin: '1234',
+      });
+
+      // 2. Create academic year and mount it
+      const yearRes = await invoke(IPC_CHANNELS.SYSTEM_CREATE_ACADEMIC_YEAR, {
+        name: '2026-2027',
+      });
+      activeYearId = yearRes.data.id;
+
+      // 3. Prepare test photo on disk
+      validPhotoFilePath = path.join(testDir, 'source-valid-test.jpg');
+      fs.writeFileSync(validPhotoFilePath, MINIMAL_JPEG);
+    });
+
+    afterEach(() => {
+      clearPhotoTokensForTesting();
+    });
+
+    it('rejects renderer create payload when photoPath or arbitrary path strings are supplied', async () => {
+      // Direct photoPath forbidden in IPC schema
+      const resWithPath = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'طالب غير مسموح',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+        photoPath: 'C:\\arbitrary\\path.jpg',
+      });
+      expect(resWithPath.success).toBe(false);
+      expect(resWithPath.error.code).toBe('VALIDATION_ERROR');
+      expect(JSON.stringify(resWithPath.error.details)).toContain('photoPath is not permitted in renderer requests');
+
+      // Arbitrary host filesystem path in photoToken rejected by UUID validator
+      const resWithBadToken = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'طالب بمسار غير صالح',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+        photoToken: 'C:\\Windows\\System32\\photo.jpg',
+      });
+      expect(resWithBadToken.success).toBe(false);
+      expect(resWithBadToken.error.code).toBe('VALIDATION_ERROR');
+      expect(JSON.stringify(resWithBadToken.error.details)).toContain('Invalid photo token format');
+
+      // Traversal in photoToken rejected by UUID validator
+      const resWithTraversal = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'طالب باختراق مسار',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+        photoToken: '../secrets/photo.jpg',
+      });
+      expect(resWithTraversal.success).toBe(false);
+      expect(resWithTraversal.error.code).toBe('VALIDATION_ERROR');
+      expect(JSON.stringify(resWithTraversal.error.details)).toContain('Invalid photo token format');
+    });
+
+    it('creates student with valid photoToken, copies photo to managed storage, and consumes token', async () => {
+      const token = '11111111-2222-4333-8444-555555555555';
+      registerPhotoTokenForTesting(token, {
+        sourcePath: validPhotoFilePath,
+        userId: ownerUserId,
+        academicYearId: activeYearId,
+        expiresAt: Date.now() + 600000,
+      });
+
+      const res = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'محمد علي',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+        photoToken: token,
+      });
+
+      expect(res.success).toBe(true);
+      expect(res.data.photoPath).toMatch(/^students\/[a-f0-9-]+-[a-f0-9-]+\.jpg$/);
+      expect(res.data.photoUrl).toBe(`tibyan-media://${res.data.photoPath}`);
+
+      // Token must be purged immediately (one-time use)
+      expect(photoTokenRegistry.has(token)).toBe(false);
+    });
+
+    it('prevents replay of an already consumed photo token', async () => {
+      const token = '22222222-3333-4444-8555-666666666666';
+      registerPhotoTokenForTesting(token, {
+        sourcePath: validPhotoFilePath,
+        userId: ownerUserId,
+        academicYearId: activeYearId,
+        expiresAt: Date.now() + 600000,
+      });
+
+      const res1 = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'طالب أول',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+        photoToken: token,
+      });
+      expect(res1.success).toBe(true);
+
+      // Second attempt with same token must fail
+      const res2 = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'طالب ثان بنفس الرمز',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+        photoToken: token,
+      });
+      expect(res2.success).toBe(false);
+      expect(res2.error.message).toContain('INVALID_PHOTO_TOKEN');
+    });
+
+    it('rejects an expired photo token', async () => {
+      const token = '33333333-4444-4555-8666-777777777777';
+      registerPhotoTokenForTesting(token, {
+        sourcePath: validPhotoFilePath,
+        userId: ownerUserId,
+        academicYearId: activeYearId,
+        expiresAt: Date.now() - 1000, // Expired
+      });
+
+      const res = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'طالب برمز منتهي الصلاحية',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+        photoToken: token,
+      });
+      expect(res.success).toBe(false);
+      expect(res.error.message).toContain('PHOTO_TOKEN_EXPIRED');
+    });
+
+    it('rejects token when consuming user differs from selecting user (session binding)', async () => {
+      const token = '44444444-5555-4666-8777-888888888888';
+      registerPhotoTokenForTesting(token, {
+        sourcePath: validPhotoFilePath,
+        userId: 'different-user-identity',
+        academicYearId: activeYearId,
+        expiresAt: Date.now() + 600000,
+      });
+
+      const res = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'طالب بمستخدم مختلف',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+        photoToken: token,
+      });
+      expect(res.success).toBe(false);
+      expect(res.error.message).toContain('INVALID_PHOTO_TOKEN');
+    });
+
+    it('rejects token when academic year changes before consumption (academic-year binding)', async () => {
+      const token = '55555555-6666-4777-8888-999999999999';
+      registerPhotoTokenForTesting(token, {
+        sourcePath: validPhotoFilePath,
+        userId: ownerUserId,
+        academicYearId: 'different-academic-year-id',
+        expiresAt: Date.now() + 600000,
+      });
+
+      const res = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'طالب بعام أكاديمي مختلف',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+        photoToken: token,
+      });
+      expect(res.success).toBe(false);
+      expect(res.error.message).toContain('INVALID_PHOTO_TOKEN');
+    });
+
+    it('renderer update without photoToken preserves existing student photo untouched', async () => {
+      // 1. Create student with photo
+      const token = '66666666-7777-4888-8999-aaaaaaaaaaaa';
+      registerPhotoTokenForTesting(token, {
+        sourcePath: validPhotoFilePath,
+        userId: ownerUserId,
+        academicYearId: activeYearId,
+        expiresAt: Date.now() + 600000,
+      });
+
+      const created = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'طالب بصورة سابقة',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+        photoToken: token,
+      });
+      const originalPhotoPath = created.data.photoPath;
+      expect(originalPhotoPath).toBeTruthy();
+
+      // 2. Update without photoToken (photoToken is undefined)
+      const updated = await invoke(IPC_CHANNELS.STUDENTS_UPDATE, {
+        studentId: created.data.id,
+        fullName: 'طالب باسم محدث فقط',
+      });
+
+      expect(updated.success).toBe(true);
+      expect(updated.data.fullName).toBe('طالب باسم محدث فقط');
+      expect(updated.data.photoPath).toBe(originalPhotoPath);
+      expect(updated.data.photoUrl).toBe(`tibyan-media://${originalPhotoPath}`);
+    });
+
+    it('renderer update with photoToken=null explicitly removes the student photo', async () => {
+      const token = '77777777-8888-4999-8aaa-bbbbbbbbbbbb';
+      registerPhotoTokenForTesting(token, {
+        sourcePath: validPhotoFilePath,
+        userId: ownerUserId,
+        academicYearId: activeYearId,
+        expiresAt: Date.now() + 600000,
+      });
+
+      const created = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'طالب لحذف صورته',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+        photoToken: token,
+      });
+      expect(created.data.photoPath).toBeTruthy();
+
+      // Explicit removal: photoToken = null
+      const updated = await invoke(IPC_CHANNELS.STUDENTS_UPDATE, {
+        studentId: created.data.id,
+        photoToken: null,
+      });
+
+      expect(updated.success).toBe(true);
+      expect(updated.data.photoPath).toBeNull();
+      expect(updated.data.photoUrl).toBeUndefined();
+    });
+
+    it('renderer update with valid photoToken replaces existing photo', async () => {
+      const token1 = '88888888-9999-4aaa-8bbb-cccccccccccc';
+      registerPhotoTokenForTesting(token1, {
+        sourcePath: validPhotoFilePath,
+        userId: ownerUserId,
+        academicYearId: activeYearId,
+        expiresAt: Date.now() + 600000,
+      });
+
+      const created = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'طالب لاستبدال صورته',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+        photoToken: token1,
+      });
+      const photo1 = created.data.photoPath;
+
+      // New photo token
+      const token2 = '99999999-aaaa-4bbb-8ccc-dddddddddddd';
+      registerPhotoTokenForTesting(token2, {
+        sourcePath: validPhotoFilePath,
+        userId: ownerUserId,
+        academicYearId: activeYearId,
+        expiresAt: Date.now() + 600000,
+      });
+
+      const updated = await invoke(IPC_CHANNELS.STUDENTS_UPDATE, {
+        studentId: created.data.id,
+        photoToken: token2,
+      });
+
+      expect(updated.success).toBe(true);
+      expect(updated.data.photoPath).not.toBe(photo1);
+      expect(updated.data.photoPath).toMatch(/^students\/[a-f0-9-]+-[a-f0-9-]+\.jpg$/);
+    });
+
+    it('tibyan-media protocol serves authorized student photo for OWNER', async () => {
+      const token = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+      registerPhotoTokenForTesting(token, {
+        sourcePath: validPhotoFilePath,
+        userId: ownerUserId,
+        academicYearId: activeYearId,
+        expiresAt: Date.now() + 600000,
+      });
+
+      const created = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'طالب لفحص البروتوكول',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+        photoToken: token,
+      });
+
+      const response = await handleMediaProtocolRequest(
+        { url: created.data.photoUrl },
+        runtime
+      );
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Content-Type')).toBe('image/jpeg');
+      const body = Buffer.from(await response.arrayBuffer());
+      expect(body.length).toBe(MINIMAL_JPEG.length);
+    });
+
+    it('tibyan-media protocol allows Assistant with STUDENTS_READ and denies Assistant without it', async () => {
+      const token = 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff';
+      registerPhotoTokenForTesting(token, {
+        sourcePath: validPhotoFilePath,
+        userId: ownerUserId,
+        academicYearId: activeYearId,
+        expiresAt: Date.now() + 600000,
+      });
+
+      const created = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'طالب لفحص صلاحيات المساعد',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+        photoToken: token,
+      });
+
+      // 1. Assistant WITH STUDENTS_READ
+      runtime.setSession({
+        userId: 'assistant-authorized',
+        fullName: 'مساعد مصرح له',
+        username: 'assistant-reader',
+        role: 'ASSISTANT',
+        permissions: ['STUDENTS_READ'],
+        tokenExpiresAt: new Date(Date.now() + 3600000).toISOString(),
+      });
+
+      const resAuthorized = await handleMediaProtocolRequest(
+        { url: created.data.photoUrl },
+        runtime
+      );
+      expect(resAuthorized.status).toBe(200);
+
+      // 2. Assistant WITHOUT STUDENTS_READ
+      runtime.setSession({
+        userId: 'assistant-forbidden',
+        fullName: 'مساعد غير مصرح له',
+        username: 'assistant-no-students',
+        role: 'ASSISTANT',
+        permissions: ['USERS_MANAGE'],
+        tokenExpiresAt: new Date(Date.now() + 3600000).toISOString(),
+      });
+
+      const resForbidden = await handleMediaProtocolRequest(
+        { url: created.data.photoUrl },
+        runtime
+      );
+      expect(resForbidden.status).toBe(403);
+
+      // 3. Unauthenticated session (session = null)
+      runtime.clearSession();
+      const resUnauth = await handleMediaProtocolRequest(
+        { url: created.data.photoUrl },
+        runtime
+      );
+      expect(resUnauth.status).toBe(401);
+    });
+
+    it('tibyan-media protocol strictly rejects ../ traversal and percent-encoded traversal attempts', async () => {
+      // Re-login as owner
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, {
+        userId: ownerUserId,
+        pin: '1234',
+      });
+
+      const dotdotRes = await handleMediaProtocolRequest(
+        { url: 'tibyan-media://students/../tibyan-system.sqlite' },
+        runtime
+      );
+      expect(dotdotRes.status).toBe(403);
+
+      const encodedRes = await handleMediaProtocolRequest(
+        { url: 'tibyan-media://students/%2e%2e/tibyan-system.sqlite' },
+        runtime
+      );
+      expect(encodedRes.status).toBe(403);
+
+      const encodedUpperRes = await handleMediaProtocolRequest(
+        { url: 'tibyan-media://students/%2E%2E/tibyan-system.sqlite' },
+        runtime
+      );
+      expect(encodedUpperRes.status).toBe(403);
+
+      const backslashRes = await handleMediaProtocolRequest(
+        { url: 'tibyan-media://students\\traversal.jpg' },
+        runtime
+      );
+      expect(backslashRes.status).toBe(403);
+    });
+
+    it('tibyan-media protocol strictly rejects absolute and out-of-root paths', async () => {
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, {
+        userId: ownerUserId,
+        pin: '1234',
+      });
+
+      const etcRes = await handleMediaProtocolRequest(
+        { url: 'tibyan-media:///etc/passwd' },
+        runtime
+      );
+      expect(etcRes.status).toBe(403);
+
+      const backupRes = await handleMediaProtocolRequest(
+        { url: 'tibyan-media://backups/secret-backup.zip' },
+        runtime
+      );
+      expect(backupRes.status).toBe(403);
+    });
+
+    it('persisted managed photo remains displayable after re-fetch from database', async () => {
+      const token = 'cccccccc-dddd-4eee-8fff-000000000000';
+      registerPhotoTokenForTesting(token, {
+        sourcePath: validPhotoFilePath,
+        userId: ownerUserId,
+        academicYearId: activeYearId,
+        expiresAt: Date.now() + 600000,
+      });
+
+      const created = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'طالب لاختبار إعادة التحميل',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+        photoToken: token,
+      });
+
+      // Fetch student anew
+      const fetched = await invoke(IPC_CHANNELS.STUDENTS_GET_BY_ID, created.data.id);
+      expect(fetched.success).toBe(true);
+      expect(fetched.data.photoPath).toBe(created.data.photoPath);
+      expect(fetched.data.photoUrl).toBe(created.data.photoUrl);
+
+      // Verify protocol serves the re-fetched student photo
+      const response = await handleMediaProtocolRequest(
+        { url: fetched.data.photoUrl },
+        runtime
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Content-Type')).toBe('image/jpeg');
+    });
   });
 });

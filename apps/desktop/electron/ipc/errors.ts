@@ -80,6 +80,12 @@ export function mapErrorToIpcResult(err: unknown): IpcResult<never> {
     if (err.message.includes('NO_ACTIVE_ACADEMIC_YEAR')) {
       return errorResult('NO_ACTIVE_ACADEMIC_YEAR', 'No active academic year is currently loaded.');
     }
+    if (err.message.includes('INVALID_PHOTO_TOKEN')) {
+      return errorResult('INVALID_PHOTO_TOKEN', err.message);
+    }
+    if (err.message.includes('PHOTO_TOKEN_EXPIRED')) {
+      return errorResult('PHOTO_TOKEN_EXPIRED', err.message);
+    }
     if (err.message.includes('NOT_FOUND') || err.message.includes('not found')) {
       return errorResult('NOT_FOUND', 'The requested resource was not found.');
     }

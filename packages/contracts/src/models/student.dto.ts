@@ -27,6 +27,22 @@ export const CreateStudentSchema = z.object({
 });
 export type CreateStudentInput = z.input<typeof CreateStudentSchema>;
 
+export const CreateStudentIpcSchema = z
+  .object({
+    fullName: z.string().trim().min(1, 'Full name cannot be empty'),
+    educationSystem: EducationSystemSchema,
+    gradeLevel: GradeLevelSchema,
+    languageTrack: LanguageTrackSchema,
+    guardianPhone: EgyptianGuardianPhoneSchema,
+    photoToken: z.string().trim().uuid('Invalid photo token format').nullable().optional(),
+    initialNote: z.string().trim().optional(),
+  })
+  .passthrough()
+  .refine((data) => !('photoPath' in (data as any)), {
+    message: 'photoPath is not permitted in renderer requests. Use photoToken.',
+  });
+export type CreateStudentIpcInput = z.input<typeof CreateStudentIpcSchema>;
+
 export const UpdateStudentSchema = z.object({
   studentId: z.string().uuid('Invalid student ID format'),
   fullName: z.string().trim().min(1, 'Full name cannot be empty').optional(),
@@ -38,6 +54,23 @@ export const UpdateStudentSchema = z.object({
   status: StudentStatusSchema.optional(),
 });
 export type UpdateStudentInput = z.infer<typeof UpdateStudentSchema>;
+
+export const UpdateStudentIpcSchema = z
+  .object({
+    studentId: z.string().uuid('Invalid student ID format'),
+    fullName: z.string().trim().min(1, 'Full name cannot be empty').optional(),
+    educationSystem: EducationSystemSchema.optional(),
+    gradeLevel: GradeLevelSchema.optional(),
+    languageTrack: LanguageTrackSchema.optional(),
+    guardianPhone: EgyptianGuardianPhoneSchema.optional(),
+    photoToken: z.string().trim().uuid('Invalid photo token format').nullable().optional(),
+    status: StudentStatusSchema.optional(),
+  })
+  .passthrough()
+  .refine((data) => !('photoPath' in (data as any)), {
+    message: 'photoPath is not permitted in renderer requests. Use photoToken.',
+  });
+export type UpdateStudentIpcInput = z.input<typeof UpdateStudentIpcSchema>;
 
 export const CreateStudentNoteSchema = z.object({
   studentId: z.string().uuid('Invalid student ID format'),

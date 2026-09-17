@@ -5,10 +5,12 @@ import { ipcMain, dialog, type BrowserWindow } from 'electron';
 import { z } from 'zod';
 import {
   IPC_CHANNELS,
-  CreateStudentSchema,
-  UpdateStudentSchema,
+  CreateStudentIpcSchema,
+  UpdateStudentIpcSchema,
   CreateStudentNoteSchema,
   StudentFilterSchema,
+  type CreateStudentInput,
+  type UpdateStudentInput,
   type StudentDto,
   type PhotoSelectionDto,
 } from '@tibyan/contracts';
@@ -16,20 +18,69 @@ import type { Runtime } from '../runtime.js';
 import { safeIpcCall } from './errors.js';
 import { validateIpcSender } from '../security.js';
 
-interface PendingPhotoToken {
+export interface PendingPhotoToken {
   sourcePath: string;
+  userId: string;
+  academicYearId: string;
   expiresAt: number;
 }
 
-const photoTokenRegistry = new Map<string, PendingPhotoToken>();
+export const photoTokenRegistry = new Map<string, PendingPhotoToken>();
 
-function cleanExpiredPhotoTokens(): void {
+export function cleanExpiredPhotoTokens(): void {
   const now = Date.now();
   for (const [token, data] of photoTokenRegistry.entries()) {
     if (data.expiresAt <= now) {
       photoTokenRegistry.delete(token);
     }
   }
+}
+
+/**
+ * Validates, consumes, and purges a pending photo token in a single operation.
+ * Binds the token to the authenticated user and active academic year that selected it.
+ * Enforces one-time consumption (replay protection) and expiration.
+ */
+export function consumePhotoToken(
+  token: string,
+  userId: string,
+  academicYearId: string
+): string {
+  const pending = photoTokenRegistry.get(token);
+  if (!pending) {
+    throw new Error('INVALID_PHOTO_TOKEN: Token not found or already consumed');
+  }
+
+  // Purge immediately to prevent replay
+  photoTokenRegistry.delete(token);
+
+  if (pending.expiresAt <= Date.now()) {
+    throw new Error('PHOTO_TOKEN_EXPIRED: Photo selection token has expired');
+  }
+
+  if (pending.userId !== userId) {
+    throw new Error('INVALID_PHOTO_TOKEN: Token was selected by a different user session');
+  }
+
+  if (pending.academicYearId !== academicYearId) {
+    throw new Error('INVALID_PHOTO_TOKEN: Token was selected for a different academic year');
+  }
+
+  // Opportunistic cleanup of other expired tokens
+  cleanExpiredPhotoTokens();
+
+  return pending.sourcePath;
+}
+
+export function registerPhotoTokenForTesting(
+  token: string,
+  data: PendingPhotoToken
+): void {
+  photoTokenRegistry.set(token, data);
+}
+
+export function clearPhotoTokensForTesting(): void {
+  photoTokenRegistry.clear();
 }
 
 function detectImageType(buffer: Buffer): 'jpg' | 'png' | 'webp' | null {
@@ -106,26 +157,26 @@ export function registerStudentsIpcHandlers(runtime: Runtime, mainWindow: Browse
     return safeIpcCall(async () => {
       const actor = runtime.requireAuthenticatedActor();
       runtime.requireActiveAcademicYear();
-      const validated = CreateStudentSchema.parse(payload);
+      const activeYearId = runtime.activeAcademicYear!.id;
+      const validated = CreateStudentIpcSchema.parse(payload);
 
       let resolvedPhotoPath: string | null = null;
-      if (validated.photoPath) {
-        cleanExpiredPhotoTokens();
-        const pending = photoTokenRegistry.get(validated.photoPath);
-        if (pending) {
-          photoTokenRegistry.delete(validated.photoPath);
-          if (pending.expiresAt > Date.now()) {
-            resolvedPhotoPath = pending.sourcePath;
-          } else {
-            throw new Error('PHOTO_TOKEN_EXPIRED');
-          }
-        } else {
-          throw new Error('INVALID_PHOTO_TOKEN: Untrusted photo source');
-        }
+      if (typeof validated.photoToken === 'string') {
+        resolvedPhotoPath = consumePhotoToken(validated.photoToken, actor.userId, activeYearId);
       }
 
+      const coreInput: CreateStudentInput = {
+        fullName: validated.fullName,
+        educationSystem: validated.educationSystem,
+        gradeLevel: validated.gradeLevel,
+        languageTrack: validated.languageTrack,
+        guardianPhone: validated.guardianPhone,
+        photoPath: resolvedPhotoPath,
+        initialNote: validated.initialNote,
+      };
+
       const created = await runtime.studentService!.createStudent(
-        { ...validated, photoPath: resolvedPhotoPath },
+        coreInput,
         actor
       );
       return attachPhotoUrl(created);
@@ -140,32 +191,34 @@ export function registerStudentsIpcHandlers(runtime: Runtime, mainWindow: Browse
     return safeIpcCall(async () => {
       const actor = runtime.requireAuthenticatedActor();
       runtime.requireActiveAcademicYear();
-      const validated = UpdateStudentSchema.parse(payload);
+      const activeYearId = runtime.activeAcademicYear!.id;
+      const validated = UpdateStudentIpcSchema.parse(payload);
 
-      let resolvedPhotoPath: string | null | undefined = validated.photoPath;
-      if (validated.photoPath !== undefined && validated.photoPath !== null) {
-        cleanExpiredPhotoTokens();
-        const pending = photoTokenRegistry.get(validated.photoPath);
-        if (pending) {
-          photoTokenRegistry.delete(validated.photoPath);
-          if (pending.expiresAt > Date.now()) {
-            resolvedPhotoPath = pending.sourcePath;
-          } else {
-            throw new Error('PHOTO_TOKEN_EXPIRED');
-          }
-        } else {
-          // If not in token registry, check if it equals existing student's photoPath
-          const existing = await runtime.studentService!.getStudentById(validated.studentId, actor);
-          if (validated.photoPath === existing.photoPath) {
-            resolvedPhotoPath = existing.photoPath;
-          } else {
-            throw new Error('INVALID_PHOTO_TOKEN: Untrusted photo source');
-          }
-        }
+      let corePhotoPath: string | null | undefined = undefined;
+      if (validated.photoToken === null) {
+        // Explicit removal: photoToken = null
+        corePhotoPath = null;
+      } else if (typeof validated.photoToken === 'string') {
+        // Replacement: photoToken = string
+        corePhotoPath = consumePhotoToken(validated.photoToken, actor.userId, activeYearId);
+      } else {
+        // Preserved: photoToken = undefined
+        corePhotoPath = undefined;
       }
 
+      const coreInput: UpdateStudentInput = {
+        studentId: validated.studentId,
+        fullName: validated.fullName,
+        educationSystem: validated.educationSystem,
+        gradeLevel: validated.gradeLevel,
+        languageTrack: validated.languageTrack,
+        guardianPhone: validated.guardianPhone,
+        photoPath: corePhotoPath,
+        status: validated.status,
+      };
+
       const updated = await runtime.studentService!.updateStudent(
-        { ...validated, photoPath: resolvedPhotoPath },
+        coreInput,
         actor
       );
       return attachPhotoUrl(updated);
@@ -204,7 +257,10 @@ export function registerStudentsIpcHandlers(runtime: Runtime, mainWindow: Browse
       throw new Error('UNAUTHORIZED_IPC_SENDER');
     }
     return safeIpcCall(async (): Promise<PhotoSelectionDto | null> => {
-      runtime.requireAuthenticatedActor();
+      const actor = runtime.requireAuthenticatedActor();
+      runtime.requireActiveAcademicYear();
+      const activeYearId = runtime.activeAcademicYear!.id;
+
       const result = mainWindow
         ? await dialog.showOpenDialog(mainWindow, {
             title: 'اختر صورة الطالب',
@@ -245,6 +301,8 @@ export function registerStudentsIpcHandlers(runtime: Runtime, mainWindow: Browse
       const photoToken = crypto.randomUUID();
       photoTokenRegistry.set(photoToken, {
         sourcePath,
+        userId: actor.userId,
+        academicYearId: activeYearId,
         expiresAt: Date.now() + 10 * 60 * 1000,
       });
 
@@ -262,4 +320,3 @@ export function unregisterStudentsIpcHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.STUDENTS_LIST_NOTES);
   ipcMain.removeHandler(IPC_CHANNELS.STUDENTS_CHOOSE_PHOTO_DIALOG);
 }
-
