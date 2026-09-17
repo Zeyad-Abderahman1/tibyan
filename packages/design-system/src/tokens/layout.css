@@ -1,0 +1,42 @@
+/**
+ * Tibyan Design System — Layout & Spatial Tokens
+ * Restrained radii (avoiding giant rounded toy-like shapes),
+ * subtle elevation shadows, and logical spatial utilities.
+ */
+
+:root {
+  /* Border Radii (Restrained, Professional) */
+  --radius-xs: 0.125rem; /* 2px */
+  --radius-sm: 0.25rem;  /* 4px */
+  --radius-md: 0.375rem; /* 6px */
+  --radius-lg: 0.5rem;   /* 8px */
+  --radius-xl: 0.75rem;  /* 12px */
+  --radius-full: 9999px;
+
+  /* Shadows (Calm, Subdued) */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
+
+  /* Z-Index Hierarchy */
+  --z-base: 0;
+  --z-elevated: 10;
+  --z-sticky: 100;
+  --z-dropdown: 1000;
+  --z-overlay: 1200;
+  --z-modal: 1300;
+  --z-popover: 1400;
+  --z-toast: 1500;
+
+  /* Animation & Transitions */
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Logical directional utilities */
+.unicode-isolate {
+  unicode-bidi: isolate;
+}

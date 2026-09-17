@@ -1,0 +1,123 @@
+/**
+ * Tibyan Design System — Color Tokens
+ * Approved Brand Colors:
+ * - Primary Petrol Teal: #0B3D3D
+ * - Supporting Teal: #1F6E68
+ * - Accent Muted Gold: #C59B27
+ * - Gold Hover: #B38728
+ */
+
+:root,
+[data-theme="light"] {
+  /* Brand Primitives */
+  --tibyan-navy: #0B3D3D;
+  --tibyan-teal: #1F6E68;
+  --tibyan-gold: #C59B27;
+  --tibyan-gold-hover: #B38728;
+
+  --color-brand-primary: #0B3D3D;
+  --color-brand-primary-hover: #072B2B;
+  --color-brand-primary-active: #051F1F;
+  --color-brand-teal: #1F6E68;
+  --color-brand-teal-hover: #195853;
+  --color-brand-accent: #C59B27;
+  --color-brand-accent-hover: #B38728;
+  --color-brand-accent-subtle: #FDF9EE;
+
+  /* Surfaces & Backgrounds */
+  --color-bg-app: #F8FAFC;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-surface-elevated: #FFFFFF;
+  --color-bg-surface-subtle: #F1F5F9;
+
+  /* Text & Content */
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748B;
+  --color-text-on-primary: #FFFFFF;
+  --color-text-on-accent: #FFFFFF;
+
+  /* Borders & Dividers */
+  --color-border-subtle: #E2E8F0;
+  --color-border-strong: #CBD5E1;
+
+  /* Focus & Interactive */
+  --color-focus-ring: rgba(11, 61, 61, 0.4);
+  --color-disabled-bg: #F1F5F9;
+  --color-disabled-text: #94A3B8;
+  --color-overlay: rgba(15, 23, 42, 0.5);
+
+  /* Status Tokens */
+  --color-status-success: #059669;
+  --color-status-success-bg: #ECFDF5;
+  --color-status-success-border: #A7F3D0;
+
+  --color-status-warning: #D97706;
+  --color-status-warning-bg: #FFFBEB;
+  --color-status-warning-border: #FDE68A;
+
+  --color-status-danger: #DC2626;
+  --color-status-danger-bg: #FEF2F2;
+  --color-status-danger-border: #FECACA;
+
+  --color-status-info: #0284C7;
+  --color-status-info-bg: #F0F9FF;
+  --color-status-info-border: #BAE6FD;
+}
+
+[data-theme="dark"] {
+  /* Brand Primitives (Adjusted for dark contrast) */
+  --tibyan-navy: #154D4D;
+  --tibyan-teal: #1F6E68;
+  --tibyan-gold: #D4AF37;
+  --tibyan-gold-hover: #C59B27;
+
+  --color-brand-primary: #175754;
+  --color-brand-primary-hover: #124441;
+  --color-brand-primary-active: #0E3533;
+  --color-brand-teal: #1F6E68;
+  --color-brand-teal-hover: #26857E;
+  --color-brand-accent: #D4AF37;
+  --color-brand-accent-hover: #C59B27;
+  --color-brand-accent-subtle: rgba(212, 175, 55, 0.15);
+
+  /* Surfaces & Backgrounds (Dark Teal-Slate, Never pure black) */
+  --color-bg-app: #0A1417;
+  --color-bg-surface: #0F1F24;
+  --color-bg-surface-elevated: #162B32;
+  --color-bg-surface-subtle: #1C353D;
+
+  /* Text & Content */
+  --color-text-primary: #F1F5F9;
+  --color-text-secondary: #94A3B8;
+  --color-text-muted: #64748B;
+  --color-text-on-primary: #FFFFFF;
+  --color-text-on-accent: #0A1417;
+
+  /* Borders & Dividers */
+  --color-border-subtle: #1E3B44;
+  --color-border-strong: #2A4E5A;
+
+  /* Focus & Interactive */
+  --color-focus-ring: rgba(212, 175, 55, 0.5);
+  --color-disabled-bg: #142328;
+  --color-disabled-text: #475569;
+  --color-overlay: rgba(0, 0, 0, 0.7);
+
+  /* Status Tokens */
+  --color-status-success: #10B981;
+  --color-status-success-bg: rgba(16, 185, 129, 0.15);
+  --color-status-success-border: rgba(16, 185, 129, 0.35);
+
+  --color-status-warning: #F59E0B;
+  --color-status-warning-bg: rgba(245, 158, 11, 0.15);
+  --color-status-warning-border: rgba(245, 158, 11, 0.35);
+
+  --color-status-danger: #EF4444;
+  --color-status-danger-bg: rgba(239, 68, 68, 0.15);
+  --color-status-danger-border: rgba(239, 68, 68, 0.35);
+
+  --color-status-info: #38BDF8;
+  --color-status-info-bg: rgba(56, 189, 248, 0.15);
+  --color-status-info-border: rgba(56, 189, 248, 0.35);
+}
