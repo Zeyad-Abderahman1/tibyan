@@ -32,13 +32,14 @@ export const students = sqliteTable(
     gradeLevel: text('grade_level').$type<GradeLevel>().notNull(),
     languageTrack: text('language_track').$type<LanguageTrack>().notNull(),
     guardianPhone: text('guardian_phone').notNull(),
-    status: text('status').$type<StudentStatus>().notNull().default('ACTIVE'),
+    status: text('status', { enum: ['ACTIVE', 'INACTIVE'] }).$type<StudentStatus>().notNull().default('ACTIVE'),
     qrToken: text('qr_token').notNull().unique(),
     barcodeValue: text('barcode_value').notNull().unique(),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
   (t) => ({
+    chkStudentStatus: check('chk_students_status', sql`"status" IN ('ACTIVE', 'INACTIVE')`),
     idxStudentsStatus: index('idx_students_status').on(t.status),
     idxStudentsGrade: index('idx_students_grade').on(t.gradeLevel, t.educationSystem),
     idxStudentsTrack: index('idx_students_track').on(t.languageTrack),
@@ -126,7 +127,7 @@ export const groupSchedules = sqliteTable(
     id: text('id').primaryKey(),
     groupId: text('group_id')
       .notNull()
-      .references(() => groups.id, { onDelete: 'cascade' }),
+      .references(() => groups.id, { onDelete: 'restrict' }),
     weekday: integer('weekday').$type<Weekday>().notNull(),
     startTime: text('start_time').notNull(), // 'HH:mm'
     durationMinutes: integer('duration_minutes').notNull().default(120),
@@ -150,7 +151,7 @@ export const sessions = sqliteTable(
     scheduleId: text('schedule_id').references(() => groupSchedules.id, { onDelete: 'set null' }),
     
     // Immutable occurrence identity
-    occurrenceKey: text('occurrence_key').notNull().unique(),
+    occurrenceKey: text('occurrence_key').notNull(),
     scheduledDate: text('scheduled_date').notNull(),       // YYYY-MM-DD
     scheduledStartTime: text('scheduled_start_time').notNull(), // HH:mm
     

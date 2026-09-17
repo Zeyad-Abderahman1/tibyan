@@ -12,7 +12,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "db:generate": "drizzle-kit generate"
+    "db:generate:system": "drizzle-kit generate --config=drizzle.system.config.ts",
+    "db:generate:academic": "drizzle-kit generate --config=drizzle.academic.config.ts",
+    "db:generate": "pnpm db:generate:system && pnpm db:generate:academic"
   },
   "dependencies": {
     "@tibyan/contracts": "workspace:*",

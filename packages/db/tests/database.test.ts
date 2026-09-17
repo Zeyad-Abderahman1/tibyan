@@ -83,13 +83,13 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     const acadRaw = createRawDatabase(':memory:');
 
     const appliedSys = migrateSystemDatabase(sysRaw);
-    expect(appliedSys).toEqual(['0001_initial_system']);
+    expect(appliedSys).toEqual(['0000_initial_schema', '0001_audit_triggers']);
 
     const appliedAcad = migrateAcademicDatabase(acadRaw);
-    expect(appliedAcad).toEqual(['0001_initial_academic']);
+    expect(appliedAcad).toEqual(['0000_initial_schema', '0001_audit_triggers']);
 
-    expect(getAppliedMigrations(sysRaw)).toEqual(['0001_initial_system']);
-    expect(getAppliedMigrations(acadRaw)).toEqual(['0001_initial_academic']);
+    expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers']);
+    expect(getAppliedMigrations(acadRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers']);
 
     sysRaw.close();
     acadRaw.close();
@@ -110,8 +110,8 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     expect(secondSys).toEqual([]);
     expect(secondAcad).toEqual([]);
 
-    expect(getAppliedMigrations(sysRaw)).toEqual(['0001_initial_system']);
-    expect(getAppliedMigrations(acadRaw)).toEqual(['0001_initial_academic']);
+    expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers']);
+    expect(getAppliedMigrations(acadRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers']);
 
     sysRaw.close();
     acadRaw.close();
@@ -778,5 +778,102 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
 
     const byEntity = auditRepo.findByEntity('SESSION', 'sess-bulk-1');
     expect(byEntity).toHaveLength(1);
+  });
+
+  // Test: StudentStatus accepts only ACTIVE and INACTIVE and rejects ARCHIVED at database level
+  it('Student status accepts only ACTIVE and INACTIVE and rejects ARCHIVED at database level', () => {
+    const acadConn = openAcademicDatabase('2026-2027', { filePath: ':memory:' });
+    const studentRepo = new StudentRepository(acadConn.db);
+    const now = new Date().toISOString();
+
+    // ACTIVE is accepted
+    const activeStudent = studentRepo.create({
+      id: 'std-active',
+      studentCode: 'ST-ACT-1',
+      fullName: 'Active Student',
+      educationSystem: 'GENERAL',
+      gradeLevel: 'SEC_1',
+      languageTrack: 'ARABIC',
+      guardianPhone: '01011111111',
+      status: 'ACTIVE',
+      qrToken: 'qr-act',
+      barcodeValue: 'bar-act',
+      createdAt: now,
+      updatedAt: now,
+    });
+    expect(activeStudent.status).toBe('ACTIVE');
+
+    // INACTIVE is accepted
+    const inactiveStudent = studentRepo.create({
+      id: 'std-inactive',
+      studentCode: 'ST-INACT-1',
+      fullName: 'Inactive Student',
+      educationSystem: 'GENERAL',
+      gradeLevel: 'SEC_1',
+      languageTrack: 'ARABIC',
+      guardianPhone: '01022222222',
+      status: 'INACTIVE',
+      qrToken: 'qr-inact',
+      barcodeValue: 'bar-inact',
+      createdAt: now,
+      updatedAt: now,
+    });
+    expect(inactiveStudent.status).toBe('INACTIVE');
+
+    // ARCHIVED is rejected by check constraint
+    expect(() => {
+      acadConn.raw
+        .prepare(
+          `INSERT INTO students (id, student_code, full_name, education_system, grade_level, language_track, guardian_phone, status, qr_token, barcode_value, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .run('std-archived', 'ST-ARCH-1', 'Archived Student', 'GENERAL', 'SEC_1', 'ARABIC', '01033333333', 'ARCHIVED', 'qr-arch', 'bar-arch', now, now);
+    }).toThrow(/CHECK constraint/i);
+  });
+
+  // Test: Physical deletion of a group with schedules is prevented by foreign key RESTRICT
+  it('Physical deletion of a group with schedules is prevented by foreign key RESTRICT', () => {
+    const acadConn = openAcademicDatabase('2026-2027', { filePath: ':memory:' });
+    const groupRepo = new GroupRepository(acadConn.db);
+    const now = new Date().toISOString();
+
+    const grp = groupRepo.create({
+      id: 'grp-restrict-test',
+      name: 'Group with Schedules',
+      educationSystem: 'GENERAL',
+      gradeLevel: 'SEC_1',
+      languageTrack: 'ARABIC',
+      focusMathBranch: null,
+      defaultPaymentType: 'PER_SESSION',
+      defaultPaymentAmount: 100,
+      status: 'ACTIVE',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    groupRepo.addSchedule({
+      id: 'sched-restrict-1',
+      groupId: grp.id,
+      weekday: 1,
+      startTime: '16:00',
+      durationMinutes: 120,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Attempting physical deletion of the group must be rejected by foreign key RESTRICT
+    expect(() => {
+      acadConn.raw.prepare('DELETE FROM groups WHERE id = ?').run(grp.id);
+    }).toThrow(/FOREIGN KEY constraint failed/i);
+
+    // Soft-state archiving of the group succeeds without deleting schedule history
+    expect(() => {
+      groupRepo.update(grp.id, { status: 'ARCHIVED' });
+    }).not.toThrow();
+
+    const archivedGroup = groupRepo.findById(grp.id);
+    expect(archivedGroup?.status).toBe('ARCHIVED');
+    const schedules = groupRepo.getSchedules(grp.id);
+    expect(schedules).toHaveLength(1);
   });
 });
