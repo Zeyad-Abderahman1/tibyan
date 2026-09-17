@@ -33,6 +33,7 @@ export const IPC_CHANNELS = {
   ENROLLMENTS_END: 'enrollments:end',
 
   // Sessions & Rescheduling
+  SESSIONS_MATERIALIZE: 'sessions:materialize',
   SESSIONS_LIST_BY_RANGE: 'sessions:listByRange',
   SESSIONS_RESCHEDULE: 'sessions:reschedule',
   SESSIONS_CANCEL: 'sessions:cancel',

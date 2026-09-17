@@ -1,4 +1,5 @@
 import { ipcMain, type BrowserWindow } from 'electron';
+import { z } from 'zod';
 import {
   IPC_CHANNELS,
   ListSessionsByDateRangeSchema,
@@ -10,7 +11,21 @@ import { safeIpcCall } from './errors.js';
 import { validateIpcSender } from '../security.js';
 
 export function registerSessionsIpcHandlers(runtime: Runtime, mainWindow: BrowserWindow | null): void {
-  // 1. List sessions by date range (protected)
+  // 1. Materialize rolling sessions (protected: exact 28-day horizon, no renderer-controlled daysAhead)
+  ipcMain.handle(IPC_CHANNELS.SESSIONS_MATERIALIZE, async (event, payload) => {
+    if (!validateIpcSender(event, mainWindow)) {
+      throw new Error('UNAUTHORIZED_IPC_SENDER');
+    }
+    return safeIpcCall(async () => {
+      const actor = runtime.requireAuthenticatedActor();
+      runtime.requireActiveAcademicYear();
+      // Enforce strict no-input schema: reject any renderer-controlled horizon or daysAhead argument
+      z.undefined().or(z.void()).parse(payload);
+      return runtime.sessionService!.materializeRollingHorizon({}, actor);
+    });
+  });
+
+  // 2. List sessions by date range (protected)
   ipcMain.handle(IPC_CHANNELS.SESSIONS_LIST_BY_RANGE, async (event, payload) => {
     if (!validateIpcSender(event, mainWindow)) {
       throw new Error('UNAUTHORIZED_IPC_SENDER');
@@ -51,6 +66,7 @@ export function registerSessionsIpcHandlers(runtime: Runtime, mainWindow: Browse
 }
 
 export function unregisterSessionsIpcHandlers(): void {
+  ipcMain.removeHandler(IPC_CHANNELS.SESSIONS_MATERIALIZE);
   ipcMain.removeHandler(IPC_CHANNELS.SESSIONS_LIST_BY_RANGE);
   ipcMain.removeHandler(IPC_CHANNELS.SESSIONS_RESCHEDULE);
   ipcMain.removeHandler(IPC_CHANNELS.SESSIONS_CANCEL);

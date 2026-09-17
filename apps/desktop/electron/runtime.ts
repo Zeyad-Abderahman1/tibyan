@@ -150,9 +150,24 @@ export class Runtime {
       this.unmountAcademicYear();
     }
 
+    if (!year.dbFilename || typeof year.dbFilename !== 'string') {
+      throw new Error('INVALID_ACADEMIC_YEAR_FILENAME: Missing dbFilename in academic year registry.');
+    }
+
+    // Security guard: Authoritatively use registered dbFilename, but reject traversal or root escaping
+    const normalized = path.normalize(year.dbFilename);
+    if (path.isAbsolute(normalized) || normalized.includes('..') || path.basename(normalized) !== normalized) {
+      throw new Error(`SECURITY_ERROR: Invalid academic year dbFilename traversal detected: ${year.dbFilename}`);
+    }
+
+    const resolvedCanonicalDir = path.resolve(this.paths.academicYearsDbDir);
     const acadDbPath = this.inMemory
       ? ':memory:'
-      : path.join(this.paths.academicYearsDbDir, year.dbFilename);
+      : path.resolve(resolvedCanonicalDir, normalized);
+
+    if (!this.inMemory && !acadDbPath.startsWith(resolvedCanonicalDir)) {
+      throw new Error(`SECURITY_ERROR: Academic year database path escaped canonical root: ${acadDbPath}`);
+    }
 
     this.academicDb = openAcademicDatabase(year.name, {
       filePath: acadDbPath,

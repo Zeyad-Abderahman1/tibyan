@@ -391,4 +391,65 @@ describe('Task 10 — Typed IPC Bridge & Main Session Authority', () => {
     expect(rawContent).toContain('"nsis"');
     expect(rawContent).toContain('com.tibyan.desktop');
   });
+
+  it('mounts active academic year using exact registered dbFilename and rejects path traversal', async () => {
+    const ownerRes = await invoke(IPC_CHANNELS.AUTH_BOOTSTRAP_OWNER, {
+      fullName: 'الأستاذ',
+      username: 'owner-path-test',
+      pin: '1234',
+    });
+    await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, { userId: ownerRes.data.id, pin: '1234' });
+
+    // Create academic year
+    const yearRes = await invoke(IPC_CHANNELS.SYSTEM_CREATE_ACADEMIC_YEAR, {
+      name: '2027-2028',
+    });
+    expect(yearRes.success).toBe(true);
+    expect(yearRes.data.dbFilename).toBe('tibyan-2027-2028.sqlite');
+
+    // Authoritative filename from registry is used
+    expect(runtime.activeAcademicYear?.dbFilename).toBe('tibyan-2027-2028.sqlite');
+    expect(runtime.activeAcademicYear?.dbFilename).not.toContain(yearRes.data.id);
+
+    // Attempting to mount malicious traversal dbFilename must be rejected
+    const maliciousYear = {
+      ...yearRes.data,
+      dbFilename: '../outside.sqlite',
+    };
+    expect(() => runtime.mountAcademicYear(maliciousYear as any)).toThrow(/SECURITY_ERROR/);
+
+    const maliciousAbsoluteYear = {
+      ...yearRes.data,
+      dbFilename: '/absolute/path.sqlite',
+    };
+    expect(() => runtime.mountAcademicYear(maliciousAbsoluteYear as any)).toThrow(/SECURITY_ERROR/);
+  });
+
+  it('materializeRollingSessions accepts no renderer-controlled daysAhead and delegates to exact 28-day horizon', async () => {
+    const ownerRes = await invoke(IPC_CHANNELS.AUTH_BOOTSTRAP_OWNER, {
+      fullName: 'الأستاذ',
+      username: 'owner-mat',
+      pin: '1234',
+    });
+    await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, { userId: ownerRes.data.id, pin: '1234' });
+    await invoke(IPC_CHANNELS.SYSTEM_CREATE_ACADEMIC_YEAR, { name: '2026-2027' });
+
+    // 1. Renderer cannot pass daysAhead or arbitrary horizon
+    const rejectedWithDaysAhead = await invoke(IPC_CHANNELS.SESSIONS_MATERIALIZE, { daysAhead: 30 });
+    expect(rejectedWithDaysAhead.success).toBe(false);
+    expect(rejectedWithDaysAhead.error.code).toBe('VALIDATION_ERROR');
+
+    // 2. Invoking with no arguments (undefined payload) succeeds and delegates to 28-day horizon
+    const materializeRes = await invoke(IPC_CHANNELS.SESSIONS_MATERIALIZE);
+    expect(materializeRes.success).toBe(true);
+    expect(materializeRes.data.startDate).toBeDefined();
+    expect(materializeRes.data.endDate).toBeDefined();
+    expect(typeof materializeRes.data.createdCount).toBe('number');
+    expect(typeof materializeRes.data.existingCount).toBe('number');
+  });
+
+  it('verifies runtime backup root strictly matches the canonical Task 7 root', () => {
+    expect(runtime.paths.backupRootDir).toBe(path.join(runtime.paths.appDataDir, 'backups'));
+    expect((runtime.backupService as any).backupRootDir).toBe(path.resolve(runtime.paths.appDataDir, 'backups'));
+  });
 });

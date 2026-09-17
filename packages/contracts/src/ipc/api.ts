@@ -34,6 +34,7 @@ import {
   RescheduleSessionInput,
   CancelSessionInput,
   ListSessionsByDateRangeInput,
+  MaterializeSessionsResultDto,
 } from '../models/session.dto.js';
 import { TodayDashboardDto } from '../models/dashboard.dto.js';
 import {
@@ -85,6 +86,7 @@ export interface TibyanApi {
     end(input: EndEnrollmentInput): Promise<IpcResult<void>>;
   };
   sessions: {
+    materializeRollingSessions(): Promise<IpcResult<MaterializeSessionsResultDto>>;
     listByRange(input: ListSessionsByDateRangeInput): Promise<IpcResult<SessionDto[]>>;
     reschedule(input: RescheduleSessionInput): Promise<IpcResult<SessionDto>>;
     cancel(input: CancelSessionInput): Promise<IpcResult<SessionDto>>;

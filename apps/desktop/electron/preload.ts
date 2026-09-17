@@ -29,6 +29,7 @@ import {
   type RescheduleSessionInput,
   type CancelSessionInput,
   type ListSessionsByDateRangeInput,
+  type MaterializeSessionsResultDto,
   type TodayDashboardDto,
   type BackupRecordDto,
   type BackupStatusDto,
@@ -134,6 +135,9 @@ export const tibyanApi: TibyanApi = {
   },
 
   sessions: {
+    materializeRollingSessions(): Promise<IpcResult<MaterializeSessionsResultDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SESSIONS_MATERIALIZE);
+    },
     listByRange(input: ListSessionsByDateRangeInput): Promise<IpcResult<SessionDto[]>> {
       return ipcRenderer.invoke(IPC_CHANNELS.SESSIONS_LIST_BY_RANGE, input);
     },

@@ -59,3 +59,10 @@ export interface SessionDto {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface MaterializeSessionsResultDto {
+  startDate: string;
+  endDate: string;
+  createdCount: number;
+  existingCount: number;
+}
