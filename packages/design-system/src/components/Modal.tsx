@@ -39,6 +39,52 @@ export function Modal({
   const titleId = useId();
   const descId = useId();
   const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
+
+  // Focus lifecycle management
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Remember currently focused element before modal takes focus
+    if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+      previousActiveElementRef.current = document.activeElement;
+    }
+
+    // Move focus inside the dialog
+    const focusTimer = setTimeout(() => {
+      if (!modalRef.current) return;
+
+      const focusableSelectors = [
+        'button:not([disabled])',
+        '[href]',
+        'input:not([disabled])',
+        'select:not([disabled])',
+        'textarea:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])',
+      ].join(', ');
+
+      const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(focusableSelectors);
+
+      if (focusableElements.length > 0) {
+        focusableElements[0]!.focus();
+      } else {
+        modalRef.current.focus();
+      }
+    }, 0);
+
+    return () => {
+      clearTimeout(focusTimer);
+      // Restore focus to prior element on close/unmount if still in document
+      if (
+        previousActiveElementRef.current &&
+        typeof document !== 'undefined' &&
+        document.contains(previousActiveElementRef.current)
+      ) {
+        previousActiveElementRef.current.focus();
+        previousActiveElementRef.current = null;
+      }
+    };
+  }, [isOpen]);
 
   // Handle Escape key
   useEffect(() => {
@@ -73,13 +119,14 @@ export function Modal({
       <div
         ref={modalRef}
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
         aria-describedby={description ? descId : undefined}
         className={cn(
           'relative w-full z-10 bg-[var(--color-bg-surface-elevated)] text-[var(--color-text-primary)]',
           'border border-[var(--color-border-subtle)] rounded-[var(--radius-lg)] shadow-lg overflow-hidden',
-          'flex flex-col',
+          'flex flex-col focus:outline-none',
           sizeStyles[size],
           className
         )}

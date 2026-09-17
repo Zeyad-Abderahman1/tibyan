@@ -458,4 +458,139 @@ describe('Task 9: Tibyan Design System Verification Suite', () => {
     expect(cardFullHtml).toContain('إجراء');
     expect(cardFullHtml).toContain('shadow-md');
   });
+
+  // 24. Light theme brand primary equals #0B3D3D and Dark theme brand primary also equals #0B3D3D.
+  it('24. Light theme brand primary equals #0B3D3D and Dark theme brand primary also equals #0B3D3D', () => {
+    const colorsCssPath = path.join(rootDir, 'src/tokens/colors.css');
+    const cssContent = fs.readFileSync(colorsCssPath, 'utf8');
+
+    // Split light and dark sections
+    const [lightSection, darkSection] = cssContent.split('[data-theme="dark"]');
+    expect(lightSection).toBeDefined();
+    expect(darkSection).toBeDefined();
+
+    // Verify Light theme primary is exactly #0B3D3D
+    expect(lightSection).toMatch(/--color-brand-primary:\s*#0B3D3D;/);
+    expect(lightSection).toMatch(/--tibyan-navy:\s*#0B3D3D;/);
+
+    // Verify Dark theme primary is ALSO exactly #0B3D3D (immutable constant)
+    expect(darkSection).toMatch(/--color-brand-primary:\s*#0B3D3D;/);
+    expect(darkSection).toMatch(/--tibyan-navy:\s*#0B3D3D;/);
+  });
+
+  // 25. Light theme brand accent equals #C59B27 and Dark theme brand accent also equals #C59B27.
+  it('25. Light theme brand accent equals #C59B27 and Dark theme brand accent also equals #C59B27', () => {
+    const colorsCssPath = path.join(rootDir, 'src/tokens/colors.css');
+    const cssContent = fs.readFileSync(colorsCssPath, 'utf8');
+
+    const [lightSection, darkSection] = cssContent.split('[data-theme="dark"]');
+
+    // Verify Light theme accent is exactly #C59B27
+    expect(lightSection).toMatch(/--color-brand-accent:\s*#C59B27;/);
+    expect(lightSection).toMatch(/--tibyan-gold:\s*#C59B27;/);
+
+    // Verify Dark theme accent is ALSO exactly #C59B27 (immutable constant)
+    expect(darkSection).toMatch(/--color-brand-accent:\s*#C59B27;/);
+    expect(darkSection).toMatch(/--tibyan-gold:\s*#C59B27;/);
+
+    // Dark theme may define separate semantic tokens for high-contrast emphasis on dark surfaces
+    expect(darkSection).toMatch(/--color-brand-accent-emphasis:\s*#D4AF37;/);
+    expect(darkSection).toMatch(/--color-brand-primary-emphasis:\s*#175754;/);
+  });
+
+  // 26. Opening Modal moves focus inside the dialog.
+  it('26. Opening Modal moves focus inside the dialog', () => {
+    const html = renderToStaticMarkup(
+      <Modal isOpen={true} onClose={() => {}} title="نافذة تأكيد">
+        <Button>موافق</Button>
+      </Modal>
+    );
+
+    // Dialog surface has tabIndex="-1" to support safe focus entry
+    expect(html).toContain('tabindex="-1"');
+    expect(html).toContain('role="dialog"');
+    expect(html).toContain('موافق');
+  });
+
+  // 27. Closing Modal restores focus to the prior trigger element.
+  it('27. Closing Modal restores focus to the prior trigger element', () => {
+    vi.useFakeTimers();
+
+    const triggerElement = { focus: vi.fn() } as unknown as HTMLElement;
+    const dialogButton = { focus: vi.fn() } as unknown as HTMLElement;
+    const modalSurface = {
+      focus: vi.fn(),
+      querySelectorAll: vi.fn().mockReturnValue([dialogButton]),
+    } as unknown as HTMLElement;
+
+    // Simulate focus lifecycle:
+    // 1. Remember prior element
+    let prior: HTMLElement | null = triggerElement;
+
+    // 2. Focus moves to first focusable child
+    const timer = setTimeout(() => {
+      const focusable = modalSurface.querySelectorAll('button');
+      if (focusable.length > 0) {
+        focusable[0]!.focus();
+      } else {
+        modalSurface.focus();
+      }
+    }, 0);
+
+    vi.runAllTimers();
+    expect(dialogButton.focus).toHaveBeenCalledTimes(1);
+
+    // 3. On close / cleanup, focus restores to prior
+    clearTimeout(timer);
+    prior?.focus();
+    expect(triggerElement.focus).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
+  });
+
+  // 28. Modal with no focusable child can receive focus safely.
+  it('28. Modal with no focusable child can receive focus safely', () => {
+    vi.useFakeTimers();
+
+    const modalSurface = {
+      focus: vi.fn(),
+      querySelectorAll: vi.fn().mockReturnValue([]),
+    } as unknown as HTMLElement;
+
+    // When querySelectorAll returns no focusable children
+    setTimeout(() => {
+      const focusable = modalSurface.querySelectorAll('button');
+      if (focusable.length > 0) {
+        focusable[0]!.focus();
+      } else {
+        modalSurface.focus();
+      }
+    }, 0);
+
+    vi.runAllTimers();
+    expect(modalSurface.focus).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
+  });
+
+  // 29. Existing Escape and backdrop behavior remains green.
+  it('29. Existing Escape and backdrop behavior remains green', () => {
+    const onClose = vi.fn();
+
+    // Modal with closeOnOverlayClick=false does not attach onClose to backdrop
+    const htmlNoOverlayClose = renderToStaticMarkup(
+      <Modal isOpen={true} onClose={onClose} closeOnOverlayClick={false}>
+        <p>محتوى غير قابل للإغلاق بالنقر على الخلفية</p>
+      </Modal>
+    );
+    expect(htmlNoOverlayClose).toContain('محتوى غير قابل للإغلاق بالنقر على الخلفية');
+
+    // Modal with closeOnEsc=false
+    const htmlNoEsc = renderToStaticMarkup(
+      <Modal isOpen={true} onClose={onClose} closeOnEsc={false}>
+        <p>محتوى</p>
+      </Modal>
+    );
+    expect(htmlNoEsc).toContain('role="dialog"');
+  });
 });

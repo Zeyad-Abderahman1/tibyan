@@ -66,20 +66,22 @@
 }
 
 [data-theme="dark"] {
-  /* Brand Primitives (Adjusted for dark contrast) */
-  --tibyan-navy: #154D4D;
+  /* Brand Primitives (Immutable official brand constants identical across all themes) */
+  --tibyan-navy: #0B3D3D;
   --tibyan-teal: #1F6E68;
-  --tibyan-gold: #D4AF37;
-  --tibyan-gold-hover: #C59B27;
+  --tibyan-gold: #C59B27;
+  --tibyan-gold-hover: #B38728;
 
-  --color-brand-primary: #175754;
-  --color-brand-primary-hover: #124441;
-  --color-brand-primary-active: #0E3533;
+  --color-brand-primary: #0B3D3D;
+  --color-brand-primary-hover: #0E4747;
+  --color-brand-primary-active: #135555;
+  --color-brand-primary-emphasis: #175754;
   --color-brand-teal: #1F6E68;
   --color-brand-teal-hover: #26857E;
-  --color-brand-accent: #D4AF37;
-  --color-brand-accent-hover: #C59B27;
-  --color-brand-accent-subtle: rgba(212, 175, 55, 0.15);
+  --color-brand-accent: #C59B27;
+  --color-brand-accent-hover: #D4AF37;
+  --color-brand-accent-emphasis: #D4AF37;
+  --color-brand-accent-subtle: rgba(197, 155, 39, 0.15);
 
   /* Surfaces & Backgrounds (Dark Teal-Slate, Never pure black) */
   --color-bg-app: #0A1417;
