@@ -13,6 +13,8 @@ import {
   migrateSystemDatabase,
   migrateAcademicDatabase,
   getAppliedMigrations,
+  runMigrations,
+  ACADEMIC_MIGRATIONS,
 } from '../src/migrations/migrator.js';
 import {
   UserRepository,
@@ -876,4 +878,124 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     const schedules = groupRepo.getSchedules(grp.id);
     expect(schedules).toHaveLength(1);
   });
+
+  // Test: Upgrading an existing academic database from pre-0002 preserves pre-existing session rows
+  it('Academic database cleanly upgrades from pre-0002 schema preserving pre-existing session rows', () => {
+    const rawDb = createRawDatabase(':memory:');
+
+    // 1. Create/apply migrations through 0000_initial_schema and 0001_audit_triggers only
+    const pre0002Migrations = ACADEMIC_MIGRATIONS.slice(0, 2);
+    const initialApplied = runMigrations(rawDb, pre0002Migrations);
+    expect(initialApplied).toEqual(['0000_initial_schema', '0001_audit_triggers']);
+    expect(getAppliedMigrations(rawDb)).toEqual(['0000_initial_schema', '0001_audit_triggers']);
+
+    // Verify cancellation_reason column does not exist yet
+    const colsBefore = rawDb.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
+    expect(colsBefore.map((c) => c.name)).not.toContain('cancellation_reason');
+
+    // 2. Insert prerequisite group, schedule, and representative session row before applying 0002
+    const now = '2026-10-01T10:00:00.000Z';
+    rawDb.prepare(`
+      INSERT INTO groups (id, name, education_system, grade_level, language_track, default_payment_type, default_payment_amount, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run('grp-upg-1', 'مجموعة ترقية قاعدة البيانات', 'GENERAL', 'SEC_1', 'ARABIC', 'PER_SESSION', 150, 'ACTIVE', now, now);
+
+    rawDb.prepare(`
+      INSERT INTO group_schedules (id, group_id, weekday, start_time, duration_minutes, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run('sched-upg-1', 'grp-upg-1', 0, '16:00', 90, now, now);
+
+    const originalSession = {
+      id: 'sess-pre-0002',
+      groupId: 'grp-upg-1',
+      scheduleId: 'sched-upg-1',
+      occurrenceKey: 'sched-upg-1_2026-10-04',
+      scheduledDate: '2026-10-04',
+      scheduledStartTime: '16:00',
+      effectiveDate: '2026-10-04',
+      effectiveStartTime: '16:00',
+      durationMinutes: 90,
+      status: 'SCHEDULED',
+      rescheduleReason: null,
+      rescheduledAt: null,
+      notes: 'ملاحظة عامة قبل تطبيق ترقية سبب الإلغاء',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    rawDb.prepare(`
+      INSERT INTO sessions (
+        id, group_id, schedule_id, occurrence_key,
+        scheduled_date, scheduled_start_time,
+        effective_date, effective_start_time,
+        duration_minutes, status, reschedule_reason, rescheduled_at,
+        notes, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      originalSession.id,
+      originalSession.groupId,
+      originalSession.scheduleId,
+      originalSession.occurrenceKey,
+      originalSession.scheduledDate,
+      originalSession.scheduledStartTime,
+      originalSession.effectiveDate,
+      originalSession.effectiveStartTime,
+      originalSession.durationMinutes,
+      originalSession.status,
+      originalSession.rescheduleReason,
+      originalSession.rescheduledAt,
+      originalSession.notes,
+      originalSession.createdAt,
+      originalSession.updatedAt,
+    );
+
+    // 3. Run the normal migrator
+    const appliedDuringUpgrade = migrateAcademicDatabase(rawDb);
+
+    // 4. Verify 0002 adds cancellation_reason
+    expect(appliedDuringUpgrade).toEqual(['0002_glamorous_sunspot']);
+    const colsAfter = rawDb.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
+    expect(colsAfter.map((c) => c.name)).toContain('cancellation_reason');
+
+    // 5. Verify the pre-existing session row remains intact with all original occurrence, scheduled, effective, status, and notes values preserved
+    const upgradedRow = rawDb.prepare('SELECT * FROM sessions WHERE id = ?').get('sess-pre-0002') as any;
+    expect(upgradedRow).toBeDefined();
+    expect(upgradedRow.id).toBe(originalSession.id);
+    expect(upgradedRow.group_id).toBe(originalSession.groupId);
+    expect(upgradedRow.schedule_id).toBe(originalSession.scheduleId);
+    expect(upgradedRow.occurrence_key).toBe(originalSession.occurrenceKey);
+    expect(upgradedRow.scheduled_date).toBe(originalSession.scheduledDate);
+    expect(upgradedRow.scheduled_start_time).toBe(originalSession.scheduledStartTime);
+    expect(upgradedRow.effective_date).toBe(originalSession.effectiveDate);
+    expect(upgradedRow.effective_start_time).toBe(originalSession.effectiveStartTime);
+    expect(upgradedRow.duration_minutes).toBe(originalSession.durationMinutes);
+    expect(upgradedRow.status).toBe(originalSession.status);
+    expect(upgradedRow.notes).toBe(originalSession.notes);
+    expect(upgradedRow.created_at).toBe(originalSession.createdAt);
+    expect(upgradedRow.updated_at).toBe(originalSession.updatedAt);
+
+    // 6. Verify cancellation_reason is NULL for the pre-existing row
+    expect(upgradedRow.cancellation_reason).toBeNull();
+
+    // 7. Verify 0002 is recorded exactly once in migration history
+    expect(getAppliedMigrations(rawDb)).toEqual([
+      '0000_initial_schema',
+      '0001_audit_triggers',
+      '0002_glamorous_sunspot',
+    ]);
+    const migrationRecords = rawDb
+      .prepare("SELECT COUNT(*) as count FROM __tibyan_migrations WHERE id = '0002_glamorous_sunspot'")
+      .get() as { count: number };
+    expect(migrationRecords.count).toBe(1);
+
+    // 8. Run the migrator again and confirm it is idempotent and does not reapply or corrupt data
+    const secondRunApplied = migrateAcademicDatabase(rawDb);
+    expect(secondRunApplied).toEqual([]);
+
+    const reloadedAfterSecondMigrate = rawDb.prepare('SELECT * FROM sessions WHERE id = ?').get('sess-pre-0002') as any;
+    expect(reloadedAfterSecondMigrate).toEqual(upgradedRow);
+
+    rawDb.close();
+  });
 });
+

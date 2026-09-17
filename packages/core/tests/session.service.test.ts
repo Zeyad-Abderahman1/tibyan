@@ -12,6 +12,7 @@ import {
 } from '@tibyan/db';
 import {
   SessionService,
+  SessionError,
   computeHorizonDates,
   generateOccurrenceKey,
   isOccurrenceCollisionError,
@@ -20,7 +21,7 @@ import { GroupService } from '../src/groups/group.service.js';
 import type { AuthenticatedUser } from '../src/students/student.service.js';
 import { FixedDateProvider, DefaultDateProvider } from '../src/common/date-provider.js';
 
-describe('Task 6 Final Hardening: SessionService', () => {
+describe('Task 6: SessionService Complete Regression Suite', () => {
   let tempDir: string;
   let acadConn: AcademicDatabaseConnection;
   let sessionService: SessionService;
@@ -43,6 +44,13 @@ describe('Task 6 Final Hardening: SessionService', () => {
     permissions: ['GROUPS_READ', 'SESSIONS_MANAGE'],
   };
 
+  const assistantReadOnly: AuthenticatedUser = {
+    userId: crypto.randomUUID(),
+    fullName: 'خالد قارئ فقط',
+    role: 'ASSISTANT',
+    permissions: ['GROUPS_READ'],
+  };
+
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tibyan-session-test-'));
     const dbPath = path.join(tempDir, 'academic.db');
@@ -60,7 +68,7 @@ describe('Task 6 Final Hardening: SessionService', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  describe('Local wall-clock calendar calculations', () => {
+  describe('1. Local wall-clock calendar calculations', () => {
     it('generates exactly 28 calendar dates from today through today + 27 days inclusive', () => {
       const dates = computeHorizonDates('2026-10-01', 28);
       expect(dates).toHaveLength(28);
@@ -82,8 +90,8 @@ describe('Task 6 Final Hardening: SessionService', () => {
       expect(localToday).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(localTime).toMatch(/^\d{2}:\d{2}$/);
 
-      // Verify that simulated Egypt midnight time (e.g. 00:30 on 2026-10-02, which is 21:30 on 2026-10-01 in UTC)
-      // produces local date 2026-10-02 and NOT the previous UTC day
+      // Simulated Egypt midnight time (00:30 on 2026-10-02, which is 21:30 on 2026-10-01 in UTC)
+      // produces local calendar date 2026-10-02 and NOT the previous UTC day
       const fixedEgyptMidnight = new FixedDateProvider('2026-10-02', '00:30');
       expect(fixedEgyptMidnight.today()).toBe('2026-10-02');
       expect(fixedEgyptMidnight.nowTime()).toBe('00:30');
@@ -94,7 +102,316 @@ describe('Task 6 Final Hardening: SessionService', () => {
     });
   });
 
-  describe('Cancellation metadata hardening', () => {
+  describe('2. Materialization & Idempotency', () => {
+    it('materializes matching weekly occurrences correctly and idempotently', async () => {
+      // 2026-10-01 is Thursday (4).
+      // Sunday is weekday 0 (e.g. 2026-10-04, 2026-10-11, 2026-10-18, 2026-10-25 => 4 occurrences).
+      // Tuesday is weekday 2 (e.g. 2026-10-06, 2026-10-13, 2026-10-20, 2026-10-27 => 4 occurrences).
+      const group = await groupService.createGroup(
+        {
+          name: 'مجموعة الأحد والثلاثاء',
+          educationSystem: 'GENERAL',
+          gradeLevel: 'SEC_1',
+          languageTrack: 'ARABIC',
+          defaultPaymentType: 'MONTHLY',
+          defaultPaymentAmount: 300,
+          schedules: [
+            { weekday: 0, startTime: '16:00', durationMinutes: 90 },
+            { weekday: 2, startTime: '18:00', durationMinutes: 90 },
+          ],
+        },
+        ownerActor
+      );
+
+      // First run: should materialize 8 sessions (4 Sundays + 4 Tuesdays)
+      const firstRun = await sessionService.materializeRollingHorizon(
+        { groupId: group.id },
+        ownerActor
+      );
+      expect(firstRun.createdCount).toBe(8);
+      expect(firstRun.existingCount).toBe(0);
+
+      const allSessions = sessionRepo.listByGroup(group.id);
+      expect(allSessions).toHaveLength(8);
+
+      for (const s of allSessions) {
+        expect(s.status).toBe('SCHEDULED');
+        expect(s.effectiveDate).toBe(s.scheduledDate);
+        expect(s.effectiveStartTime).toBe(s.scheduledStartTime);
+        expect(s.rescheduleReason).toBeNull();
+      }
+
+      // Second run: completely idempotent, 0 new sessions created
+      const secondRun = await sessionService.materializeRollingHorizon(
+        { groupId: group.id },
+        ownerActor
+      );
+      expect(secondRun.createdCount).toBe(0);
+      expect(secondRun.existingCount).toBe(8);
+
+      const allSessionsAfterSecond = sessionRepo.listByGroup(group.id);
+      expect(allSessionsAfterSecond).toHaveLength(8);
+    });
+
+    it('advancing injected date by one day extends horizon correctly without duplicate occurrences', async () => {
+      const group = await groupService.createGroup(
+        {
+          name: 'مجموعة الأحد',
+          educationSystem: 'GENERAL',
+          gradeLevel: 'SEC_1',
+          languageTrack: 'ARABIC',
+          defaultPaymentType: 'MONTHLY',
+          defaultPaymentAmount: 300,
+          schedules: [{ weekday: 0, startTime: '10:00', durationMinutes: 90 }],
+        },
+        ownerActor
+      );
+
+      // Day 1: 2026-10-01 (horizon: 2026-10-01 to 2026-10-28)
+      const run1 = await sessionService.materializeRollingHorizon({ groupId: group.id }, ownerActor);
+      expect(run1.createdCount).toBe(4); // Oct 4, 11, 18, 25
+
+      // Advance clock by 4 days to 2026-10-05 (horizon: 2026-10-05 to 2026-11-01)
+      // 2026-11-01 is Sunday, newly entering the horizon
+      dateProvider.setDate('2026-10-05');
+
+      const run2 = await sessionService.materializeRollingHorizon({ groupId: group.id }, ownerActor);
+      expect(run2.createdCount).toBe(1); // 2026-11-01 newly materialized
+      expect(run2.existingCount).toBe(3); // 11, 18, 25 skipped as existing
+
+      const sessionsNow = sessionRepo.listByGroup(group.id);
+      expect(sessionsNow).toHaveLength(5);
+    });
+
+    it('archived group does not generate new future recurring sessions', async () => {
+      const group = await groupService.createGroup(
+        {
+          name: 'مجموعة ستؤرشف',
+          educationSystem: 'GENERAL',
+          gradeLevel: 'SEC_1',
+          languageTrack: 'ARABIC',
+          defaultPaymentType: 'MONTHLY',
+          defaultPaymentAmount: 300,
+          schedules: [{ weekday: 0, startTime: '10:00', durationMinutes: 90 }],
+        },
+        ownerActor
+      );
+
+      await groupService.archiveGroup(group.id, ownerActor);
+
+      const result = await sessionService.materializeRollingHorizon(
+        { groupId: group.id },
+        ownerActor
+      );
+      expect(result.createdCount).toBe(0);
+
+      const sessions = sessionRepo.listByGroup(group.id);
+      expect(sessions).toHaveLength(0);
+    });
+
+    it('completed occurrence is not replaced or duplicated by materializer', async () => {
+      const group = await groupService.createGroup(
+        {
+          name: 'مجموعة فحص الجلسة المكتملة',
+          educationSystem: 'GENERAL',
+          gradeLevel: 'SEC_1',
+          languageTrack: 'ARABIC',
+          defaultPaymentType: 'MONTHLY',
+          defaultPaymentAmount: 300,
+          schedules: [{ weekday: 0, startTime: '16:00', durationMinutes: 90 }],
+        },
+        ownerActor
+      );
+
+      await sessionService.materializeRollingHorizon({ groupId: group.id }, ownerActor);
+      const sessions = sessionRepo.listByGroup(group.id);
+
+      // Mark first occurrence COMPLETED
+      sessionRepo.update(sessions[0]!.id, { status: 'COMPLETED' });
+
+      // Rerun materializer
+      const rerun = await sessionService.materializeRollingHorizon({ groupId: group.id }, ownerActor);
+      expect(rerun.createdCount).toBe(0);
+      expect(rerun.existingCount).toBe(4);
+
+      const reloaded = sessionRepo.findById(sessions[0]!.id);
+      expect(reloaded?.status).toBe('COMPLETED');
+    });
+
+    it('cancelled occurrence is not replaced or duplicated by materializer', async () => {
+      const group = await groupService.createGroup(
+        {
+          name: 'مجموعة فحص الجلسة الملغاة',
+          educationSystem: 'GENERAL',
+          gradeLevel: 'SEC_1',
+          languageTrack: 'ARABIC',
+          defaultPaymentType: 'MONTHLY',
+          defaultPaymentAmount: 300,
+          schedules: [{ weekday: 0, startTime: '16:00', durationMinutes: 90 }],
+        },
+        ownerActor
+      );
+
+      await sessionService.materializeRollingHorizon({ groupId: group.id }, ownerActor);
+      const sessions = sessionRepo.listByGroup(group.id);
+
+      // Cancel first occurrence
+      await sessionService.cancelSession(
+        { sessionId: sessions[0]!.id, reason: 'إلغاء أسبوعي' },
+        ownerActor
+      );
+
+      // Rerun materializer
+      const rerun = await sessionService.materializeRollingHorizon({ groupId: group.id }, ownerActor);
+      expect(rerun.createdCount).toBe(0);
+      expect(rerun.existingCount).toBe(4);
+
+      const reloaded = sessionRepo.findById(sessions[0]!.id);
+      expect(reloaded?.status).toBe('CANCELLED_BY_TEACHER');
+      expect(reloaded?.cancellationReason).toBe('إلغاء أسبوعي');
+    });
+  });
+
+  describe('3. Rescheduling Behavior', () => {
+    it('keeps occurrenceKey and scheduled slot unchanged, updates only effective slot and metadata', async () => {
+      const group = await groupService.createGroup(
+        {
+          name: 'مجموعة التأجيل',
+          educationSystem: 'GENERAL',
+          gradeLevel: 'SEC_1',
+          languageTrack: 'ARABIC',
+          defaultPaymentType: 'MONTHLY',
+          defaultPaymentAmount: 300,
+          schedules: [{ weekday: 0, startTime: '16:00', durationMinutes: 90 }],
+        },
+        ownerActor
+      );
+
+      await sessionService.materializeRollingHorizon({ groupId: group.id }, ownerActor);
+      const sessions = sessionRepo.listByGroup(group.id);
+      const originalSession = sessions[0]!; // 2026-10-04, 16:00
+
+      const rescheduled = await sessionService.rescheduleSession(
+        {
+          sessionId: originalSession.id,
+          newEffectiveDate: '2026-10-06',
+          newEffectiveStartTime: '17:30',
+          reason: 'ظرف طارئ للمعلم',
+        },
+        assistantWithSessionsManage
+      );
+
+      // Immutable original slot and identity preserved
+      expect(rescheduled.occurrenceKey).toBe(originalSession.occurrenceKey);
+      expect(rescheduled.scheduledDate).toBe(originalSession.scheduledDate);
+      expect(rescheduled.scheduledStartTime).toBe(originalSession.scheduledStartTime);
+
+      // Mutable effective slot changed
+      expect(rescheduled.effectiveDate).toBe('2026-10-06');
+      expect(rescheduled.effectiveStartTime).toBe('17:30');
+      expect(rescheduled.status).toBe('RESCHEDULED');
+      expect(rescheduled.rescheduleReason).toBe('ظرف طارئ للمعلم');
+      expect(rescheduled.rescheduledAt).not.toBeNull();
+
+      // Audit check
+      const audits = auditRepo.findByEntity('SESSION', originalSession.id);
+      expect(audits[0]!.action).toBe('SESSION_RESCHEDULED');
+    });
+
+    it('rerunning materializer after rescheduling never recreates the original slot', async () => {
+      const group = await groupService.createGroup(
+        {
+          name: 'مجموعة اختبار عدم التكرار',
+          educationSystem: 'GENERAL',
+          gradeLevel: 'SEC_1',
+          languageTrack: 'ARABIC',
+          defaultPaymentType: 'MONTHLY',
+          defaultPaymentAmount: 300,
+          schedules: [{ weekday: 0, startTime: '16:00', durationMinutes: 90 }],
+        },
+        ownerActor
+      );
+
+      await sessionService.materializeRollingHorizon({ groupId: group.id }, ownerActor);
+      const sessions = sessionRepo.listByGroup(group.id);
+      const firstSundaySession = sessions[0]!;
+
+      await sessionService.rescheduleSession(
+        {
+          sessionId: firstSundaySession.id,
+          newEffectiveDate: '2026-10-06',
+          newEffectiveStartTime: '17:00',
+          reason: 'تأجيل الثلاثاء',
+        },
+        ownerActor
+      );
+
+      const rerun = await sessionService.materializeRollingHorizon(
+        { groupId: group.id },
+        ownerActor
+      );
+      expect(rerun.createdCount).toBe(0); // MUST NOT recreate Sunday!
+
+      const allSessionsAfterRerun = sessionRepo.listByGroup(group.id);
+      expect(allSessionsAfterRerun).toHaveLength(4);
+
+      const sundayOccurrence = allSessionsAfterRerun.find((s) => s.effectiveDate === '2026-10-04');
+      expect(sundayOccurrence).toBeUndefined();
+    });
+
+    it('rejects rescheduling for completed or cancelled session', async () => {
+      const group = await groupService.createGroup(
+        {
+          name: 'مجموعة الجلسات المنتهية',
+          educationSystem: 'GENERAL',
+          gradeLevel: 'SEC_1',
+          languageTrack: 'ARABIC',
+          defaultPaymentType: 'MONTHLY',
+          defaultPaymentAmount: 300,
+          schedules: [{ weekday: 0, startTime: '16:00', durationMinutes: 90 }],
+        },
+        ownerActor
+      );
+
+      await sessionService.materializeRollingHorizon({ groupId: group.id }, ownerActor);
+      const sessions = sessionRepo.listByGroup(group.id);
+
+      // Mark first session completed
+      sessionRepo.update(sessions[0]!.id, { status: 'COMPLETED' });
+
+      await expect(
+        sessionService.rescheduleSession(
+          {
+            sessionId: sessions[0]!.id,
+            newEffectiveDate: '2026-10-06',
+            newEffectiveStartTime: '17:00',
+            reason: 'محاولة تأجيل جلسة مكتملة',
+          },
+          ownerActor
+        )
+      ).rejects.toThrow(SessionError);
+
+      // Mark second session cancelled
+      await sessionService.cancelSession(
+        { sessionId: sessions[1]!.id, reason: 'إلغاء مسبق' },
+        ownerActor
+      );
+
+      await expect(
+        sessionService.rescheduleSession(
+          {
+            sessionId: sessions[1]!.id,
+            newEffectiveDate: '2026-10-06',
+            newEffectiveStartTime: '17:00',
+            reason: 'محاولة تأجيل جلسة ملغاة',
+          },
+          ownerActor
+        )
+      ).rejects.toThrow(SessionError);
+    });
+  });
+
+  describe('4. Cancellation Metadata & Notes Independence', () => {
     it('persists cancellation reason in dedicated cancellationReason column and preserves general notes', async () => {
       const group = await groupService.createGroup(
         {
@@ -150,9 +467,39 @@ describe('Task 6 Final Hardening: SessionService', () => {
       const auditMeta = JSON.parse(audits[0]!.metadataJson ?? '{}');
       expect(auditMeta.cancellationReason).toBe('عطلة رسمية بمناسبة 6 أكتوبر');
     });
+
+    it('rejects cancellation of completed session', async () => {
+      const group = await groupService.createGroup(
+        {
+          name: 'مجموعة محاولة إلغاء مكتملة',
+          educationSystem: 'GENERAL',
+          gradeLevel: 'SEC_1',
+          languageTrack: 'ARABIC',
+          defaultPaymentType: 'MONTHLY',
+          defaultPaymentAmount: 300,
+          schedules: [{ weekday: 0, startTime: '16:00', durationMinutes: 90 }],
+        },
+        ownerActor
+      );
+
+      await sessionService.materializeRollingHorizon({ groupId: group.id }, ownerActor);
+      const sessions = sessionRepo.listByGroup(group.id);
+
+      sessionRepo.update(sessions[0]!.id, { status: 'COMPLETED' });
+
+      await expect(
+        sessionService.cancelSession(
+          {
+            sessionId: sessions[0]!.id,
+            reason: 'محاولة إلغاء جلسة مكتملة',
+          },
+          ownerActor
+        )
+      ).rejects.toThrow('Cannot cancel a completed session');
+    });
   });
 
-  describe('Same-day schedule-change history protection', () => {
+  describe('5. Same-Day Schedule Protection & History Preservation', () => {
     it('preserves an earlier SCHEDULED session from today and only regenerates later SCHEDULED sessions when replaced', async () => {
       // Set current clock to Thursday 2026-10-01 at 14:00 (afternoon)
       dateProvider.setDate('2026-10-01');
@@ -181,7 +528,6 @@ describe('Task 6 Final Hardening: SessionService', () => {
       await sessionService.materializeRollingHorizon({ groupId: group.id }, ownerActor);
       const initialSessions = sessionRepo.listByGroup(group.id);
 
-      // Find the two sessions for today (2026-10-01)
       const morningSessionToday = initialSessions.find(
         (s) => s.scheduledDate === '2026-10-01' && s.scheduledStartTime === '10:00'
       );
@@ -194,7 +540,7 @@ describe('Task 6 Final Hardening: SessionService', () => {
       expect(morningSessionToday?.status).toBe('SCHEDULED');
       expect(eveningSessionToday?.status).toBe('SCHEDULED');
 
-      // Now, at 14:00, replace the group's weekly schedule with Saturday slot (weekday = 6)
+      // Replace schedule with Saturday slot
       await groupService.setWeeklySchedule(
         {
           groupId: group.id,
@@ -205,135 +551,20 @@ describe('Task 6 Final Hardening: SessionService', () => {
 
       const afterChangeSessions = sessionRepo.listByGroup(group.id);
 
-      // 1. Morning session earlier today (10:00) MUST BE PRESERVED even though it was SCHEDULED!
+      // 1. Morning session earlier today (10:00) MUST BE PRESERVED even though status was SCHEDULED
       const preservedMorning = afterChangeSessions.find((s) => s.id === morningSessionToday!.id);
       expect(preservedMorning).toBeDefined();
       expect(preservedMorning?.scheduledStartTime).toBe('10:00');
 
-      // 2. Evening session later today (18:00) was in the future and invalidated, so it was purged!
+      // 2. Evening session later today (18:00) was in the future and invalidated, so it was purged
       const purgedEvening = afterChangeSessions.find((s) => s.id === eveningSessionToday!.id);
       expect(purgedEvening).toBeUndefined();
 
-      // 3. Future Thursday sessions from next weeks (e.g. 2026-10-08) were also purged!
+      // 3. Future Thursday sessions from next weeks were also purged
       const futureThursday = afterChangeSessions.find((s) => s.scheduledDate === '2026-10-08');
       expect(futureThursday).toBeUndefined();
     });
-  });
 
-  describe('Concurrent materializer collision handling', () => {
-    it('correctly identifies UNIQUE collision on sessions.occurrence_key', () => {
-      const collisionErr = new Error('UNIQUE constraint failed: sessions.occurrence_key');
-      (collisionErr as any).code = 'SQLITE_CONSTRAINT_UNIQUE';
-      expect(isOccurrenceCollisionError(collisionErr)).toBe(true);
-
-      const generalConstraintErr = new Error('UNIQUE constraint failed: sessions.occurrence_key');
-      (generalConstraintErr as any).code = 'SQLITE_CONSTRAINT';
-      expect(isOccurrenceCollisionError(generalConstraintErr)).toBe(true);
-
-      const fkErr = new Error('FOREIGN KEY constraint failed');
-      (fkErr as any).code = 'SQLITE_CONSTRAINT_FOREIGNKEY';
-      expect(isOccurrenceCollisionError(fkErr)).toBe(false);
-
-      const nullErr = new Error('NOT NULL constraint failed: sessions.duration_minutes');
-      (nullErr as any).code = 'SQLITE_CONSTRAINT_NOTNULL';
-      expect(isOccurrenceCollisionError(nullErr)).toBe(false);
-    });
-
-    it('safely handles an occurrence inserted concurrently between pre-check and final INSERT without failing', async () => {
-      const group = await groupService.createGroup(
-        {
-          name: 'مجموعة التزامن',
-          educationSystem: 'GENERAL',
-          gradeLevel: 'SEC_1',
-          languageTrack: 'ARABIC',
-          defaultPaymentType: 'MONTHLY',
-          defaultPaymentAmount: 300,
-          schedules: [{ weekday: 0, startTime: '16:00', durationMinutes: 90 }],
-        },
-        ownerActor
-      );
-
-      // Simulate a concurrent race condition:
-      // Spy on SessionRepository.prototype.findByOccurrenceKey so that for the first occurrence key,
-      // it reports null (pre-check passed), but a concurrent process sneaks in and inserts it into DB!
-      const originalFindByKey = SessionRepository.prototype.findByOccurrenceKey;
-      let simulatedRaceTriggered = false;
-
-      vi.spyOn(SessionRepository.prototype, 'findByOccurrenceKey').mockImplementation(function (
-        this: any,
-        occurrenceKey: string
-      ) {
-        const found = originalFindByKey.call(this, occurrenceKey);
-        if (!found && !simulatedRaceTriggered) {
-          simulatedRaceTriggered = true;
-          // Sneak in a concurrent insert into the database before the materializer's create runs:
-          sessionRepo.create({
-            id: crypto.randomUUID(),
-            groupId: group.id,
-            scheduleId: occurrenceKey.split('_')[0]!,
-            occurrenceKey,
-            scheduledDate: '2026-10-04',
-            scheduledStartTime: '16:00',
-            effectiveDate: '2026-10-04',
-            effectiveStartTime: '16:00',
-            durationMinutes: 90,
-            status: 'SCHEDULED',
-            rescheduleReason: null,
-            rescheduledAt: null,
-            cancellationReason: null,
-            notes: null,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-          // Return null as if the pre-check didn't see it
-          return null;
-        }
-        return found;
-      });
-
-      // Running materializeRollingHorizon must not throw UNIQUE constraint violation.
-      // It should gracefully treat the colliding occurrence as already materialized!
-      const result = await sessionService.materializeRollingHorizon(
-        { groupId: group.id },
-        ownerActor
-      );
-
-      // 4 Sundays total in horizon: 1 was inserted concurrently, 3 inserted by materializer
-      expect(result.createdCount).toBe(3);
-      expect(result.existingCount).toBe(1);
-
-      const allSessions = sessionRepo.listByGroup(group.id);
-      expect(allSessions).toHaveLength(4);
-    });
-
-    it('does NOT swallow unrelated database errors like foreign key violations during materialization', async () => {
-      const group = await groupService.createGroup(
-        {
-          name: 'مجموعة فحص الأخطاء',
-          educationSystem: 'GENERAL',
-          gradeLevel: 'SEC_1',
-          languageTrack: 'ARABIC',
-          defaultPaymentType: 'MONTHLY',
-          defaultPaymentAmount: 300,
-          schedules: [{ weekday: 0, startTime: '16:00', durationMinutes: 90 }],
-        },
-        ownerActor
-      );
-
-      // Spy on SessionRepository.prototype.create to simulate an unrelated database error (e.g. Foreign Key error)
-      vi.spyOn(SessionRepository.prototype, 'create').mockImplementationOnce(() => {
-        const fkError = new Error('FOREIGN KEY constraint failed');
-        (fkError as any).code = 'SQLITE_CONSTRAINT_FOREIGNKEY';
-        throw fkError;
-      });
-
-      await expect(
-        sessionService.materializeRollingHorizon({ groupId: group.id }, ownerActor)
-      ).rejects.toThrow('FOREIGN KEY constraint failed');
-    });
-  });
-
-  describe('Schedule replacement preserves all historical/manually-modified sessions', () => {
     it('preserves RESCHEDULED, COMPLETED, and CANCELLED_BY_TEACHER sessions while regenerating untouched future SCHEDULED occurrences', async () => {
       const group = await groupService.createGroup(
         {
@@ -377,7 +608,7 @@ describe('Task 6 Final Hardening: SessionService', () => {
 
       // 4. Session 3 (10-25): remains untouched SCHEDULED
 
-      // Now change group schedule: replace Sunday with Wednesday (weekday = 3)
+      // Change group schedule: replace Sunday with Wednesday (weekday = 3)
       await groupService.setWeeklySchedule(
         {
           groupId: group.id,
@@ -419,11 +650,121 @@ describe('Task 6 Final Hardening: SessionService', () => {
       // Total sessions count: 3 preserved + 4 new Wednesday sessions = 7 sessions
       expect(finalSessions).toHaveLength(7);
     });
+  });
 
-    it('rerunning materializer after rescheduling never recreates the original slot', async () => {
+  describe('6. Concurrency & Collision Safety', () => {
+    it('correctly identifies UNIQUE collision on sessions.occurrence_key', () => {
+      const collisionErr = new Error('UNIQUE constraint failed: sessions.occurrence_key');
+      (collisionErr as any).code = 'SQLITE_CONSTRAINT_UNIQUE';
+      expect(isOccurrenceCollisionError(collisionErr)).toBe(true);
+
+      const generalConstraintErr = new Error('UNIQUE constraint failed: sessions.occurrence_key');
+      (generalConstraintErr as any).code = 'SQLITE_CONSTRAINT';
+      expect(isOccurrenceCollisionError(generalConstraintErr)).toBe(true);
+
+      const fkErr = new Error('FOREIGN KEY constraint failed');
+      (fkErr as any).code = 'SQLITE_CONSTRAINT_FOREIGNKEY';
+      expect(isOccurrenceCollisionError(fkErr)).toBe(false);
+
+      const nullErr = new Error('NOT NULL constraint failed: sessions.duration_minutes');
+      (nullErr as any).code = 'SQLITE_CONSTRAINT_NOTNULL';
+      expect(isOccurrenceCollisionError(nullErr)).toBe(false);
+    });
+
+    it('safely handles an occurrence inserted concurrently between pre-check and final INSERT without failing', async () => {
       const group = await groupService.createGroup(
         {
-          name: 'مجموعة اختبار عدم التكرار',
+          name: 'مجموعة التزامن',
+          educationSystem: 'GENERAL',
+          gradeLevel: 'SEC_1',
+          languageTrack: 'ARABIC',
+          defaultPaymentType: 'MONTHLY',
+          defaultPaymentAmount: 300,
+          schedules: [{ weekday: 0, startTime: '16:00', durationMinutes: 90 }],
+        },
+        ownerActor
+      );
+
+      // Simulate a concurrent race condition by hooking SessionRepository.prototype.findByOccurrenceKey
+      const originalFindByKey = SessionRepository.prototype.findByOccurrenceKey;
+      let simulatedRaceTriggered = false;
+
+      vi.spyOn(SessionRepository.prototype, 'findByOccurrenceKey').mockImplementation(function (
+        this: any,
+        occurrenceKey: string
+      ) {
+        const found = originalFindByKey.call(this, occurrenceKey);
+        if (!found && !simulatedRaceTriggered) {
+          simulatedRaceTriggered = true;
+          // Sneak in a concurrent insert into the database before the materializer's create runs:
+          sessionRepo.create({
+            id: crypto.randomUUID(),
+            groupId: group.id,
+            scheduleId: occurrenceKey.split('_')[0]!,
+            occurrenceKey,
+            scheduledDate: '2026-10-04',
+            scheduledStartTime: '16:00',
+            effectiveDate: '2026-10-04',
+            effectiveStartTime: '16:00',
+            durationMinutes: 90,
+            status: 'SCHEDULED',
+            rescheduleReason: null,
+            rescheduledAt: null,
+            cancellationReason: null,
+            notes: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+          // Return null as if the pre-check didn't see it
+          return null;
+        }
+        return found;
+      });
+
+      const result = await sessionService.materializeRollingHorizon(
+        { groupId: group.id },
+        ownerActor
+      );
+
+      // 4 Sundays total in horizon: 1 was inserted concurrently, 3 inserted by materializer
+      expect(result.createdCount).toBe(3);
+      expect(result.existingCount).toBe(1);
+
+      const allSessions = sessionRepo.listByGroup(group.id);
+      expect(allSessions).toHaveLength(4);
+    });
+
+    it('does NOT swallow unrelated database errors like foreign key violations during materialization', async () => {
+      const group = await groupService.createGroup(
+        {
+          name: 'مجموعة فحص الأخطاء',
+          educationSystem: 'GENERAL',
+          gradeLevel: 'SEC_1',
+          languageTrack: 'ARABIC',
+          defaultPaymentType: 'MONTHLY',
+          defaultPaymentAmount: 300,
+          schedules: [{ weekday: 0, startTime: '16:00', durationMinutes: 90 }],
+        },
+        ownerActor
+      );
+
+      vi.spyOn(SessionRepository.prototype, 'create').mockImplementationOnce(() => {
+        const fkError = new Error('FOREIGN KEY constraint failed');
+        (fkError as any).code = 'SQLITE_CONSTRAINT_FOREIGNKEY';
+        throw fkError;
+      });
+
+      await expect(
+        sessionService.materializeRollingHorizon({ groupId: group.id }, ownerActor)
+      ).rejects.toThrow('FOREIGN KEY constraint failed');
+    });
+  });
+
+  describe('7. Authorization & Transaction Rollback', () => {
+    it('denies ASSISTANT without SESSIONS_MANAGE from rescheduling or cancelling sessions', async () => {
+      const group = await groupService.createGroup(
+        {
+          name: 'مجموعة الصلاحيات',
           educationSystem: 'GENERAL',
           gradeLevel: 'SEC_1',
           languageTrack: 'ARABIC',
@@ -436,29 +777,67 @@ describe('Task 6 Final Hardening: SessionService', () => {
 
       await sessionService.materializeRollingHorizon({ groupId: group.id }, ownerActor);
       const sessions = sessionRepo.listByGroup(group.id);
-      const firstSundaySession = sessions[0]!;
 
-      await sessionService.rescheduleSession(
+      await expect(
+        sessionService.rescheduleSession(
+          {
+            sessionId: sessions[0]!.id,
+            newEffectiveDate: '2026-10-06',
+            newEffectiveStartTime: '17:00',
+            reason: 'محاولة بلا صلاحية',
+          },
+          assistantReadOnly
+        )
+      ).rejects.toThrow(/Permission denied|PERMISSION_DENIED/);
+
+      await expect(
+        sessionService.cancelSession(
+          {
+            sessionId: sessions[0]!.id,
+            reason: 'محاولة إلغاء بلا صلاحية',
+          },
+          assistantReadOnly
+        )
+      ).rejects.toThrow(/Permission denied|PERMISSION_DENIED/);
+    });
+
+    it('rolls back rescheduling transaction if audit insertion fails', async () => {
+      const group = await groupService.createGroup(
         {
-          sessionId: firstSundaySession.id,
-          newEffectiveDate: '2026-10-06',
-          newEffectiveStartTime: '17:00',
-          reason: 'تأجيل الثلاثاء',
+          name: 'مجموعة تراجع التأجيل',
+          educationSystem: 'GENERAL',
+          gradeLevel: 'SEC_1',
+          languageTrack: 'ARABIC',
+          defaultPaymentType: 'MONTHLY',
+          defaultPaymentAmount: 300,
+          schedules: [{ weekday: 0, startTime: '16:00', durationMinutes: 90 }],
         },
         ownerActor
       );
 
-      const rerun = await sessionService.materializeRollingHorizon(
-        { groupId: group.id },
-        ownerActor
-      );
-      expect(rerun.createdCount).toBe(0);
+      await sessionService.materializeRollingHorizon({ groupId: group.id }, ownerActor);
+      const sessions = sessionRepo.listByGroup(group.id);
 
-      const allSessionsAfterRerun = sessionRepo.listByGroup(group.id);
-      expect(allSessionsAfterRerun).toHaveLength(4);
+      vi.spyOn(AcademicAuditRepository.prototype, 'insert').mockImplementationOnce(() => {
+        throw new Error('Forced session audit failure');
+      });
 
-      const sundayOccurrence = allSessionsAfterRerun.find((s) => s.effectiveDate === '2026-10-04');
-      expect(sundayOccurrence).toBeUndefined();
+      await expect(
+        sessionService.rescheduleSession(
+          {
+            sessionId: sessions[0]!.id,
+            newEffectiveDate: '2026-10-06',
+            newEffectiveStartTime: '17:00',
+            reason: 'تراجع',
+          },
+          ownerActor
+        )
+      ).rejects.toThrow('Forced session audit failure');
+
+      // Verify status in DB was rolled back
+      const reloaded = sessionRepo.findById(sessions[0]!.id);
+      expect(reloaded?.status).toBe('SCHEDULED');
+      expect(reloaded?.effectiveDate).toBe(sessions[0]!.scheduledDate);
     });
   });
 });
