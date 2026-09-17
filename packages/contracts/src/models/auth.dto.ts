@@ -13,6 +13,13 @@ export const LoginWithPinSchema = z.object({
 });
 export type LoginWithPinInput = z.infer<typeof LoginWithPinSchema>;
 
+export const BootstrapOwnerSchema = z.object({
+  fullName: z.string().trim().min(1, 'Full name cannot be empty'),
+  username: z.string().trim().min(3, 'Username must be at least 3 characters').toLowerCase(),
+  pin: PinSchema,
+});
+export type BootstrapOwnerInput = z.infer<typeof BootstrapOwnerSchema>;
+
 export const CreateUserSchema = z.object({
   fullName: z.string().trim().min(1, 'Full name cannot be empty'),
   username: z.string().trim().min(3, 'Username must be at least 3 characters').toLowerCase(),

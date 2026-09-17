@@ -1,0 +1,47 @@
+import type { BrowserWindow } from 'electron';
+import type { Runtime } from '../runtime.js';
+import { registerAuthIpcHandlers, unregisterAuthIpcHandlers } from './auth.ipc.js';
+import { registerStudentsIpcHandlers, unregisterStudentsIpcHandlers } from './students.ipc.js';
+import { registerGroupsIpcHandlers, unregisterGroupsIpcHandlers } from './groups.ipc.js';
+import { registerSessionsIpcHandlers, unregisterSessionsIpcHandlers } from './sessions.ipc.js';
+import { registerDashboardIpcHandlers, unregisterDashboardIpcHandlers } from './dashboard.ipc.js';
+import { registerBackupIpcHandlers, unregisterBackupIpcHandlers } from './backup.ipc.js';
+import { registerSystemIpcHandlers, unregisterSystemIpcHandlers } from './system.ipc.js';
+
+/**
+ * Registers all typed IPC domain handlers against the electron ipcMain dispatcher.
+ * Unregisters any prior registrations first to guarantee idempotency.
+ */
+export function registerAllIpcHandlers(runtime: Runtime, mainWindow: BrowserWindow | null): void {
+  unregisterAllIpcHandlers();
+
+  registerAuthIpcHandlers(runtime, mainWindow);
+  registerStudentsIpcHandlers(runtime, mainWindow);
+  registerGroupsIpcHandlers(runtime, mainWindow);
+  registerSessionsIpcHandlers(runtime, mainWindow);
+  registerDashboardIpcHandlers(runtime, mainWindow);
+  registerBackupIpcHandlers(runtime, mainWindow);
+  registerSystemIpcHandlers(runtime, mainWindow);
+}
+
+/**
+ * Cleans up all registered IPC handlers. Useful during application quit or test resets.
+ */
+export function unregisterAllIpcHandlers(): void {
+  unregisterAuthIpcHandlers();
+  unregisterStudentsIpcHandlers();
+  unregisterGroupsIpcHandlers();
+  unregisterSessionsIpcHandlers();
+  unregisterDashboardIpcHandlers();
+  unregisterBackupIpcHandlers();
+  unregisterSystemIpcHandlers();
+}
+
+export * from './errors.js';
+export * from './auth.ipc.js';
+export * from './students.ipc.js';
+export * from './groups.ipc.js';
+export * from './sessions.ipc.js';
+export * from './dashboard.ipc.js';
+export * from './backup.ipc.js';
+export * from './system.ipc.js';

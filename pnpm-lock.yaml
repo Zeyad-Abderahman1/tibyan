@@ -26,6 +26,10 @@ importers:
 
   apps/desktop:
     dependencies:
+      better-sqlite3:
+        specifier: 12.11.1
+        version: 12.11.1
+    devDependencies:
       '@tanstack/react-query':
         specifier: ^5.66.0
         version: 5.103.0(react@18.3.1)
@@ -41,28 +45,9 @@ importers:
       '@tibyan/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
-      lucide-react:
-        specifier: ^0.475.0
-        version: 0.475.0(react@18.3.1)
-      react:
-        specifier: ^18.3.1
-        version: 18.3.1
-      react-dom:
-        specifier: ^18.3.1
-        version: 18.3.1(react@18.3.1)
-      react-router-dom:
-        specifier: ^6.29.0
-        version: 6.30.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
-      tailwind-merge:
-        specifier: ^3.0.1
-        version: 3.7.0
-      zustand:
-        specifier: ^5.0.3
-        version: 5.0.15(@types/react@18.3.31)(react@18.3.1)
-    devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.12
+        version: 7.6.13
       '@types/react':
         specifier: ^18.3.18
         version: 18.3.31
@@ -75,18 +60,36 @@ importers:
       autoprefixer:
         specifier: ^10.4.20
         version: 10.6.1(postcss@8.5.28)
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       electron:
         specifier: ^34.2.0
         version: 34.5.8(supports-color@7.2.0)
       electron-builder:
         specifier: ^25.1.8
         version: 25.1.8(bluebird@3.7.2)(electron-builder-squirrel-windows@25.1.8)(supports-color@7.2.0)
+      lucide-react:
+        specifier: ^0.475.0
+        version: 0.475.0(react@18.3.1)
       playwright:
         specifier: ^1.50.1
         version: 1.63.0
       postcss:
         specifier: ^8.5.2
         version: 8.5.28
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+      react-router-dom:
+        specifier: ^6.29.0
+        version: 6.30.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      tailwind-merge:
+        specifier: ^3.0.1
+        version: 3.7.0
       tailwindcss:
         specifier: ^3.4.17
         version: 3.4.19
@@ -102,6 +105,12 @@ importers:
       vite-plugin-electron-renderer:
         specifier: ^0.14.6
         version: 0.14.7
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
+      zustand:
+        specifier: ^5.0.3
+        version: 5.0.15(@types/react@18.3.31)(react@18.3.1)
 
   packages/contracts:
     dependencies:

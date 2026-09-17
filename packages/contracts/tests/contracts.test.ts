@@ -23,6 +23,8 @@ import {
   CalendarDateSchema,
   isValidCalendarDate,
   normalizeEgyptianPhone,
+  BootstrapOwnerSchema,
+  IPC_CHANNELS,
 } from '../src/index.js';
 
 const VALID_UUID = 'a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d';
@@ -396,5 +398,52 @@ describe('Contracts — Academic Year Semantic Validation', () => {
     expect(() => CreateAcademicYearSchema.parse({ name: '2026' })).toThrow();
     expect(() => CreateAcademicYearSchema.parse({ name: '2026/2027' })).toThrow();
     expect(() => CreateAcademicYearSchema.parse({ name: '26-27' })).toThrow();
+  });
+});
+
+describe('Contracts — IPC Channels & BootstrapOwner Schema', () => {
+  it('validates correct BootstrapOwner input', () => {
+    const input = BootstrapOwnerSchema.parse({
+      fullName: 'الأستاذ أحمد الشريف',
+      username: 'teacher',
+      pin: '1234',
+    });
+    expect(input.fullName).toBe('الأستاذ أحمد الشريف');
+    expect(input.username).toBe('teacher');
+    expect(input.pin).toBe('1234');
+  });
+
+  it('rejects invalid BootstrapOwner input (short username, invalid PIN, empty name)', () => {
+    expect(() =>
+      BootstrapOwnerSchema.parse({
+        fullName: '',
+        username: 'teacher',
+        pin: '1234',
+      })
+    ).toThrow();
+
+    expect(() =>
+      BootstrapOwnerSchema.parse({
+        fullName: 'أحمد',
+        username: 'te',
+        pin: '1234',
+      })
+    ).toThrow();
+
+    expect(() =>
+      BootstrapOwnerSchema.parse({
+        fullName: 'أحمد',
+        username: 'teacher',
+        pin: '12',
+      })
+    ).toThrow();
+  });
+
+  it('ensures all canonical IPC channels are unique and non-empty', () => {
+    const values = Object.values(IPC_CHANNELS);
+    expect(values.length).toBeGreaterThan(25);
+    const uniqueValues = new Set(values);
+    expect(uniqueValues.size).toBe(values.length);
+    expect(IPC_CHANNELS.AUTH_BOOTSTRAP_OWNER).toBe('auth:bootstrapOwner');
   });
 });

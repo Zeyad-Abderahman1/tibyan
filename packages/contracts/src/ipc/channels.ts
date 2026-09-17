@@ -4,6 +4,7 @@ export const IPC_CHANNELS = {
   AUTH_LOGIN_PIN: 'auth:loginPin',
   AUTH_LOGOUT: 'auth:logout',
   AUTH_GET_SESSION: 'auth:getSession',
+  AUTH_BOOTSTRAP_OWNER: 'auth:bootstrapOwner',
   AUTH_CREATE_USER: 'auth:createUser',
   AUTH_UPDATE_PERMISSIONS: 'auth:updatePermissions',
   AUTH_CHANGE_STATUS: 'auth:changeStatus',

@@ -3,6 +3,7 @@ import {
   UserDto,
   UserSessionDto,
   LoginWithPinInput,
+  BootstrapOwnerInput,
   CreateUserInput,
   UpdatePermissionsInput,
   ChangeUserStatusInput,
@@ -55,6 +56,7 @@ export interface TibyanApi {
     loginWithPin(input: LoginWithPinInput): Promise<IpcResult<UserSessionDto>>;
     logout(): Promise<IpcResult<void>>;
     getSession(): Promise<IpcResult<UserSessionDto | null>>;
+    bootstrapOwner(input: BootstrapOwnerInput): Promise<IpcResult<UserDto>>;
     createUser(input: CreateUserInput): Promise<IpcResult<UserDto>>;
     updatePermissions(input: UpdatePermissionsInput): Promise<IpcResult<void>>;
     changeUserStatus(input: ChangeUserStatusInput): Promise<IpcResult<void>>;
