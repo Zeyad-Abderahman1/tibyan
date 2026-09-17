@@ -1,0 +1,457 @@
+{
+  "project": {
+    "nameEn": "Tibyan",
+    "nameAr": "تِبيان",
+    "taglineAr": "مساعد المدرس الذكي",
+    "mantraAr": "من التحضير إلى الامتحان، كل أدوات المدرس في مكان واحد",
+    "root": "F:\\tebyan",
+    "type": "Windows-first local-first Teacher Operating System",
+    "targetAudience": "Independent Egyptian Mathematics Educator (Prep 1 through Sec 3, General & Egyptian Baccalaureate, Arabic & Math-English tracks)"
+  },
+  "architectureVersion": "v2.1",
+  "currentPhase": {
+    "phaseNumber": 1,
+    "phaseName": "Foundation & Desktop Core",
+    "totalTasks": 17
+  },
+  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+  "nextTask": {
+    "taskNumber": 12,
+    "taskName": "4-Digit PIN Authentication Screen & Session Store",
+    "isStarted": false
+  },
+  "taskStatus": {
+    "1": "COMPLETE",
+    "2": "COMPLETE",
+    "3": "COMPLETE",
+    "4": "COMPLETE",
+    "5": "COMPLETE",
+    "6": "COMPLETE",
+    "7": "COMPLETE",
+    "8": "COMPLETE",
+    "9": "COMPLETE",
+    "10": "COMPLETE",
+    "11": "COMPLETE",
+    "12": "NOT_STARTED",
+    "13": "PENDING",
+    "14": "PENDING",
+    "15": "PENDING",
+    "16": "PENDING",
+    "17": "PENDING"
+  },
+  "stack": {
+    "runtime": "Electron 34.2.0",
+    "ui": "React 18.3.1",
+    "language": "TypeScript 5.7.3",
+    "bundler": "Vite 6.1.0",
+    "packageManager": "pnpm 9+ workspaces",
+    "database": "better-sqlite3 12.11.1 (locked)",
+    "orm": "Drizzle ORM 0.39.3 / drizzle-kit 0.30.4",
+    "validation": "Zod 3.24.2",
+    "clientRouting": "React Router 6.29.0 (createHashRouter)",
+    "serverState": "TanStack Query 5.66.0",
+    "clientState": "Zustand 5.0.3 (presentation session cache only)",
+    "styling": "Tailwind CSS 3.4.17 + CSS custom property tokens",
+    "icons": "Lucide React 0.475.0",
+    "offlineFonts": ["@fontsource/cairo", "@fontsource/inter", "local KaTeX fonts"],
+    "unitTestRunner": "Vitest 3.0.5",
+    "e2eTesting": "Playwright 1.50.1",
+    "packager": "electron-builder 25.1.8"
+  },
+  "packages": {
+    "@tibyan/contracts": {
+      "path": "packages/contracts",
+      "description": "Pure DTOs, domain enums, Zod schemas, IPC channel constants, and typed API interface."
+    },
+    "@tibyan/db": {
+      "path": "packages/db",
+      "description": "Dual SQLite connections, Drizzle schemas, migrations, repositories, and audit triggers."
+    },
+    "@tibyan/core": {
+      "path": "packages/core",
+      "description": "Pure domain services, scrypt PIN crypto, rolling schedule materializer, online backups, and atomic audit transactions."
+    },
+    "@tibyan/design-system": {
+      "path": "packages/design-system",
+      "description": "Brand tokens, theme providers, official logo asset, and UI primitives (PinPad, Modal, Table, etc.)."
+    },
+    "@tibyan/desktop": {
+      "path": "apps/desktop",
+      "description": "Electron Main/Preload shell, typed IPC dispatchers, React Router UI, AppShell, and First-Run Wizard."
+    }
+  },
+  "databaseArchitecture": {
+    "systemDb": {
+      "canonicalPath": "%APPDATA%\\Tibyan\\data\\system\\tibyan-system.sqlite",
+      "tables": [
+        "users",
+        "permissions",
+        "user_permissions",
+        "academic_years",
+        "global_settings",
+        "system_audit_log",
+        "backup_records"
+      ],
+      "persistence": "Persistent across all academic years; never recreated or unmounted on year switch."
+    },
+    "academicDb": {
+      "canonicalPathTemplate": "%APPDATA%\\Tibyan\\data\\academic-years\\tibyan-<YYYY-YYYY>.sqlite",
+      "tables": [
+        "students",
+        "student_notes",
+        "groups",
+        "group_enrollments",
+        "group_schedules",
+        "sessions",
+        "academic_audit_log"
+      ],
+      "persistence": "Scoped strictly to one academic year; unmounted when switching years."
+    },
+    "crossDatabaseForeignKeys": false,
+    "authoritativeFilenameInRegistry": true,
+    "neverSynthesizeDbFilenameFromId": true,
+    "singleActiveMountedYear": true,
+    "triggers": {
+      "systemAuditNoUpdate": "trg_system_audit_no_update",
+      "systemAuditNoDelete": "trg_system_audit_no_delete",
+      "academicAuditNoUpdate": "trg_academic_audit_no_update",
+      "academicAuditNoDelete": "trg_academic_audit_no_delete"
+    }
+  },
+  "securityRules": {
+    "contextIsolation": true,
+    "nodeIntegration": false,
+    "sandbox": true,
+    "webSecurity": true,
+    "allowRunningInsecureContent": false,
+    "webviewTag": false,
+    "rawIpcRendererExposed": false,
+    "genericInvokeChannelAllowed": false,
+    "rendererDirectDbAccessAllowed": false,
+    "rendererDirectFilesystemAccessAllowed": false,
+    "authoritativeSessionProcess": "MAIN",
+    "rendererSessionTrustedForAuthorization": false,
+    "ipcBoundaryValidation": "Zod schemas",
+    "safeErrorHandling": "safeIpcCall with mapErrorToIpcResult (INTERNAL_ERROR fallback)"
+  },
+  "domainRules": {
+    "educationSystems": ["GENERAL", "EGYPTIAN_BACCALAUREATE"],
+    "gradeLevels": ["PREP_1", "PREP_2", "PREP_3", "SEC_1", "SEC_2", "SEC_3"],
+    "educationSystemAndGradeLevelIndependent": true,
+    "languageTracks": ["ARABIC", "LANG_ENGLISH"],
+    "groupFocusMathBranchOptional": true,
+    "strictMathBranchAssignmentLevel": "Lesson / Question level (later phases)"
+  },
+  "sessionRules": {
+    "occurrenceKeyFormat": "${scheduleId}_${scheduledDate}",
+    "occurrenceKeyImmutable": true,
+    "scheduledFieldsImmutable": ["scheduledDate", "scheduledStartTime"],
+    "executionFieldsMutable": ["effectiveDate", "effectiveStartTime"],
+    "statusEnum": ["SCHEDULED", "COMPLETED", "RESCHEDULED", "CANCELLED_BY_TEACHER"],
+    "rollingHorizonCalendarDays": 28,
+    "rollingHorizonDefinition": "today through today + 27 days inclusive",
+    "rendererControlsHorizonLength": false,
+    "rescheduledSessionSlotRecreationBlocked": true,
+    "todayDashboardQueryField": "effectiveDate",
+    "todayDashboardOrderField": "effectiveStartTime"
+  },
+  "paymentRules": {
+    "groupDefaults": ["defaultPaymentType", "defaultPaymentAmount"],
+    "studentHasPaymentOverrides": false,
+    "enrollmentOverrides": ["paymentTypeOverride", "paymentAmountOverride"],
+    "nullOverrideBehavior": "Inherits group defaults via calculateEffectivePayment()",
+    "multiGroupPricingIndependence": true,
+    "reEnrollmentHistoryPreserved": true,
+    "activeEnrollmentConstraint": "Partial unique index on (groupId, studentId) WHERE status = 'ACTIVE'"
+  },
+  "authRules": {
+    "pinLength": 4,
+    "pinType": "Numeric digits only",
+    "kdf": "crypto.scrypt",
+    "scryptParams": {
+      "N": 16384,
+      "r": 8,
+      "p": 1,
+      "maxmem": 33554432,
+      "keylen": 64,
+      "saltBytes": 16
+    },
+    "verificationComparison": "crypto.timingSafeEqual",
+    "maxFailedAttemptsBeforeLock": 5,
+    "cooldownDurationSeconds": 30,
+    "plaintextPinPersisted": false,
+    "plaintextPinAudited": false
+  },
+  "backupRules": {
+    "method": "better-sqlite3 native db.backup()",
+    "systemDbIncluded": true,
+    "allRegisteredAcademicYearsIncluded": true,
+    "mediaIncluded": true,
+    "integrityVerificationPragma": "PRAGMA integrity_check;",
+    "rollingRetentionCount": 4,
+    "rollingRetentionTrigger": "Newest 4 confirmed SUCCESS generations",
+    "archivalBackupsPruned": false,
+    "canonicalBackupRoot": "<appDataDir>/backups",
+    "manualBackupPermission": "BACKUP_MANAGE",
+    "automaticBackupActorType": "SYSTEM"
+  },
+  "designRules": {
+    "brandConstants": {
+      "primaryPetrolTeal": "#0B3D3D",
+      "accentMutedGold": "#C59B27",
+      "supportingTeal": "#1F6E68",
+      "goldHover": "#B38728"
+    },
+    "brandConstantsIdenticalInDarkTheme": true,
+    "darkModeSurfaces": {
+      "app": "#0A1417",
+      "surface": "#0F1F24",
+      "elevated": "#162B32"
+    },
+    "pureBlackAllowedInDarkTheme": false,
+    "typography": {
+      "arabic": "Cairo (@fontsource/cairo)",
+      "latinAndNumbers": "Inter (@fontsource/inter)",
+      "mathematics": "local KaTeX fonts"
+    },
+    "remoteFontCdnAllowed": false,
+    "officialLogoSha256": "66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749",
+    "officialLogoImmutable": true,
+    "defaultDirection": "rtl",
+    "isolatedMathDirection": "ltr"
+  },
+  "aiRules": {
+    "localAiModelAllowed": false,
+    "noOfflineAiModelReason": "NO fully local/offline AI model will ever be added. Tibyan will never run Ollama, local Llama, or local LLMs on teacher hardware. Future AI will use external cloud APIs only (e.g. Gemini API).",
+    "cloudAiInteractionModel": "Controlled @tibyan/core tool invocations only",
+    "aiDirectSqlAccessAllowed": false,
+    "sensitiveAiActionWorkflow": "Preview -> Confirm -> Execute -> Audit -> Undo"
+  },
+  "commits": [
+    {
+      "task": 1,
+      "sha": "dd66744",
+      "type": "base",
+      "message": "chore: scaffold Tibyan monorepo workspace and offline dependencies"
+    },
+    {
+      "task": 2,
+      "sha": "8aa1dfa",
+      "type": "base",
+      "message": "feat(contracts): define core domain enums, models, and IPC contracts"
+    },
+    {
+      "task": 2,
+      "sha": "09d7638",
+      "type": "hardening",
+      "message": "fix(contracts): harden audit actors, academic years, and calendar dates"
+    },
+    {
+      "task": 3,
+      "sha": "9307524",
+      "type": "base",
+      "message": "feat(db): implement dual SQLite architecture, Drizzle schemas, and audit triggers"
+    },
+    {
+      "task": 3,
+      "sha": "b19f6c7",
+      "type": "hardening",
+      "message": "fix(db): align schema contracts, history safety, and migration reproducibility"
+    },
+    {
+      "task": 4,
+      "sha": "5123c30",
+      "type": "base",
+      "message": "feat(core): implement 4-digit PIN authentication with brute-force cooldown"
+    },
+    {
+      "task": 5,
+      "sha": "084b89e",
+      "type": "base",
+      "message": "feat(core): implement student service, photo storage, and atomic audit transactions"
+    },
+    {
+      "task": 5,
+      "sha": "5269a67",
+      "type": "hardening",
+      "message": "fix(core): align student codes and harden identifier collisions"
+    },
+    {
+      "task": 6,
+      "sha": "0482b56",
+      "type": "base",
+      "message": "feat(core): implement groups, enrollment payment inheritance, and stable rolling sessions"
+    },
+    {
+      "task": 6,
+      "sha": "eb9b0b7",
+      "type": "hardening",
+      "message": "fix(core): harden session cancellation and rolling schedule safety"
+    },
+    {
+      "task": 6,
+      "sha": "d2ea1b3",
+      "type": "hardening",
+      "message": "test(core): preserve Task 6 regression coverage and migration upgrade safety"
+    },
+    {
+      "task": 7,
+      "sha": "9e39e38",
+      "type": "base",
+      "message": "feat(core): implement verified multi-year backup service with rolling retention"
+    },
+    {
+      "task": 7,
+      "sha": "464383d",
+      "type": "hardening",
+      "message": "fix(core): harden backup authorization, audit, and generation consistency"
+    },
+    {
+      "task": 8,
+      "sha": "f599a9c",
+      "type": "base",
+      "message": "feat(core): implement real-data Today Dashboard service using effective dates"
+    },
+    {
+      "task": 9,
+      "sha": "7564386",
+      "type": "base",
+      "message": "feat(design-system): build theme tokens, offline typography, official logo, and PinPad"
+    },
+    {
+      "task": 9,
+      "sha": "20af589",
+      "type": "hardening",
+      "message": "fix(design-system): preserve brand constants and harden modal focus"
+    },
+    {
+      "task": 10,
+      "sha": "b207312",
+      "type": "base",
+      "message": "feat(desktop): configure Electron shell, native rebuild, and typed IPC bridge"
+    },
+    {
+      "task": 10,
+      "sha": "56724e2",
+      "type": "hardening",
+      "message": "fix(desktop): align runtime paths and IPC with finalized core semantics"
+    },
+    {
+      "task": 11,
+      "sha": "a6c0d04",
+      "type": "base",
+      "message": "feat(desktop): implement AppShell, RTL sidebar, and first-run wizard"
+    },
+    {
+      "task": 11,
+      "sha": "145e0d3",
+      "type": "hardening",
+      "message": "fix(desktop): harden first-run recovery and academic-year creation"
+    }
+  ],
+  "testBaseline": {
+    "totalTestFiles": 17,
+    "totalTests": 349,
+    "packages": {
+      "@tibyan/contracts": {
+        "testFiles": 1,
+        "testsPassed": 39
+      },
+      "@tibyan/db": {
+        "testFiles": 1,
+        "testsPassed": 25
+      },
+      "@tibyan/core": {
+        "testFiles": 10,
+        "testsPassed": 196
+      },
+      "@tibyan/design-system": {
+        "testFiles": 1,
+        "testsPassed": 29
+      },
+      "@tibyan/desktop": {
+        "testFiles": 4,
+        "testsPassed": 60
+      }
+    },
+    "typecheckErrors": 0,
+    "schemaDrift": 0,
+    "officialLogoSha256Matches": true,
+    "lintScriptsConfigured": false,
+    "workingTreeClean": true
+  },
+  "remainingTasks": [
+    {
+      "task": 12,
+      "title": "4-Digit PIN Authentication Screen & Session Store",
+      "scope": "UserCard, LoginScreen, auth.state.ts (Zustand), useAuth hook, cooldown countdown, LoginScreen.test.tsx"
+    },
+    {
+      "task": 13,
+      "title": "Student Management UI",
+      "scope": "StudentsPage, StudentCreateModal, StudentProfilePage, StudentNotesView, useStudents hook"
+    },
+    {
+      "task": 14,
+      "title": "Group Management UI, Enrollment Picker & Reschedule Modal",
+      "scope": "GroupsPage, GroupCreateModal, GroupDetailsPage, EnrollmentModal, RescheduleSessionModal, useGroups hook"
+    },
+    {
+      "task": 15,
+      "title": "Real-Data Today Dashboard UI",
+      "scope": "TodayPage, ClassScheduleCard, NeedsAttentionCard, useDashboard hook"
+    },
+    {
+      "task": 16,
+      "title": "Settings, Academic-Year Switcher, Assistant Management & Backup Tab",
+      "scope": "SettingsPage, AcademicYearManager, UserManagementTab, BackupSettingsTab, SettingsPage.test.tsx"
+    },
+    {
+      "task": 17,
+      "title": "Windows Packaging Verification, Playwright Smoke Tests & Hardening",
+      "scope": "smoke.spec.ts, production ASAR packaging verification, native module unpack check"
+    }
+  ],
+  "nonNegotiableRegressions": [
+    "Rescheduled occurrence idempotency: rolling generator never creates duplicate session for original recurring slot",
+    "Enrollment-scoped payment independence: student in multiple groups has separate pricing per group",
+    "SYSTEM actor audit logging: automated background jobs log audit records with actorType=SYSTEM and actorUserId=null",
+    "Atomic mutation and audit rollback: mutation and audit insert in same transaction; audit failure aborts mutation",
+    "Exact 28-day production materialization horizon: evaluates today through today + 27 days inclusive",
+    "Zero renderer direct access to SQLite database or local filesystem",
+    "Zero raw ipcRenderer exposure or generic invoke(channel, payload) escape hatches",
+    "Zero renderer authority over roles or permissions; MAIN process session is authoritative",
+    "Exact official PNG hash preserved: 66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749",
+    "NO LOCAL AI MODEL: external API-based assistant only, never local offline weights or runtimes"
+  ],
+  "importantPaths": [
+    "TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md",
+    "packages/contracts/src/ipc/channels.ts",
+    "packages/contracts/src/ipc/api.ts",
+    "packages/db/src/schema/system.schema.ts",
+    "packages/db/src/schema/academic.schema.ts",
+    "packages/core/src/auth/pin.service.ts",
+    "packages/core/src/groups/session.service.ts",
+    "packages/core/src/backup/backup.service.ts",
+    "packages/core/src/dashboard/dashboard.service.ts",
+    "packages/design-system/src/assets/tibyan-official-logo.png",
+    "apps/desktop/electron/runtime.ts",
+    "apps/desktop/electron/preload.ts",
+    "apps/desktop/electron/security.ts",
+    "apps/desktop/electron/ipc/",
+    "apps/desktop/src/app/router.tsx",
+    "apps/desktop/src/features/onboarding/FirstRunWizard.tsx"
+  ],
+  "canonicalCommands": [
+    "pnpm install --frozen-lockfile",
+    "pnpm -r test",
+    "pnpm -r typecheck",
+    "pnpm --filter @tibyan/contracts test",
+    "pnpm --filter @tibyan/db test",
+    "pnpm --filter @tibyan/core test",
+    "pnpm --filter @tibyan/design-system test",
+    "pnpm --filter @tibyan/desktop test",
+    "pnpm --filter @tibyan/db db:generate",
+    "pnpm --filter @tibyan/desktop build"
+  ]
+}

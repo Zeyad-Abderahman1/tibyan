@@ -1,0 +1,564 @@
+# تِبيان (Tibyan) — Canonical AI Continuation Guide & Architectural State Handoff
+
+> **Document Classification:** Master Architectural Handoff & State Capture  
+> **Repository Root:** `F:\tebyan`  
+> **Target Audience:** Incoming Autonomous AI Engineering Agents  
+> **Approved Architecture Version:** `v2.1` (Final Alignment)  
+> **Current Project Phase:** Phase 1 — Foundation & Desktop Core  
+> **Tasks Completed:** Tasks 1 through 11 inclusive (Final hardening commit: `145e0d3`)  
+> **Immediate Next Task:** **Task 12 — 4-Digit PIN Authentication Screen & Session Store**  
+> **Task 12 Status:** **NOT STARTED** (Zero Task 12 code has been implemented)  
+> **Regression Test Baseline:** 17 test files, 349 passing tests across 5 packages  
+> **Official Logo SHA-256:** `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`  
+
+---
+
+## 1. Read This First
+
+Welcome, agent. This document is the **single canonical, durable, and authoritative engineering guide** for continuing development on **تِبيان (Tibyan)**. You are operating in a fresh context window without access to prior conversation history; this handoff package encapsulates the full architectural truth, domain constraints, verified baseline, and precise continuation instructions for this repository.
+
+### Critical Rules of Engagement for the Next AI:
+1. **Inspect Actual Source Before Changing Architecture:** Do not trust memory or assume conventions. Before modifying any behavior, inspect the actual source code, migration files, and active tests.
+2. **Current Source Code Trumps Stale Walkthroughs:** If an older plan document or early design sketch contradicts the current production TypeScript files or latest database migrations in `packages/`, the **current production code and migration journals are authoritative**. Report any discrepancies before proposing architectural changes.
+3. **Architecture is v2.1:** All development conforms strictly to the revised v2.1 architectural alignments detailed in [TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md](file:///F:/tebyan/TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md).
+4. **Tasks 1 through 11 are COMPLETE:** All foundation, dual-database, domain core services (auth, student, group, session, backup, dashboard), design system, and Electron shell/wizard components are built, fully tested, and hardened up to commit `145e0d3`.
+5. **Task 12 Has NOT Started:** Do not assume Task 12 is underway. Task 12 is the 4-digit PIN login screen and Zustand presentation session store.
+6. **One Task at a Time:** Always follow the strict workflow: understand requirements, inspect target files, formulate an implementation plan, obtain user approval, execute, verify against regression tests, and halt for review. Never batch multiple tasks.
+
+---
+
+## 2. Product Vision
+
+**تِبيان (Tibyan)** is a **Windows-first, local-first Teacher Operating System** designed specifically for an independent Egyptian mathematics educator teaching grades 1 Preparatory through 3 Secondary across both the General Egyptian National System and the Egyptian Baccalaureate System (نظام البكالوريا المصرية), covering both Arabic and English/Math-Language tracks.
+
+- **Official Tagline:** مساعد المدرس الذكي (The Smart Teacher Assistant).
+- **Core Product Mantra:** من التحضير إلى الامتحان، كل أدوات المدرس في مكان واحد (From preparation to examination, all the teacher's tools in one place).
+- **What Tibyan IS NOT:**
+  - Tibyan is **NOT a school ERP** (no complex administrative bureaucracy, department hierarchies, or enterprise bloat).
+  - Tibyan is **NOT a retail POS/cashier software** (no generic barcode receipts, cash drawer registers, or barcode-scanner-centric cashier paradigms).
+- **UX Target:** Balanced at approximately **70% high-focus productivity application** (reminiscent of Linear, Notion, and macOS/Windows desktop craftsmanship) + **30% educational domain intelligence** (deep pedagogical awareness of Egyptian math curricula, exam assembly, and student weaknesses).
+- **Typography & Localization:** Authentic Arabic-first RTL application interface with isolated LTR containers for mathematical notation, LaTeX expressions, numbers, code, and English track terminology.
+
+---
+
+## 3. Absolute Product Decisions
+
+The following architectural and product boundaries are permanent and non-negotiable across all development phases:
+
+1. **NO Local/Offline AI Model — Ever:**
+   - **NO fully local/offline AI model will ever be added to Tibyan.**
+   - **NO Ollama.**
+   - **NO local Llama, Mistral, Gemma, or ONNX runtimes.**
+   - **NO downloaded LLM or multi-gigabyte weight checkpoints running on the teacher's Windows machine.**
+   - The term **"local-first" refers strictly to the application architecture, data storage, and SQLite database**—ensuring the teacher owns 100% of their data on their local NVMe/SSD without cloud dependency.
+   - Future AI capabilities (Phase 6+) will utilize **external, API-based cloud models only (e.g. Google Gemini API)** via secure, optional, user-provided API keys.
+2. **Controlled AI Tool Execution:**
+   - When the external AI assistant is introduced in future phases, it will **NEVER access the SQLite database directly, nor will it generate or execute raw SQL**.
+   - All AI interactions will occur through strictly typed, validated `@tibyan/core` tool functions.
+   - Any sensitive action initiated by AI must adhere to the lifecycle: `Preview -> Confirm -> Execute -> Audit -> Undo` (where undo is applicable).
+3. **No Cloud Database in V1:**
+   - No Supabase, Firebase, AWS RDS, MongoDB Atlas, or Vercel backend.
+   - The desktop application operates 100% locally with zero external network connectivity required for core functionality.
+4. **No Parent/Student App in V1:**
+   - V1 is strictly focused on the teacher and their classroom assistants on the local Windows desktop.
+
+---
+
+## 4. Technology Stack
+
+Tibyan is built upon an enterprise-grade, modern desktop JavaScript/TypeScript ecosystem:
+
+| Layer | Technology | Specification / Version Constraints |
+|---|---|---|
+| **Runtime & Shell** | Electron | `^34.2.0` — Main process strictly isolated from renderer |
+| **UI Library** | React | `^18.3.1` — React 18 concurrent mode |
+| **Language** | TypeScript | `^5.7.3` — Strict mode across all packages |
+| **Bundler / Dev Server** | Vite | `^6.1.0` + `vite-plugin-electron` |
+| **Package Manager** | pnpm Workspaces | Monorepo structured with `workspace:*` dependencies |
+| **Database Engine** | SQLite via `better-sqlite3` | **Locked at `12.11.1`** (native compilation managed by `electron-builder`) |
+| **ORM / Migrations** | Drizzle ORM / `drizzle-kit` | Drizzle ORM `^0.39.3`, Drizzle Kit `^0.30.4` |
+| **Data Validation** | Zod | `^3.24.2` — Runtime schema validation across IPC and domain |
+| **Client Routing** | React Router | `^6.29.0` — Hash routing (`createHashRouter`) for Electron `file://` safety |
+| **Server State / Cache** | TanStack Query | `^5.66.0` — Async query caching and invalidation |
+| **Client UI State** | Zustand | `^5.0.3` — **Approved ONLY for minimal presentation cache** (e.g. auth session display) |
+| **Styling** | Tailwind CSS | `^3.4.17` + Vanilla CSS custom properties design tokens |
+| **Icons** | Lucide React | `^0.475.0` — Consistent iconography |
+| **Typography** | Fontsource (Offline) | `@fontsource/cairo` (Arabic), `@fontsource/inter` (Latin/Numbers), local KaTeX |
+| **Unit / Integration Tests** | Vitest | `^3.0.5` — Monorepo workspace runner |
+| **E2E Testing** | Playwright | `^1.50.1` — Electron application smoke testing |
+| **Packaging / Installer** | `electron-builder` | `^25.1.8` — NSIS installer for Windows x64 |
+
+---
+
+## 5. Monorepo Structure & Architectural Boundaries
+
+The codebase is organized as a clean pnpm workspace with strict layer isolation:
+
+```text
+F:\tebyan\
+├─ packages\
+│  ├─ contracts\       # @tibyan/contracts — Pure schemas, enums, DTOs, IPC channels & interfaces
+│  ├─ db\              # @tibyan/db — Drizzle schemas, migrations, repositories, connection pool
+│  ├─ core\            # @tibyan/core — 100% Pure business logic, crypto, services, transactions
+│  └─ design-system\   # @tibyan/design-system — Design tokens, official logo, UI components
+└─ apps\
+   └─ desktop\         # apps/desktop — Electron Main/Preload processes & React Renderer App
+```
+
+### Dependency Rules & Layer Invariants:
+1. **`@tibyan/contracts`:** Depends on nothing except `zod`. Contains zero platform-specific code. Shared by DB, Core, Electron Main, and React Renderer.
+2. **`@tibyan/db`:** Depends on `contracts`, `better-sqlite3`, and `drizzle-orm`. Owns the dual SQLite database connections, schema migrations, and repositories. **Never imported by the renderer.**
+3. **`@tibyan/core`:** Depends on `contracts` and `db`. Contains **100% of domain business logic**, authorization checks, scrypt PIN crypto, rolling schedule materialization, online backups, and atomic audit logging. **Never imported by the renderer.**
+4. **`@tibyan/design-system`:** Depends on `contracts`, React, Lucide, Tailwind. Houses official typography, brand tokens, and pure UI components (Button, Modal, Input, PinPad, Table, etc.).
+5. **`apps/desktop` (Renderer):** **NEVER imports `@tibyan/db`, `better-sqlite3`, or Node.js builtins directly.** All data access and business actions must pass through the typed preload bridge `window.tibyan`.
+
+---
+
+## 6. Security Architecture
+
+The desktop application enforces multi-layered defense-in-depth:
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    REACT RENDERER                           │
+│  • contextIsolation: true                                   │
+│  • nodeIntegration: false                                   │
+│  • sandbox: true                                            │
+│  • Communicates exclusively via window.tibyan               │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ typed IPC invoke()
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    ELECTRON PRELOAD                         │
+│  • Exposes typed window.tibyan via contextBridge            │
+│  • NO raw ipcRenderer exposed                               │
+│  • NO generic invoke(channel, payload) escape hatch         │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ IPC Channels
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    ELECTRON MAIN                            │
+│  • Validates sender frame (validateIpcSender)               │
+│  • Validates payload with Zod schemas at boundary           │
+│  • Owns authoritative user session (runtime.currentSession) │
+│  • Maps domain errors safely (INTERNAL_ERROR fallback)      │
+│  • Executes @tibyan/core services inside SQLite transaction │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Mandatory Security Guarantees:
+1. **Electron Hardening:** `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, `webSecurity: true`, `allowRunningInsecureContent: false`, `webviewTag: false`.
+2. **Preload Surface:** Only strongly typed methods on `window.tibyan` exist. There is no `window.electron` or raw `ipcRenderer.send`/`invoke`.
+3. **MAIN Process is Authoritative:** The Main process owns `runtime.currentSession`. The renderer's cached user state is treated as untrusted presentation metadata. All authorization decisions (`requirePermission`, `requireAuthenticatedActor`) occur inside Main process handlers.
+4. **Input Validation:** Every IPC payload is validated against a strict Zod schema before invoking Core services.
+5. **Sanitized Error Boundary (`safeIpcCall`):**
+   - Known domain errors (`AuthError`, `StudentError`, `GroupError`, `SessionError`, `BackupError`, `DashboardError`) preserve error codes and safe messages.
+   - Zod errors return formatted validation issue lists.
+   - Unknown internal exceptions are stripped of stack traces and internal paths, returning a safe `INTERNAL_ERROR`.
+
+---
+
+## 7. Database Architecture: Dual-Database Isolation
+
+Tibyan separates persistent global application state from yearly academic records using two distinct SQLite databases:
+
+```text
+%APPDATA%\Tibyan\data\
+├─ system\
+│  └─ tibyan-system.sqlite          <-- Persistent Global System Database
+└─ academic-years\
+   ├─ tibyan-2026-2027.sqlite       <-- Isolated Academic Year 2026-2027
+   └─ tibyan-2027-2028.sqlite       <-- Isolated Academic Year 2027-2028
+```
+
+### 7.1 System Database (`tibyan-system.sqlite`)
+- **Canonical Path:** `%APPDATA%\Tibyan\data\system\tibyan-system.sqlite` (or `<appDataDir>/data/system/tibyan-system.sqlite`).
+- **Contents:**
+  - `users`: Teacher/Owner and Assistants, scrypt PIN hashes, salts, failed attempt counters, lockouts.
+  - `permissions` & `user_permissions`: Granular capability grants.
+  - `academic_years`: Registry of all academic years (`id`, `name`, `db_filename`, `is_active`, `is_archived`).
+  - `global_settings`: Persistent theme preferences, app settings.
+  - `system_audit_log`: Append-only audit table for system-level actions.
+  - `backup_records`: History of all automated and manual backup generations.
+
+### 7.2 Academic-Year Database (`tibyan-<YYYY-YYYY>.sqlite`)
+- **Canonical Path:** `%APPDATA%\Tibyan\data\academic-years\tibyan-<YYYY-YYYY>.sqlite`.
+- **Contents:**
+  - `students`: Student identity, codes (`TB-XXXX`), photo paths, education system, grade level, track, guardian phones, QR/barcodes.
+  - `student_notes`: Behavioral and academic notes (`NEEDS_FOLLOW_UP`, `ACADEMIC_WEAKNESS`, etc.).
+  - `groups`: Class groups, education system, grade level, track, optional focus branch, default payment terms.
+  - `group_enrollments`: Student-to-group enrollments with `ACTIVE`/`ENDED` statuses and group-specific payment overrides.
+  - `group_schedules`: Recurring weekly schedule rules (weekday, start time, duration).
+  - `sessions`: Concrete class session instances with immutable occurrence keys and mutable execution slots.
+  - `academic_audit_log`: Append-only audit table for academic mutations.
+
+### 7.3 Critical Database Invariants:
+- **Zero Cross-Database Foreign Keys:** SQLite cannot enforce foreign keys across distinct physical database files. Relationships between system entities (users) and academic entities use snapshot metadata (`authorUserId`, `authorNameSnapshot`).
+- **`db_filename` is Authoritative:** The `academic_years` registry stores the exact physical filename (`db_filename`). The runtime must **NEVER synthesize or guess the year database filename from the ID**.
+- **Single Active Academic Mount:** Only one academic-year database is mounted for active read/write operations at any time. Switching academic years unmounts the previous year and cleanly mounts the target year without touching system accounts or settings.
+- **Path Traversal Guards:** Runtime validates that `db_filename` is a simple relative basename that resolves strictly inside `<appDataDir>/data/academic-years`. Any path containing `..`, separators, or escaping the root triggers an immediate security error.
+
+---
+
+## 8. Domain Model
+
+The educational domain model cleanly reflects the reality of independent Egyptian mathematics tutoring:
+
+1. **`EducationSystem`:**
+   - Values: `GENERAL` (التعليم العام) and `EGYPTIAN_BACCALAUREATE` (البكالوريا المصرية).
+2. **`GradeLevel`:**
+   - Values: `PREP_1`, `PREP_2`, `PREP_3`, `SEC_1`, `SEC_2`, `SEC_3`.
+   - **Independence:** `EducationSystem` and `GradeLevel` are completely independent dimensions. They are never combined into a brittle flattened string.
+3. **`LanguageTrack`:**
+   - Values: `ARABIC` (عام عربي) and `LANG_ENGLISH` (لغات / Math English).
+4. **`MathBranch` on Groups:**
+   - Values: `GENERAL_MATH`, `ALGEBRA`, `GEOMETRY`, `TRIGONOMETRY`, `CALCULUS`, `STATISTICS`, `APPLIED_MATH`.
+   - On the `Group` model, `focusMathBranch` is an **optional focus branch**.
+   - Strict mathematical branch association belongs to later curriculum, lesson, and question-bank phases (Phase 3+), not as a rigid blocker for group creation.
+
+---
+
+## 9. Payment Architecture
+
+Payment terms in Tibyan are strictly **enrollment-scoped**, not student-scoped:
+
+```text
+┌───────────────────────────┐
+│           GROUP           │
+│  defaultPaymentType       │
+│  defaultPaymentAmount     │
+└─────────────┬─────────────┘
+              │ inherits defaults
+              ▼
+┌───────────────────────────┐
+│     GROUP ENROLLMENT      │
+│  paymentTypeOverride?     │ <--- Overrides live HERE, per enrollment
+│  paymentAmountOverride?   │
+└─────────────▲─────────────┘
+              │ enrolled in
+┌─────────────┴─────────────┐
+│          STUDENT          │
+│  (NO payment fields)      │
+└───────────────────────────┘
+```
+
+### Business Rules:
+1. `Group` defines default pricing: `defaultPaymentType` (`MONTHLY` | `PER_SESSION`) and `defaultPaymentAmount` (e.g. `400.0` EGP).
+2. `Student` has **NO payment override fields**.
+3. `GroupEnrollment` defines optional overrides: `paymentTypeOverride` and `paymentAmountOverride`.
+4. **Inheritance Resolution (`calculateEffectivePayment`):**
+   - If enrollment override is non-null, the override applies.
+   - If enrollment override is null, the group default applies.
+5. **Multi-Group Independence:** A student enrolled in two groups (e.g. standard class at 400 EGP and intensive revision at 600 EGP) maintains independent pricing for each group.
+6. **Re-Enrollment History:** When a student leaves a group, their enrollment row is updated to `status = 'ENDED'` with `left_at`. A partial unique index (`idx_group_enrollments_active`) permits only one `ACTIVE` enrollment per student-group pair, preserving historical records.
+
+---
+
+## 10. Session Architecture & Rescheduling Defense
+
+Naive calendar systems regenerate duplicate sessions if a rescheduled occurrence leaves its original slot vacant. Tibyan completely eliminates this class of bugs through **immutable occurrence identity**:
+
+### 10.1 Key Structure
+```sql
+sessions (
+  id                   TEXT PRIMARY KEY,
+  group_id             TEXT NOT NULL,
+  schedule_id          TEXT,
+  occurrence_key       TEXT NOT NULL UNIQUE,  -- Immutable: `${schedule_id}_${scheduled_date}`
+  scheduled_date       TEXT NOT NULL,         -- Immutable original calendar date (YYYY-MM-DD)
+  scheduled_start_time TEXT NOT NULL,         -- Immutable original time (HH:mm)
+  effective_date       TEXT NOT NULL,         -- Mutable execution date (YYYY-MM-DD)
+  effective_start_time TEXT NOT NULL,         -- Mutable execution time (HH:mm)
+  duration_minutes     INTEGER NOT NULL,
+  status               TEXT NOT NULL          -- SCHEDULED | COMPLETED | RESCHEDULED | CANCELLED_BY_TEACHER
+);
+```
+
+### 10.2 Invariants:
+1. **`occurrenceKey` is Immutable:** Once created, `occurrenceKey`, `scheduledDate`, and `scheduledStartTime` never change under any circumstances.
+2. **Rescheduling Semantics:** When a session is rescheduled:
+   - `effectiveDate` and `effectiveStartTime` are updated to the new execution slot.
+   - `status` is set to `'RESCHEDULED'`.
+   - `occurrenceKey`, `scheduledDate`, and `scheduledStartTime` remain untouched.
+3. **Exact 28-Day Rolling Horizon:**
+   - The materializer evaluates exactly 28 calendar dates: **today through today + 27 days inclusive** ($[D, D + 27]$).
+   - The renderer cannot control or change the horizon length.
+4. **Idempotent Materialization:** For every matching slot in the horizon, the materializer computes `targetOccurrenceKey`. If a session with that key already exists (regardless of whether status is `SCHEDULED`, `RESCHEDULED`, `COMPLETED`, or `CANCELLED_BY_TEACHER`), **the materializer does nothing**. No duplicate session is ever created for the original recurring slot.
+5. **Today Dashboard Queries:** The Today Dashboard strictly queries `effectiveDate = :today` and sorts ascending by `effectiveStartTime`.
+
+---
+
+## 11. Audit & Transaction Rules
+
+Every state modification in Tibyan is recorded in append-only SQLite audit tables:
+
+1. **Trigger-Enforced Immutability:** Both `system_audit_log` and `academic_audit_log` have SQLite triggers:
+   - `trg_system_audit_no_update` / `trg_system_audit_no_delete`
+   - `trg_academic_audit_no_update` / `trg_academic_audit_no_delete`
+   - Any SQL `UPDATE` or `DELETE` against audit tables aborts with a SQLite trigger error.
+2. **Actor Polymorphism:**
+   - `actorType = 'USER'`: Requires valid `actorUserId` and `actorNameSnapshot`.
+   - `actorType = 'SYSTEM'`: Used for background tasks (automated weekly backup, rolling session extension). `actorUserId` is `null` and `actorNameSnapshot = 'System Engine'`.
+3. **Atomic Transactions (`runInAuditTransaction`):**
+   - In `better-sqlite3`, the business mutation and the corresponding audit log entry targeting the same database must execute inside a synchronous `db.transaction()`.
+   - If the audit insert fails (e.g. trigger violation or missing required field), the business mutation rolls back completely.
+   - If the business mutation fails, no orphaned audit row is written.
+
+---
+
+## 12. Authentication & Credential Cryptography
+
+1. **PIN Specification:** Exactly 4 numeric digits (`0-9`).
+2. **Key Derivation Function:** Node.js built-in `crypto.scrypt` (Argon2 was evaluated during initial planning but formally superseded in v2.1 in favor of standard built-in `crypto.scrypt` to eliminate native compilation issues and ensure long-term stability):
+   - **Salt:** 16 cryptographically secure random bytes (`crypto.randomBytes(16)`).
+   - **Parameters:** $N = 16384$, $r = 8$, $p = 1$, $\text{maxmem} = 32\,\text{MB}$.
+   - **Derived Key Length:** 64 bytes (`keylen = 64`).
+3. **Constant-Time Verification:** Candidate verification derives a 64-byte key using the stored salt and parameters, then compares via `crypto.timingSafeEqual` to eliminate timing side-channel attacks.
+4. **Brute-Force Protection:**
+   - Tracked in `users.failed_attempts` and `users.locked_until`.
+   - After **5 consecutive failed attempts**, the account is locked with a **30-second cooldown** (`lockedUntil = now + 30s`).
+   - Requests during cooldown are rejected with `ACCOUNT_LOCKED` and return the remaining `retryAfterSeconds`.
+   - A successful login resets `failedAttempts = 0` and `lockedUntil = null`.
+5. **No Plaintext Persistence:** Plaintext PINs are never stored in the database, never written to disk, and never included in audit payloads or log messages.
+
+---
+
+## 13. Backup Architecture (`BackupService`)
+
+The automated backup engine provides full multi-year disaster recovery:
+
+1. **Scope:**
+   - Backs up `tibyan-system.sqlite`.
+   - Backs up **ALL registered academic-year databases** (both active and inactive years) discovered via `academic_years` registry.
+   - Backs up all managed student media directories.
+2. **Native SQLite Online Backup:** Uses `better-sqlite3` native `db.backup()` API to capture point-in-time consistent snapshots without blocking ongoing read queries.
+3. **Integrity Verification:** Before marking any backup record `SUCCESS`, every backed-up SQLite file is opened and verified with `PRAGMA integrity_check;`. If the pragma does not return `'ok'`, the backup is marked `FAILED` and an error is raised.
+4. **Rolling Retention:**
+   - Automated weekly backups maintain a rolling retention window of the **newest 4 confirmed successful generations**.
+   - Pruning removes older generations only after a new generation is confirmed `SUCCESS`.
+5. **Archival Backups:**
+   - When an academic year is archived (`isArchived = true`), a dedicated archival backup bundle is created (`archive-<year>-<timestamp>`).
+   - Archival backups are permanently excluded from weekly rolling retention pruning.
+6. **Storage Path:** Canonical root is `<appDataDir>/backups`. No secondary backup directories are created.
+7. **Permissions & Audit:**
+   - Manual backup trigger requires `BACKUP_MANAGE` permission.
+   - Automated weekly backup executes under `actorType: 'SYSTEM'`.
+
+---
+
+## 14. Branding & Design System
+
+The visual design system embodies modern luxury, calm focus, and authentic Arab identity:
+
+1. **Official Brand Constants (Immutable across Light and Dark themes):**
+   - **Primary Petrol Teal:** `#0B3D3D` (`--tibyan-navy`)
+   - **Accent Muted Gold:** `#C59B27` (`--tibyan-gold`)
+   - **Supporting Teal:** `#1F6E68` (`--tibyan-teal`)
+   - **Gold Hover:** `#B38728` (`--tibyan-gold-hover`)
+2. **Dark Mode Palette:**
+   - Surfaces use deep teal/slate: App background `#0A1417`, Surface `#0F1F24`, Elevated `#162B32`.
+   - **Never pure black (`#000000`).**
+3. **Typography:**
+   - **Cairo** (`@fontsource/cairo`) for all Arabic UI text.
+   - **Inter** (`@fontsource/inter`) for Latin UI text, numbers, and tabular data.
+   - Local bundled KaTeX font stack for mathematical formulas.
+   - **Zero external font CDNs or Google Fonts URLs.**
+4. **Official Logo Asset:**
+   - Stored at: `packages/design-system/src/assets/tibyan-official-logo.png`.
+   - **Mandatory SHA-256 Checksum:** `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`.
+   - **Immutable Asset Rule:** Do NOT regenerate, redraw, vectorize, crop, recolor, or recompress the official logo PNG file.
+5. **Aesthetic Philosophy:**
+   - Avoid childish education software themes, colorful cartoon badges, retail POS aesthetic, giant cards, or heavy glassmorphism.
+   - Deliver a sleek, professional, high-density desktop tool that respects the teacher's time and focus.
+
+---
+
+## 15. Electron Native Packaging (`better-sqlite3`)
+
+1. **Locked Native Dependency:** `better-sqlite3` is locked at version `12.11.1`.
+2. **Configuration (`apps/desktop/electron-builder.json5`):**
+   - `asar: true`
+   - `asarUnpack: ["**/*.node"]` (unpacks native C++ addons to `app.asar.unpacked`)
+   - `npmRebuild: true`
+   - `win.target: "nsis"`
+3. **No Native Binaries in Git:** Native `.node` binaries must never be committed to git. They are compiled via `electron-builder install-app-deps`.
+4. **Final Packaging Verification:** Task 17 will verify that the packaged NSIS Windows executable unpacks and loads `better_sqlite3.node` cleanly in production mode.
+
+---
+
+## 16. First-Run Wizard Current Behavior (Task 11 State)
+
+The onboarding flow was implemented in Task 11 (`a6c0d04`, hardened in `145e0d3`):
+
+1. **Authoritative Setup State:**
+   - The renderer queries `window.tibyan.system.getSetupState()`, which checks the SQLite databases directly.
+   - `isSetupComplete = hasOwner && hasActiveAcademicYear`.
+   - Neither `localStorage` nor `sessionStorage` has any authority over setup state.
+2. **Wizard Steps:**
+   - **Fresh Install:** `Welcome -> Owner Account -> Auto-Login -> Initial Academic Year -> Completion`.
+   - **Interrupted Setup (Owner exists, No Year):** Displays `resume-auth` step, prompts for Owner PIN, establishes session, and creates the academic year. Does **not** attempt to create a duplicate Owner.
+   - **Interrupted Setup (Year exists, No Owner):** Skips year creation and prompts only for Owner creation.
+3. **Atomic Academic Year Creation:**
+   - File naming: `tibyan-<name>.sqlite` (e.g. `tibyan-2026-2027.sqlite`).
+   - The new SQLite file is created and migrated on disk **before** the registry row is committed to the system database.
+   - If registry insertion fails, the newly created physical file is cleaned up, preventing orphan files.
+   - If migration fails, the partial file is unlinked and no registry entry is written.
+   - If mounting fails after successful creation and registry entry, both the registry record and database file are preserved for startup recovery.
+
+---
+
+## 17. Today Dashboard Rules
+
+1. **Strictly Read-Only:** `DashboardService` executes read-only SQLite queries. It performs zero mutations, writes zero audit entries, and **never triggers session materialization**.
+2. **Effective Slot Filtering & Sorting:**
+   - Sessions are queried by `effectiveDate = :targetDate`.
+   - Classes are sorted ascending by `effectiveStartTime`, with deterministic secondary ordering (`groupName`, `groupId`, `sessionId`).
+3. **Rescheduled Highlighting:** A session is identified as rescheduled if `rescheduledAt !== null || scheduledDate !== effectiveDate || scheduledStartTime !== effectiveStartTime`. This status is preserved even if the session is subsequently cancelled.
+4. **Follow-Up Flagging:**
+   - `needsAttention` items are driven **exclusively** by notes tagged `NEEDS_FOLLOW_UP`.
+   - Notes tagged `ACADEMIC_WEAKNESS`, `BEHAVIOR`, or `GENERAL` alone do not qualify for `needsAttention`.
+
+---
+
+## 18. Completed Task Ledger (Tasks 1–11)
+
+All commits have been extracted directly from the live Git log:
+
+| Task # | Task Name | Status | Main Commit | Hardening Commit(s) | Scope & Highlights |
+|---|---|---|---|---|---|
+| **Task 1** | Monorepo Foundation & Tooling | COMPLETE | `dd66744` | — | pnpm workspaces, TS project references, Vitest workspace, offline fonts, Tailwind. |
+| **Task 2** | Core Contracts & IPC Definitions | COMPLETE | `8aa1dfa` | `09d7638` | Domain enums (`EGYPTIAN_BACCALAUREATE`, `ActorType`), DTOs, Zod schemas, IPC channel constants. |
+| **Task 3** | Dual Database Architecture | COMPLETE | `9307524` | `b19f6c7` | System & Academic Drizzle schemas, migrations, repositories, SQLite audit triggers. |
+| **Task 4** | PIN Authentication & Cooldown Core | COMPLETE | `5123c30` | — | 4-digit PIN, scrypt hashing, 5-attempt brute-force cooldown (30s), permissions, audit logging. |
+| **Task 5** | Student Management & Photo Storage | COMPLETE | `084b89e` | `5269a67` | Student codes (`TB-XXXX`), photo storage under UUID, notes timeline, atomic audit rollback. |
+| **Task 6** | Groups, Pricing & Rolling Sessions | COMPLETE | `0482b56` | `eb9b0b7`, `d2ea1b3` | Group creation, enrollment-scoped payment inheritance, idempotent 28-day sessions with stable occurrence keys. |
+| **Task 7** | Multi-Year Automated Backup Service | COMPLETE | `9e39e38` | `464383d` | Online backup (`better-sqlite3`), multi-year database & media inclusion, rolling 4-week retention, restore verification. |
+| **Task 8** | Today Dashboard Aggregation Service | COMPLETE | `f599a9c` | — | Live aggregation querying `effectiveDate`, `effectiveStartTime` sorting, `NEEDS_FOLLOW_UP` alerts. |
+| **Task 9** | Design System Tokens & Primitives | COMPLETE | `7564386` | `20af589` | Brand colors (`#0B3D3D`, `#C59B27`), typography, Light/Dark themes, official logo hash, `PinPad` component. |
+| **Task 10** | Electron Desktop Shell & Typed IPC | COMPLETE | `b207312` | `56724e2` | Electron shell, secure preload bridge, native module packaging, typed IPC handlers. |
+| **Task 11** | Desktop AppShell & First-Run Wizard | COMPLETE | `a6c0d04` | `145e0d3` | RTL layout, official logo sidebar, topbar, First-Run Wizard, atomic recovery on setup error. |
+
+---
+
+## 19. Current Verified Baseline
+
+The repository has been empirically verified with zero failures across all packages:
+
+- **Vitest Unit & Integration Tests (17 files, 349 tests):**
+  - `@tibyan/contracts`: 1 test file, **39 passed**
+  - `@tibyan/db`: 1 test file, **25 passed**
+  - `@tibyan/core`: 10 test files, **196 passed**
+  - `@tibyan/design-system`: 1 test file, **29 passed**
+  - `@tibyan/desktop`: 4 test files, **60 passed**
+  - **Monorepo Total:** **349 tests passed (0 failed)**
+- **TypeScript Typecheck (`pnpm -r typecheck`):** **0 errors** across all 5 workspace projects.
+- **Database Schema Drift (`pnpm --filter @tibyan/db db:generate`):** **Zero schema drift** ("No schema changes, nothing to migrate 😴").
+- **Official Logo Integrity:** SHA-256 is exactly `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`.
+- **Lint Scripts:** Package-level lint scripts are currently unconfigured in `package.json` (as expected).
+- **Working Tree:** Clean at Task 11 handoff commit `145e0d3`.
+
+---
+
+## 20. Remaining Phase 1 Tasks (Tasks 12–17)
+
+| Task # | Task Name | Status | Primary Responsibilities |
+|---|---|---|---|
+| **Task 12** | 4-Digit PIN Authentication Screen & Session Store | **NEXT** | User card selection + 4-digit PIN pad login screen + cooldown countdown timer + Zustand presentation session store + auth hook. |
+| **Task 13** | Student Management UI | PENDING | Student list table, search, create/edit modal with `EducationSystem` & `GradeLevel`, photo upload, profile, notes timeline. |
+| **Task 14** | Group Management UI, Enrollment Picker & Reschedule Modal | PENDING | Group cards/table, recurring schedule picker, student enrollment modal with fee overrides, session reschedule modal. |
+| **Task 15** | Real-Data Today Dashboard UI | PENDING | Today's scheduled/rescheduled classes using live SQLite data, quick stats, `NEEDS_FOLLOW_UP` attention card. |
+| **Task 16** | Settings, Academic Year Switcher & Backup Tab | PENDING | Academic year manager (create/switch), user & assistant account management, manual backup trigger & status view. |
+| **Task 17** | Windows Packaging, Playwright Smoke Tests & Hardening | PENDING | End-to-end smoke tests against packaged NSIS binary, ASAR native binary verification, release hardening. |
+
+---
+
+## 21. Task 12 Starting Context
+
+Task 12 is the **immediate next task** to execute. Here is the complete execution specification:
+
+### 21.1 Task Objective
+Build the login interface for the desktop app, allowing the user to select an account (Owner or Assistant), enter their 4-digit PIN on the design system `PinPad`, view lock status and active cooldown countdowns on brute-force lockout, and store the authenticated session in a lightweight Zustand presentation store.
+
+### 21.2 Expected Files
+- `apps/desktop/src/features/auth/LoginScreen.tsx` — Main login page component with user picker and PIN pad.
+- `apps/desktop/src/features/auth/UserCard.tsx` — Avatar/card component for selecting the active account.
+- `apps/desktop/src/features/auth/auth.state.ts` — Zustand store for holding the current session presentation state.
+- `apps/desktop/src/hooks/useAuth.ts` — React hook wrapping login, logout, and session query.
+- `apps/desktop/tests/LoginScreen.test.tsx` — Vitest unit tests for the login flow and cooldown timer.
+
+### 21.3 IPC Integration Points (Already Implemented in Electron Main)
+- `window.tibyan.auth.listUsers()`: Returns `UserDto[]` for the user picker.
+- `window.tibyan.auth.loginWithPin({ userId, pin })`: Authenticates with PIN and sets the authoritative session in Main.
+- `window.tibyan.auth.getSession()`: Fetches the current authoritative session.
+- `window.tibyan.auth.logout()`: Clears the authoritative session in Main.
+
+### 21.4 Key Invariants for Task 12:
+- **Reuse Design System `PinPad`:** Do not create a duplicate PIN pad component. Use `packages/design-system/src/components/PinPad.tsx`.
+- **Main Process Authority:** The Main process session (`runtime.currentSession`) remains the sole authority. The Zustand session state is purely for UI presentation and cache.
+- **Never Persist PIN:** Plaintext PIN must exist only in ephemeral component memory and must be wiped immediately upon submission.
+- **Cooldown Countdown:** When `ACCOUNT_LOCKED` is returned, extract `retryAfterSeconds` from error details and display a live countdown timer until retry is allowed.
+- **Do NOT Change Core Cooldown:** Do not modify the 5-attempt / 30-second cooldown behavior in `@tibyan/core`.
+- **Do NOT Start Task 13:** Complete Task 12, verify tests, and halt for user review before proceeding.
+
+---
+
+## 22. Future Phase Roadmap
+
+Following the completion of Phase 1 (Tasks 1–17), Tibyan will advance along the following roadmap:
+
+- **Phase 2 — Attendance, QR/Barcode, Student Cards, Finance & Thermal Receipts:**
+  - Fast attendance recording via webcam QR scanner / physical USB barcode scanner.
+  - Printable student membership cards with QR tokens and Code128 barcodes.
+  - Monthly subscription and per-session fee collection, discount management.
+  - USB thermal receipt printing (ESC/POS) for payments.
+  - Automated WhatsApp message generation for parent notifications.
+- **Phase 3 — Curriculum Hierarchy & Mathematics Engine:**
+  - Structure: `Academic System -> Grade -> Language Track -> Math Branch -> Unit/Chapter -> Lesson -> Concept -> Skill -> Questions`.
+  - LaTeX mathematical notation rendering, geometric diagram generation, and formula validation.
+- **Phase 4 — Question Bank & Exam Assembly Engine:**
+  - Question taxonomy, difficulty rating, cognitive levels.
+  - Algorithmic exam generation with multiple model versions (A/B/C/D) and answer keys.
+  - Print-first layout engine with WYSIWYG preview and direct PDF export.
+- **Phase 5 — Optical Exam Grading & Student Weakness Analytics:**
+  - Optical bubble-sheet grading and photographed student paper correction.
+  - Diagnostic student weakness tracking linked directly to curriculum skills.
+- **Phase 6 — API-Based AI Assistant (External Cloud AI Only):**
+  - **External API-based AI assistant ONLY (e.g. Gemini API).**
+  - **EXPLICIT RULE: NO LOCAL AI MODEL WILL EVER BE ADDED.**
+  - Safe tool invocations with `Preview -> Confirm -> Execute -> Audit`.
+- **Phase 7 — Local-Area Network (LAN) Companion App:**
+  - React Native / Expo companion app connecting over the teacher's local Wi-Fi / hotspot.
+  - Zero cloud dependency; direct peer-to-peer LAN communication with the Windows desktop host.
+
+---
+
+## 23. Non-Negotiable Regression Rules
+
+Under no circumstances may any future modification violate these invariants:
+
+1. **Rescheduled Occurrence Idempotency:** Rescheduling updates `effective_date` and `effective_start_time` while preserving the immutable `occurrence_key`. The 28-day materializer must never recreate a duplicate session for the original recurring slot.
+2. **Enrollment-Scoped Payment Independence:** Overrides live on `GroupEnrollment`. A student enrolled in multiple groups must maintain independent pricing terms per group.
+3. **SYSTEM Actor Audit Logging:** Background automated tasks (backups, rolling schedule extensions) must log audit records with `actorType: 'SYSTEM'` and `actorUserId: null`.
+4. **Atomic Mutation & Audit Rollback:** Synchronous SQLite mutations and their corresponding audit entries must be executed in the same transaction. An audit failure must abort the business mutation.
+5. **Exact 28-Day Horizon:** Production session materialization evaluates $[D, D + 27]$ inclusive.
+6. **No Renderer Database/Filesystem Access:** The renderer must never import `@tibyan/db`, `better-sqlite3`, `fs`, or `path`.
+7. **No Raw IPC Exposure:** The renderer must communicate exclusively through `window.tibyan`. No `ipcRenderer` or wildcard handlers.
+8. **No Renderer Authority Over Roles/Permissions:** The Main process authenticated session is authoritative.
+9. **Exact Official PNG Hash:** The official logo at `packages/design-system/src/assets/tibyan-official-logo.png` must match SHA-256 `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`.
+10. **NO LOCAL AI MODEL:** Local-first refers to SQLite storage and desktop execution, never an offline LLM.
+
+---
+
+## 24. Workflow for the Next AI
+
+When resuming development:
+
+1. **Read this Document First:** Read `TIBYAN_AI_HANDOFF.md` completely.
+2. **Read Approved v2.1 Plan:** Cross-reference [TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md](file:///F:/tebyan/TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md).
+3. **Inspect Target Source Files:** Inspect the actual code files for the upcoming task before proposing changes.
+4. **Formulate Implementation Plan:** Create an implementation plan detailing files to create/modify, dependencies, and verification steps.
+5. **Execute ONE Task at a Time:** Build only the scoped task. Do not jump ahead.
+6. **Run the Full Regression Suite:** Run `pnpm -r test` and `pnpm -r typecheck` to guarantee zero regressions.
+7. **Produce Detailed Walkthrough:** Document changes, test results, and status.
+8. **Stop and Await User Approval:** Stop after completing the task. Do not automatically proceed to the next task.
+9. **Report Discrepancies:** If this handoff document conflicts with the actual source code or latest migrations, report the discrepancy to the user before altering architecture.
