@@ -69,7 +69,7 @@
     },
     "@tibyan/core": {
       "path": "packages/core",
-      "description": "Pure domain services, scrypt PIN crypto, rolling schedule materializer, online backups, and atomic audit transactions."
+      "description": "Domain and application business-logic layer decoupled from Electron IPC; contains pure domain calculations and operational services coordinating persistence/filesystem via controlled dependencies."
     },
     "@tibyan/design-system": {
       "path": "packages/design-system",
@@ -127,6 +127,7 @@
     "webviewTag": false,
     "rawIpcRendererExposed": false,
     "genericInvokeChannelAllowed": false,
+    "rendererDirectCoreAccessAllowed": false,
     "rendererDirectDbAccessAllowed": false,
     "rendererDirectFilesystemAccessAllowed": false,
     "authoritativeSessionProcess": "MAIN",
@@ -415,10 +416,10 @@
   "nonNegotiableRegressions": [
     "Rescheduled occurrence idempotency: rolling generator never creates duplicate session for original recurring slot",
     "Enrollment-scoped payment independence: student in multiple groups has separate pricing per group",
-    "SYSTEM actor audit logging: automated background jobs log audit records with actorType=SYSTEM and actorUserId=null",
+    "SYSTEM actor audit logging: automated background jobs log audit records with actorType=SYSTEM, actorUserId=null, and required descriptive actorNameSnapshot",
     "Atomic mutation and audit rollback: mutation and audit insert in same transaction; audit failure aborts mutation",
     "Exact 28-day production materialization horizon: evaluates today through today + 27 days inclusive",
-    "Zero renderer direct access to SQLite database or local filesystem",
+    "Zero renderer direct access to @tibyan/core, SQLite database, or local filesystem",
     "Zero raw ipcRenderer exposure or generic invoke(channel, payload) escape hatches",
     "Zero renderer authority over roles or permissions; MAIN process session is authoritative",
     "Exact official PNG hash preserved: 66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749",

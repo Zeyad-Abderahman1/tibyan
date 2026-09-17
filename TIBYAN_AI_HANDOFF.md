@@ -99,7 +99,7 @@ F:\tebyan\
 ├─ packages\
 │  ├─ contracts\       # @tibyan/contracts — Pure schemas, enums, DTOs, IPC channels & interfaces
 │  ├─ db\              # @tibyan/db — Drizzle schemas, migrations, repositories, connection pool
-│  ├─ core\            # @tibyan/core — 100% Pure business logic, crypto, services, transactions
+│  ├─ core\            # @tibyan/core — Domain & application business logic, crypto, services, transactions
 │  └─ design-system\   # @tibyan/design-system — Design tokens, official logo, UI components
 └─ apps\
    └─ desktop\         # apps/desktop — Electron Main/Preload processes & React Renderer App
@@ -108,9 +108,9 @@ F:\tebyan\
 ### Dependency Rules & Layer Invariants:
 1. **`@tibyan/contracts`:** Depends on nothing except `zod`. Contains zero platform-specific code. Shared by DB, Core, Electron Main, and React Renderer.
 2. **`@tibyan/db`:** Depends on `contracts`, `better-sqlite3`, and `drizzle-orm`. Owns the dual SQLite database connections, schema migrations, and repositories. **Never imported by the renderer.**
-3. **`@tibyan/core`:** Depends on `contracts` and `db`. Contains **100% of domain business logic**, authorization checks, scrypt PIN crypto, rolling schedule materialization, online backups, and atomic audit logging. **Never imported by the renderer.**
+3. **`@tibyan/core`:** The **domain and application business-logic layer, decoupled from Electron IPC**. It contains pure domain calculations (e.g. payment inheritance resolution, occurrence key generation, calendar date arithmetic) as well as operational application services (`BackupService`, `PhotoService`, `StudentService`, `AuthService`) that coordinate persistence and filesystem access through injected dependencies and repositories. **Never imported by the renderer.**
 4. **`@tibyan/design-system`:** Depends on `contracts`, React, Lucide, Tailwind. Houses official typography, brand tokens, and pure UI components (Button, Modal, Input, PinPad, Table, etc.).
-5. **`apps/desktop` (Renderer):** **NEVER imports `@tibyan/db`, `better-sqlite3`, or Node.js builtins directly.** All data access and business actions must pass through the typed preload bridge `window.tibyan`.
+5. **`apps/desktop` (Renderer):** **NEVER imports `@tibyan/core`, `@tibyan/db`, `better-sqlite3`, `fs`, or `path` directly.** All data access and business actions must pass strictly through the typed preload bridge `window.tibyan`.
 
 ---
 
@@ -214,7 +214,7 @@ The educational domain model cleanly reflects the reality of independent Egyptia
 4. **`MathBranch` on Groups:**
    - Values: `GENERAL_MATH`, `ALGEBRA`, `GEOMETRY`, `TRIGONOMETRY`, `CALCULUS`, `STATISTICS`, `APPLIED_MATH`.
    - On the `Group` model, `focusMathBranch` is an **optional focus branch**.
-   - Strict mathematical branch association belongs to later curriculum, lesson, and question-bank phases (Phase 3+), not as a rigid blocker for group creation.
+   - Strict mathematical branch association belongs to later curriculum, lesson, and question-bank capability areas, not as a rigid blocker for group creation.
 
 ---
 
@@ -296,9 +296,9 @@ Every state modification in Tibyan is recorded in append-only SQLite audit table
    - `trg_system_audit_no_update` / `trg_system_audit_no_delete`
    - `trg_academic_audit_no_update` / `trg_academic_audit_no_delete`
    - Any SQL `UPDATE` or `DELETE` against audit tables aborts with a SQLite trigger error.
-2. **Actor Polymorphism:**
-   - `actorType = 'USER'`: Requires valid `actorUserId` and `actorNameSnapshot`.
-   - `actorType = 'SYSTEM'`: Used for background tasks (automated weekly backup, rolling session extension). `actorUserId` is `null` and `actorNameSnapshot = 'System Engine'`.
+2. **Actor Polymorphism & Invariants:**
+   - `actorType = 'USER'`: Requires a valid non-null `actorUserId` (UUIDv4) and a non-empty `actorNameSnapshot`.
+   - `actorType = 'SYSTEM'`: Requires `actorUserId = null` and a required descriptive non-empty `actorNameSnapshot`. The snapshot is not a single hardcoded literal; background services provide an implementation-specific descriptive name (e.g. `BackupService` logs `'Automated Backup Engine'`, while schedule jobs may log a descriptive subsystem name).
 3. **Atomic Transactions (`runInAuditTransaction`):**
    - In `better-sqlite3`, the business mutation and the corresponding audit log entry targeting the same database must execute inside a synchronous `db.transaction()`.
    - If the audit insert fails (e.g. trigger violation or missing required field), the business mutation rolls back completely.
@@ -308,8 +308,8 @@ Every state modification in Tibyan is recorded in append-only SQLite audit table
 
 ## 12. Authentication & Credential Cryptography
 
-1. **PIN Specification:** Exactly 4 numeric digits (`0-9`).
-2. **Key Derivation Function:** Node.js built-in `crypto.scrypt` (Argon2 was evaluated during initial planning but formally superseded in v2.1 in favor of standard built-in `crypto.scrypt` to eliminate native compilation issues and ensure long-term stability):
+1. **PIN Specification:** Exactly 4 numeric digits (`0-9`), enforced by schema regex `/^\d{4}$/`.
+2. **Key Derivation Function:** Node.js built-in `crypto.scrypt`:
    - **Salt:** 16 cryptographically secure random bytes (`crypto.randomBytes(16)`).
    - **Parameters:** $N = 16384$, $r = 8$, $p = 1$, $\text{maxmem} = 32\,\text{MB}$.
    - **Derived Key Length:** 64 bytes (`keylen = 64`).
@@ -342,7 +342,7 @@ The automated backup engine provides full multi-year disaster recovery:
 6. **Storage Path:** Canonical root is `<appDataDir>/backups`. No secondary backup directories are created.
 7. **Permissions & Audit:**
    - Manual backup trigger requires `BACKUP_MANAGE` permission.
-   - Automated weekly backup executes under `actorType: 'SYSTEM'`.
+   - Automated weekly backup executes under `actorType: 'SYSTEM'` with `actorNameSnapshot = 'Automated Backup Engine'`.
 
 ---
 
@@ -474,10 +474,10 @@ The repository has been empirically verified with zero failures across all packa
 
 ## 21. Task 12 Starting Context
 
-Task 12 is the **immediate next task** to execute. Here is the complete execution specification:
+Task 12 is the **immediate next task** to execute. Here is the complete execution specification derived directly from current contracts and runtime source:
 
 ### 21.1 Task Objective
-Build the login interface for the desktop app, allowing the user to select an account (Owner or Assistant), enter their 4-digit PIN on the design system `PinPad`, view lock status and active cooldown countdowns on brute-force lockout, and store the authenticated session in a lightweight Zustand presentation store.
+Build the login interface for the desktop app, allowing the user to select an active account (Teacher/Owner or Assistant), enter their 4-digit PIN on the design system `PinPad`, view lock status and active cooldown countdowns on brute-force lockout, and store the authenticated session in a lightweight Zustand presentation store.
 
 ### 21.2 Expected Files
 - `apps/desktop/src/features/auth/LoginScreen.tsx` — Main login page component with user picker and PIN pad.
@@ -486,11 +486,62 @@ Build the login interface for the desktop app, allowing the user to select an ac
 - `apps/desktop/src/hooks/useAuth.ts` — React hook wrapping login, logout, and session query.
 - `apps/desktop/tests/LoginScreen.test.tsx` — Vitest unit tests for the login flow and cooldown timer.
 
-### 21.3 IPC Integration Points (Already Implemented in Electron Main)
-- `window.tibyan.auth.listUsers()`: Returns `UserDto[]` for the user picker.
-- `window.tibyan.auth.loginWithPin({ userId, pin })`: Authenticates with PIN and sets the authoritative session in Main.
-- `window.tibyan.auth.getSession()`: Fetches the current authoritative session.
-- `window.tibyan.auth.logout()`: Clears the authoritative session in Main.
+### 21.3 Actual Current IPC Integration Points & Signatures
+
+#### Preload API Interface (`packages/contracts/src/ipc/api.ts` & `apps/desktop/electron/preload.ts`):
+```ts
+export interface TibyanApi {
+  auth: {
+    listUsers(): Promise<IpcResult<UserDto[]>>;
+    loginWithPin(input: LoginWithPinInput): Promise<IpcResult<UserSessionDto>>;
+    logout(): Promise<IpcResult<void>>;
+    getSession(): Promise<IpcResult<UserSessionDto | null>>;
+    bootstrapOwner(input: BootstrapOwnerInput): Promise<IpcResult<UserDto>>;
+    createUser(input: CreateUserInput): Promise<IpcResult<UserDto>>;
+    updatePermissions(input: UpdatePermissionsInput): Promise<IpcResult<void>>;
+    changeUserStatus(input: ChangeUserStatusInput): Promise<IpcResult<void>>;
+    resetPin(input: ResetUserPinInput): Promise<IpcResult<void>>;
+  };
+  // ... other domains
+}
+```
+
+#### DTO & Input Shapes (`packages/contracts/src/models/auth.dto.ts`):
+```ts
+export const PinSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}$/, 'PIN must be exactly 4 numeric digits');
+
+export const LoginWithPinSchema = z.object({
+  userId: z.string().uuid('Invalid user ID format'),
+  pin: PinSchema,
+});
+export type LoginWithPinInput = z.infer<typeof LoginWithPinSchema>;
+```
+The exact `LoginWithPinInput` shape is:
+```ts
+{
+  userId: string; // Valid UUIDv4 identifying the chosen user
+  pin: string;    // Exactly 4 numeric digits ('0000' - '9999')
+}
+```
+
+#### IPC Channels & Handlers Mapping:
+- **`window.tibyan.auth.listUsers()`:**
+  - Channel: `IPC_CHANNELS.AUTH_LIST_USERS` (`'auth:listUsers'`).
+  - Handler in Main (`apps/desktop/electron/ipc/auth.ipc.ts`): Invokes `runtime.authService.listLoginUsers()`, which returns active users filtered by `status === 'ACTIVE'` with `{ id, fullName, username, role }`.
+- **`window.tibyan.auth.loginWithPin(input: LoginWithPinInput)`:**
+  - Channel: `IPC_CHANNELS.AUTH_LOGIN_PIN` (`'auth:loginPin'`).
+  - Validates `LoginWithPinSchema.parse(payload)`.
+  - Handler in Main: Invokes `runtime.authService.loginWithPin(validated)`, which verifies scrypt hash, manages failed attempt counters/lockout, and on success sets `runtime.setSession(session)`.
+  - On lockout: Returns `IpcResult` error with code `'ACCOUNT_LOCKED'` and `details: { retryAfterSeconds: number }`.
+- **`window.tibyan.auth.getSession()`:**
+  - Channel: `IPC_CHANNELS.AUTH_GET_SESSION` (`'auth:getSession'`).
+  - Returns `IpcResult<UserSessionDto | null>` representing the authoritative Main process session.
+- **`window.tibyan.auth.logout()`:**
+  - Channel: `IPC_CHANNELS.AUTH_LOGOUT` (`'auth:logout'`).
+  - Clears `runtime.currentSession` in Main.
 
 ### 21.4 Key Invariants for Task 12:
 - **Reuse Design System `PinPad`:** Do not create a duplicate PIN pad component. Use `packages/design-system/src/components/PinPad.tsx`.
@@ -504,24 +555,31 @@ Build the login interface for the desktop app, allowing the user to select an ac
 
 ## 22. Future Phase Roadmap
 
-Following the completion of Phase 1 (Tasks 1–17), Tibyan will advance along the following roadmap:
+The overarching roadmap for Tibyan is grounded in the approved v2.1 plan and master specification (`2026-09-17-tibyan-design.md`):
 
-- **Phase 2 — Attendance, QR/Barcode, Student Cards, Finance & Thermal Receipts:**
+### Approved Immediate Next Phase:
+- **Phase 2 — Attendance, QR/Barcode, Student Cards, Finance & Thermal Receipts** (Cited from [TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md](file:///F:/tebyan/TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md) §12):
   - Fast attendance recording via webcam QR scanner / physical USB barcode scanner.
   - Printable student membership cards with QR tokens and Code128 barcodes.
   - Monthly subscription and per-session fee collection, discount management.
   - USB thermal receipt printing (ESC/POS) for payments.
   - Automated WhatsApp message generation for parent notifications.
-- **Phase 3 — Curriculum Hierarchy & Mathematics Engine:**
-  - Structure: `Academic System -> Grade -> Language Track -> Math Branch -> Unit/Chapter -> Lesson -> Concept -> Skill -> Questions`.
+
+### Provisional Product Roadmap / Planned Capability Areas (Cited from `2026-09-17-tibyan-design.md`):
+The following capability areas represent planned product features. Their exact phase numbering and release boundaries are provisional and will be formalized in dedicated implementation plans prior to execution:
+- **Curriculum Hierarchy & Mathematics Engine:**
+  - Long-term curriculum taxonomy:
+    $$\text{Academic System} \to \text{Grade} \to \text{Language Track} \to \text{Math Branch} \to \text{Unit/Chapter} \to \text{Lesson} \to \text{Concept} \to \text{Skill} \to \text{Questions}$$
   - LaTeX mathematical notation rendering, geometric diagram generation, and formula validation.
-- **Phase 4 — Question Bank & Exam Assembly Engine:**
+- **Question Bank & Exam Assembly Engine:**
   - Question taxonomy, difficulty rating, cognitive levels.
   - Algorithmic exam generation with multiple model versions (A/B/C/D) and answer keys.
   - Print-first layout engine with WYSIWYG preview and direct PDF export.
-- **Phase 5 — Optical Exam Grading & Student Weakness Analytics:**
+- **Optical Exam Grading & Student Weakness Analytics:**
   - Optical bubble-sheet grading and photographed student paper correction.
   - Diagnostic student weakness tracking linked directly to curriculum skills.
+
+### Approved Long-Term Architecture Phases:
 - **Phase 6 — API-Based AI Assistant (External Cloud AI Only):**
   - **External API-based AI assistant ONLY (e.g. Gemini API).**
   - **EXPLICIT RULE: NO LOCAL AI MODEL WILL EVER BE ADDED.**
@@ -538,10 +596,10 @@ Under no circumstances may any future modification violate these invariants:
 
 1. **Rescheduled Occurrence Idempotency:** Rescheduling updates `effective_date` and `effective_start_time` while preserving the immutable `occurrence_key`. The 28-day materializer must never recreate a duplicate session for the original recurring slot.
 2. **Enrollment-Scoped Payment Independence:** Overrides live on `GroupEnrollment`. A student enrolled in multiple groups must maintain independent pricing terms per group.
-3. **SYSTEM Actor Audit Logging:** Background automated tasks (backups, rolling schedule extensions) must log audit records with `actorType: 'SYSTEM'` and `actorUserId: null`.
+3. **SYSTEM Actor Audit Logging:** Background automated tasks (backups, rolling schedule extensions) must log audit records with `actorType: 'SYSTEM'`, `actorUserId: null`, and a required descriptive `actorNameSnapshot` (e.g. `'Automated Backup Engine'`).
 4. **Atomic Mutation & Audit Rollback:** Synchronous SQLite mutations and their corresponding audit entries must be executed in the same transaction. An audit failure must abort the business mutation.
 5. **Exact 28-Day Horizon:** Production session materialization evaluates $[D, D + 27]$ inclusive.
-6. **No Renderer Database/Filesystem Access:** The renderer must never import `@tibyan/db`, `better-sqlite3`, `fs`, or `path`.
+6. **No Renderer Database/Filesystem Access:** The renderer must never import `@tibyan/core`, `@tibyan/db`, `better-sqlite3`, `fs`, or `path`.
 7. **No Raw IPC Exposure:** The renderer must communicate exclusively through `window.tibyan`. No `ipcRenderer` or wildcard handlers.
 8. **No Renderer Authority Over Roles/Permissions:** The Main process authenticated session is authoritative.
 9. **Exact Official PNG Hash:** The official logo at `packages/design-system/src/assets/tibyan-official-logo.png` must match SHA-256 `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`.

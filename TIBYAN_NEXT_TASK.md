@@ -8,7 +8,7 @@
 ## 1. Task Objective
 
 Task 12 delivers the authentication user experience for the desktop application:
-1. Allow the user to select an existing account (Teacher/Owner or Assistant).
+1. Allow the user to select an active account (Teacher/Owner or Assistant) from available active users.
 2. Present the 4-digit PIN pad using the design system `PinPad` primitive.
 3. Authenticate against the Main process via `window.tibyan.auth.loginWithPin`.
 4. Handle brute-force cooldown: extract `retryAfterSeconds` from `ACCOUNT_LOCKED` error details and display a live countdown timer until retry is unlocked.
@@ -37,30 +37,86 @@ apps/desktop/
 
 ---
 
-## 3. Existing Backend Infrastructure (Already Implemented & Tested)
+## 3. Actual Current Auth Preload Surface & Contracts
 
-The Electron Main process and `@tibyan/core` already provide complete, tested IPC handlers for Task 12:
+The Electron Main process and `@tibyan/core` already provide complete, verified IPC handlers for Task 12:
 
+### 3.1 Preload Interface (`packages/contracts/src/ipc/api.ts` & `apps/desktop/electron/preload.ts`)
+```ts
+export interface TibyanApi {
+  auth: {
+    listUsers(): Promise<IpcResult<UserDto[]>>;
+    loginWithPin(input: LoginWithPinInput): Promise<IpcResult<UserSessionDto>>;
+    logout(): Promise<IpcResult<void>>;
+    getSession(): Promise<IpcResult<UserSessionDto | null>>;
+    bootstrapOwner(input: BootstrapOwnerInput): Promise<IpcResult<UserDto>>;
+    createUser(input: CreateUserInput): Promise<IpcResult<UserDto>>;
+    updatePermissions(input: UpdatePermissionsInput): Promise<IpcResult<void>>;
+    changeUserStatus(input: ChangeUserStatusInput): Promise<IpcResult<void>>;
+    resetPin(input: ResetUserPinInput): Promise<IpcResult<void>>;
+  };
+  // ... other domains
+}
+```
+
+### 3.2 Exact DTO & Input Shapes (`packages/contracts/src/models/auth.dto.ts`)
+```ts
+export const PinSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}$/, 'PIN must be exactly 4 numeric digits');
+
+export const LoginWithPinSchema = z.object({
+  userId: z.string().uuid('Invalid user ID format'),
+  pin: PinSchema,
+});
+export type LoginWithPinInput = z.infer<typeof LoginWithPinSchema>;
+
+export interface UserDto {
+  id: string;
+  fullName: string;
+  username: string;
+  role: 'OWNER' | 'ASSISTANT';
+  status: 'ACTIVE' | 'INACTIVE';
+  failedAttempts: number;
+  lockedUntil: string | null;
+  permissions: PermissionCode[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserSessionDto {
+  userId: string;
+  fullName: string;
+  username: string;
+  role: 'OWNER' | 'ASSISTANT';
+  permissions: PermissionCode[];
+  tokenExpiresAt: string;
+}
+```
+
+### 3.3 Channel Mappings & Runtime Execution Flow
 - **List Users for Login Picker:**
-  - Channel: `auth:listUsers`
-  - Preload: `window.tibyan.auth.listUsers()`
-  - Handler: `runtime.authService.listLoginUsers()`
-  - Returns: `IpcResult<UserDto[]>` (filters only `status = 'ACTIVE'`, never exposes salts or hashes).
+  - Method: `window.tibyan.auth.listUsers()`
+  - Channel: `IPC_CHANNELS.AUTH_LIST_USERS` (`'auth:listUsers'`)
+  - Main IPC Handler: in `apps/desktop/electron/ipc/auth.ipc.ts`, delegates to `runtime.authService.listLoginUsers()`.
+  - Behavior: Returns safe active user accounts (`status === 'ACTIVE'`) with `{ id, fullName, username, role }`. Does not expose cryptographic hashes or salts.
 - **Authenticate with PIN:**
-  - Channel: `auth:loginPin`
-  - Preload: `window.tibyan.auth.loginWithPin({ userId: string, pin: string })`
-  - Handler: `runtime.authService.loginWithPin(...)` -> `runtime.setSession(session)`
-  - Returns: `IpcResult<UserSessionDto>` on success.
-  - Returns: `IpcResult` error with code `'ACCOUNT_LOCKED'` and `details: { retryAfterSeconds: number }` when locked.
-  - Returns: `IpcResult` error with code `'INVALID_CREDENTIALS'` on wrong PIN.
-- **Get Active Authoritative Session:**
-  - Channel: `auth:getSession`
-  - Preload: `window.tibyan.auth.getSession()`
-  - Returns: `IpcResult<UserSessionDto | null>`.
+  - Method: `window.tibyan.auth.loginWithPin(input: LoginWithPinInput)`
+  - Parameter: `{ userId: string, pin: string }` where `userId` is a valid UUID and `pin` is a 4-digit numeric string.
+  - Channel: `IPC_CHANNELS.AUTH_LOGIN_PIN` (`'auth:loginPin'`)
+  - Main IPC Handler: Validates against `LoginWithPinSchema`, executes `runtime.authService.loginWithPin(validated)`, sets `runtime.setSession(session)` in Main, and returns `session`.
+  - Error Cases:
+    - Code `'ACCOUNT_LOCKED'` with `details: { retryAfterSeconds: number }` if the account is in brute-force cooldown.
+    - Code `'INVALID_PIN'` on mismatched credentials.
+- **Get Current Session:**
+  - Method: `window.tibyan.auth.getSession()`
+  - Channel: `IPC_CHANNELS.AUTH_GET_SESSION` (`'auth:getSession'`)
+  - Main IPC Handler: Returns `runtime.currentSession`.
 - **Logout:**
-  - Channel: `auth:logout`
-  - Preload: `window.tibyan.auth.logout()`
-  - Clears `runtime.currentSession` in Main.
+  - Method: `window.tibyan.auth.logout()`
+  - Channel: `IPC_CHANNELS.AUTH_LOGOUT` (`'auth:logout'`)
+  - Main IPC Handler: Clears `runtime.clearSession()`.
 
 ---
 
