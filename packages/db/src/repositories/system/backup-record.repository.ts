@@ -27,6 +27,11 @@ export class BackupRecordRepository {
     return row ?? null;
   }
 
+  findByPath(backupPath: string): BackupRecordRow | null {
+    const row = this.client.select().from(backupRecords).where(eq(backupRecords.backupPath, backupPath)).get();
+    return row ?? null;
+  }
+
   listRecent(limit: number = 20): BackupRecordRow[] {
     return this.client
       .select()

@@ -45,6 +45,20 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
     permissions: [],
   };
 
+  const assistantWithBackupManage: AuthenticatedUser = {
+    userId: crypto.randomUUID(),
+    fullName: 'سارة مساعدة (نسخ احتياطي)',
+    role: 'ASSISTANT',
+    permissions: ['BACKUP_MANAGE'],
+  };
+
+  const assistantWithoutBackupManage: AuthenticatedUser = {
+    userId: crypto.randomUUID(),
+    fullName: 'خالد مساعد بلا صلاحية',
+    role: 'ASSISTANT',
+    permissions: ['STUDENTS_READ'],
+  };
+
   beforeEach(() => {
     closeAllDatabases();
 
@@ -134,6 +148,7 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
       weeklyIntervalDays: 7,
       dateProvider,
       systemDb: sysConn.raw,
+      systemDrizzle: sysConn.db,
       academicYearRepo,
       backupRecordRepo,
       systemAuditRepo: auditRepo,
@@ -256,7 +271,6 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
     });
 
     it('10. A media copy failure prevents the generation from being marked SUCCESS', async () => {
-      // Spy on fs.promises.copyFile to throw during media copy
       const copyFileSpy = vi.spyOn(fs.promises, 'copyFile').mockRejectedValueOnce(
         new Error('Disk I/O failure during media copy')
       );
@@ -320,18 +334,39 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
       const result = await backupService.createWeeklyBackup();
       expect(fs.existsSync(result.backupPath)).toBe(true);
 
-      // Verify manifest exists inside published directory
       const manifestFile = path.join(result.backupPath, 'manifest.json');
       expect(fs.existsSync(manifestFile)).toBe(true);
 
-      // Verify staging directory is clean
       const stagingDir = path.join(backupRootDir, 'staging');
       const remainingStaging = fs.readdirSync(stagingDir);
       expect(remainingStaging).toHaveLength(0);
     });
+
+    it('A simulated failure after directory publication but before SUCCESS metadata commit cleans up published dir and preserves previous backups', async () => {
+      // 1. First create a confirmed known-good generation
+      const first = await backupService.createWeeklyBackup();
+      expect(first.status).toBe('SUCCESS');
+      expect(fs.existsSync(first.backupPath)).toBe(true);
+
+      // 2. Mock commitSuccess to fail after directory publication
+      vi.spyOn(backupService as any, 'commitSuccess').mockImplementationOnce(() => {
+        throw new Error('Simulated system DB transaction failure after directory rename');
+      });
+
+      dateProvider.advanceDays(7);
+      await expect(backupService.createWeeklyBackup()).rejects.toThrow('Simulated system DB transaction failure');
+
+      // 3. Previous known-good generation is intact
+      expect(fs.existsSync(first.backupPath)).toBe(true);
+
+      // 4. Staging and published directories for failed run were compensated and cleaned up
+      const weeklyGenerations = fs.readdirSync(path.join(backupRootDir, 'weekly'));
+      expect(weeklyGenerations).toHaveLength(1);
+      expect(weeklyGenerations[0]).toBe(path.basename(first.backupPath));
+    });
   });
 
-  describe('4. Manifest Security & Verification', () => {
+  describe('4. Manifest Security & Cryptographic Verification', () => {
     it('16. Backup manifest contains every included academic year', async () => {
       const result = await backupService.createWeeklyBackup();
       const manifest: BackupManifest = JSON.parse(
@@ -355,6 +390,45 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
       }
     });
 
+    it('Manifest SHA-256 for system DB matches actual published file', async () => {
+      const result = await backupService.createWeeklyBackup();
+      const manifest: BackupManifest = JSON.parse(
+        fs.readFileSync(path.join(result.backupPath, 'manifest.json'), 'utf8')
+      );
+
+      const publishedSysDb = path.join(result.backupPath, manifest.systemDatabase.relativePath);
+      const actualSysSha = await computeFileSha256(publishedSysDb);
+      expect(actualSysSha).toBe(manifest.systemDatabase.checksumSha256);
+    });
+
+    it('Manifest SHA-256 for academic DB matches actual published file', async () => {
+      const result = await backupService.createWeeklyBackup();
+      const manifest: BackupManifest = JSON.parse(
+        fs.readFileSync(path.join(result.backupPath, 'manifest.json'), 'utf8')
+      );
+
+      const activeEntry = manifest.academicYears.find((y) => y.name === '2026-2027')!;
+      const publishedAcadDb = path.join(result.backupPath, activeEntry.databaseRelativePath);
+      const actualAcadSha = await computeFileSha256(publishedAcadDb);
+      expect(actualAcadSha).toBe(activeEntry.databaseChecksumSha256);
+    });
+
+    it('Tampering with a copied file produces checksum mismatch', async () => {
+      const result = await backupService.createWeeklyBackup();
+      const manifest: BackupManifest = JSON.parse(
+        fs.readFileSync(path.join(result.backupPath, 'manifest.json'), 'utf8')
+      );
+
+      const targetDb = path.join(result.backupPath, manifest.systemDatabase.relativePath);
+      const originalSha = manifest.systemDatabase.checksumSha256;
+
+      // Tamper by appending bytes to the file
+      fs.appendFileSync(targetDb, Buffer.from('TAMPERED_EXTRA_DATA'));
+
+      const tamperedSha = await computeFileSha256(targetDb);
+      expect(tamperedSha).not.toBe(originalSha);
+    });
+
     it('17. Backup manifest contains no authentication secrets', async () => {
       const result = await backupService.createWeeklyBackup();
       const manifestRaw = fs.readFileSync(path.join(result.backupPath, 'manifest.json'), 'utf8');
@@ -367,9 +441,8 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
     });
   });
 
-  describe('5. Rolling 4-Generation Weekly Retention', () => {
+  describe('5. Rolling 4-Generation Weekly Retention & Success Authority', () => {
     it('13. Weekly retention keeps exactly the newest 4 successful generations once more than four exist', async () => {
-      // Create 5 successive weekly backups, advancing time for each
       const published: string[] = [];
 
       for (let i = 0; i < 5; i++) {
@@ -378,33 +451,58 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
         published.push(res.backupPath);
       }
 
-      // Check weekly/ directory
       const weeklyGenerations = fs.readdirSync(path.join(backupRootDir, 'weekly'));
       expect(weeklyGenerations).toHaveLength(4);
 
-      // The oldest generation (published[0]) must have been pruned
+      // Oldest generation must be pruned
       expect(fs.existsSync(published[0]!)).toBe(false);
 
-      // The newest 4 (published[1] through published[4]) must be preserved
+      // Newest 4 must be preserved
       expect(fs.existsSync(published[1]!)).toBe(true);
       expect(fs.existsSync(published[2]!)).toBe(true);
       expect(fs.existsSync(published[3]!)).toBe(true);
       expect(fs.existsSync(published[4]!)).toBe(true);
     });
 
+    it('A published directory without matching SUCCESS backup record is not counted by retention', async () => {
+      // 1. Create 4 valid successful generations
+      for (let i = 0; i < 4; i++) {
+        dateProvider.advanceDays(7);
+        await backupService.createWeeklyBackup();
+      }
+
+      // 2. Create an unconfirmed orphan directory in weekly/ containing manifest.json but NO DB record
+      const orphanDir = path.join(backupRootDir, 'weekly', 'generation_ghost_orphan_dir');
+      fs.mkdirSync(orphanDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(orphanDir, 'manifest.json'),
+        JSON.stringify({ version: 1, backupType: 'WEEKLY' }),
+        'utf8'
+      );
+
+      expect(fs.existsSync(orphanDir)).toBe(true);
+
+      // 3. Run retention
+      const pruned = backupService.applyWeeklyRetention();
+
+      // Orphan directory must be detected and removed/quarantined, NOT counted as one of the 4 known-good generations
+      expect(pruned).toContain(path.resolve(orphanDir));
+      expect(fs.existsSync(orphanDir)).toBe(false);
+
+      // Exactly the 4 confirmed successful generations remain
+      const remaining = fs.readdirSync(path.join(backupRootDir, 'weekly'));
+      expect(remaining).toHaveLength(4);
+    });
+
     it('14. Archival backup is not removed by weekly retention', async () => {
-      // Create a dedicated archival backup
       const archiveRes = await backupService.createAcademicYearArchiveBackup('ay-2026-2027', ownerActor);
       expect(fs.existsSync(archiveRes.backupPath)).toBe(true);
-      expect(archiveRes.backupPath).toContain(path.join('backups', 'archive'));
 
-      // Now create 5 weekly generations to trigger weekly retention pruning
       for (let i = 0; i < 5; i++) {
         dateProvider.advanceDays(7);
         await backupService.createWeeklyBackup();
       }
 
-      // Archival backup MUST still exist untouched!
       expect(fs.existsSync(archiveRes.backupPath)).toBe(true);
     });
   });
@@ -415,7 +513,6 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
       expect(result.status).toBe('SUCCESS');
       expect(result.academicYearsIncluded).toEqual(['2026-2027']);
 
-      // Archive directory must contain system DB, year DB, and media
       const sysCopy = path.join(result.backupPath, 'system', 'tibyan-system.sqlite');
       const acadCopy = path.join(result.backupPath, 'academic-years', 'tibyan-2026-2027.sqlite');
       const mediaCopy = path.join(result.backupPath, 'media', '2026-2027', 'students', 'student1.jpg');
@@ -431,7 +528,6 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
       expect(manifest.academicYears).toHaveLength(1);
       expect(manifest.academicYears[0]!.name).toBe('2026-2027');
 
-      // System audit logged
       const audits = auditRepo.listRecent(5);
       const archiveAudit = audits.find((a) => a.action === 'ACADEMIC_YEAR_ARCHIVE_BACKUP_CREATED');
       expect(archiveAudit).toBeDefined();
@@ -439,7 +535,6 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
     });
 
     it('24. Archival backup fails if its SQLite integrity verification fails', async () => {
-      // Simulate an academic backup copy that fails PRAGMA integrity_check
       vi.spyOn(backupService as any, 'backupAcademicDatabase').mockImplementationOnce(
         async (...args: any[]) => {
           const destPath = args[2];
@@ -451,13 +546,89 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
         backupService.createAcademicYearArchiveBackup('ay-2026-2027', ownerActor)
       ).rejects.toThrow(/integrity/i);
 
-      // Verify no published archive directory exists
       const archiveEntries = fs.readdirSync(path.join(backupRootDir, 'archive'));
       expect(archiveEntries).toHaveLength(0);
     });
   });
 
-  describe('7. Manual Backup & Scheduling Decisions', () => {
+  describe('7. Authorization & RBAC Enforcement', () => {
+    it('OWNER can trigger manual backup without explicit backup permission row', async () => {
+      const result = await backupService.createManualBackup(ownerActor);
+      expect(result.status).toBe('SUCCESS');
+    });
+
+    it('ASSISTANT without BACKUP_MANAGE is denied manual backup with PERMISSION_DENIED', async () => {
+      await expect(
+        backupService.createManualBackup(assistantWithoutBackupManage)
+      ).rejects.toThrow(/PERMISSION_DENIED/);
+    });
+
+    it('ASSISTANT with BACKUP_MANAGE can trigger manual backup', async () => {
+      const result = await backupService.createManualBackup(assistantWithBackupManage);
+      expect(result.status).toBe('SUCCESS');
+    });
+
+    it('Automatic weekly SYSTEM backup succeeds without human permission', async () => {
+      const result = await backupService.createWeeklyBackup(); // no actor
+      expect(result.status).toBe('SUCCESS');
+    });
+
+    it('ASSISTANT without BACKUP_MANAGE is denied archival backup', async () => {
+      await expect(
+        backupService.createAcademicYearArchiveBackup('ay-2026-2027', assistantWithoutBackupManage)
+      ).rejects.toThrow(/PERMISSION_DENIED/);
+    });
+
+    it('ASSISTANT with BACKUP_MANAGE can trigger archival backup', async () => {
+      const result = await backupService.createAcademicYearArchiveBackup(
+        'ay-2026-2027',
+        assistantWithBackupManage
+      );
+      expect(result.status).toBe('SUCCESS');
+    });
+  });
+
+  describe('8. Audit Behavior & Secret Protection', () => {
+    it('SYSTEM backup audit has actorType SYSTEM and actorUserId null', async () => {
+      await backupService.createWeeklyBackup();
+
+      const audits = auditRepo.listRecent(5);
+      const completedAudit = audits.find((a) => a.action === 'BACKUP_COMPLETED');
+      expect(completedAudit).toBeDefined();
+      expect(completedAudit?.actorType).toBe('SYSTEM');
+      expect(completedAudit?.actorUserId).toBeNull();
+      expect(completedAudit?.actorNameSnapshot).toBe('Automated Backup Engine');
+    });
+
+    it('USER backup audit contains safe actor identity and no authentication secrets', async () => {
+      await backupService.createManualBackup(ownerActor);
+
+      const audits = auditRepo.listRecent(5);
+      const completedAudit = audits.find((a) => a.action === 'BACKUP_COMPLETED');
+      expect(completedAudit).toBeDefined();
+      expect(completedAudit?.actorType).toBe('USER');
+      expect(completedAudit?.actorUserId).toBe(ownerActor.userId);
+      expect(completedAudit?.actorNameSnapshot).toBe(ownerActor.fullName);
+
+      const meta = completedAudit?.metadataJson ?? '';
+      expect(meta).not.toContain('pinHash');
+      expect(meta).not.toContain('pin_hash');
+      expect(meta).not.toContain('salt');
+      expect(meta).not.toContain('guardianPhone');
+    });
+
+    it('No BACKUP_COMPLETED event exists for a generation that fails before publication', async () => {
+      vi.spyOn(fs.promises, 'copyFile').mockRejectedValueOnce(new Error('Forced copy failure'));
+
+      await expect(backupService.createWeeklyBackup()).rejects.toThrow();
+
+      const audits = auditRepo.listRecent(10);
+      expect(audits.find((a) => a.action === 'BACKUP_COMPLETED')).toBeUndefined();
+      expect(audits.find((a) => a.action === 'BACKUP_FAILED')).toBeDefined();
+    });
+  });
+
+  describe('9. Scheduling Decisions & isWeeklyBackupDue Semantics', () => {
     it('18. Manual backup uses the same verification engine as weekly backup', async () => {
       const result = await backupService.createManualBackup(ownerActor);
       expect(result.status).toBe('SUCCESS');
@@ -467,26 +638,16 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
         fs.readFileSync(path.join(result.backupPath, 'manifest.json'), 'utf8')
       );
       expect(manifest.backupType).toBe('MANUAL');
-
-      // Audit logged with actor information
-      const audits = auditRepo.listRecent(5);
-      const completedAudit = audits.find((a) => a.action === 'BACKUP_COMPLETED');
-      expect(completedAudit).toBeDefined();
-      expect(completedAudit?.actorType).toBe('USER');
-      expect(completedAudit?.actorUserId).toBe(ownerActor.userId);
     });
 
     it('19. isWeeklyBackupDue is deterministic with injected time', () => {
-      // Initially with no backups, isWeeklyBackupDue is true
       expect(backupService.isWeeklyBackupDue()).toBe(true);
     });
 
     it('20. A recent successful weekly backup returns not due', async () => {
       await backupService.createWeeklyBackup();
-      // Immediately after backup, it is NOT due
       expect(backupService.isWeeklyBackupDue()).toBe(false);
 
-      // Advance clock by 3 days: still NOT due (< 7 days)
       dateProvider.advanceDays(3);
       expect(backupService.isWeeklyBackupDue()).toBe(false);
     });
@@ -495,19 +656,48 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
       await backupService.createWeeklyBackup();
       expect(backupService.isWeeklyBackupDue()).toBe(false);
 
-      // Advance clock by 7 days: exactly due
       dateProvider.advanceDays(7);
       expect(backupService.isWeeklyBackupDue()).toBe(true);
+    });
 
-      // Advance clock by 8 days: definitely due
+    it('Manual backup resets the 7-day interval because it produces a full multi-year generation', async () => {
+      await backupService.createManualBackup(ownerActor);
+      // Immediately not due
+      expect(backupService.isWeeklyBackupDue()).toBe(false);
+
+      dateProvider.advanceDays(6);
+      expect(backupService.isWeeklyBackupDue()).toBe(false);
+
       dateProvider.advanceDays(1);
       expect(backupService.isWeeklyBackupDue()).toBe(true);
     });
 
+    it('FAILED backup does not cause isWeeklyBackupDue() to return false', async () => {
+      // Record a FAILED backup in DB
+      backupRecordRepo.create({
+        id: crypto.randomUUID(),
+        backupPath: path.join(backupRootDir, 'weekly', 'failed_gen'),
+        backupDate: dateProvider.nowIso ? dateProvider.nowIso() : new Date().toISOString(),
+        status: 'FAILED',
+        sizeBytes: 0,
+        academicYearsIncludedJson: JSON.stringify([]),
+        createdAt: dateProvider.nowIso ? dateProvider.nowIso() : new Date().toISOString(),
+      });
+
+      // Still due because no SUCCESS weekly backup exists
+      expect(backupService.isWeeklyBackupDue()).toBe(true);
+    });
+
+    it('ARCHIVAL backup does not cause isWeeklyBackupDue() to return false', async () => {
+      // Create an ARCHIVAL backup
+      await backupService.createAcademicYearArchiveBackup('ay-2026-2027', ownerActor);
+
+      // ARCHIVAL backup does NOT reset the weekly backup due interval
+      expect(backupService.isWeeklyBackupDue()).toBe(true);
+    });
+
     it('22. Two overlapping backup attempts are prevented deterministically (BACKUP_ALREADY_RUNNING)', async () => {
-      // Simulate an ongoing backup by manually setting running flag or executing concurrently
       const promise1 = backupService.createWeeklyBackup();
-      // Immediate concurrent attempt
       const promise2 = backupService.createWeeklyBackup();
 
       const results = await Promise.allSettled([promise1, promise2]);
@@ -524,7 +714,7 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
     });
   });
 
-  describe('8. Security & Path Traversal Guards', () => {
+  describe('10. Security & Path Traversal Guards', () => {
     it('27. Backup output stays inside the configured Tibyan backup root', async () => {
       const result = await backupService.createWeeklyBackup();
       const resolvedBackup = path.resolve(result.backupPath);
@@ -547,7 +737,6 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
     });
 
     it('29. Managed media traversal cannot escape its academic-year media root', async () => {
-      // Create a symlink inside media folder pointing to /etc or an outside file
       const secretFile = path.join(tempDir, 'super_secret.txt');
       fs.writeFileSync(secretFile, 'CONFIDENTIAL_DATA');
 
@@ -560,16 +749,13 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
       }
 
       const result = await backupService.createWeeklyBackup();
-      // The symlink pointing outside media root must NOT be copied or followed
       const copiedSecret = path.join(result.backupPath, 'media', '2026-2027', 'students', 'super_secret.txt');
       expect(fs.existsSync(copiedSecret)).toBe(false);
     });
 
     it('30. Existing backup folders are not recursively copied into new backups', async () => {
-      // Run first backup
       await backupService.createWeeklyBackup();
 
-      // Configure a rogue media directory pointing at the backups folder
       const rogueService = new BackupService({
         appDataDir,
         systemDbPath,
@@ -578,17 +764,17 @@ describe('Task 7: Multi-Year Automated Backup Service', () => {
         backupRootDir,
         dateProvider,
         systemDb: sysConn.raw,
+        systemDrizzle: sysConn.db,
         academicYearRepo,
         backupRecordRepo,
         systemAuditRepo: auditRepo,
       });
 
-      // Rogue service must reject media directory residing inside backup root
       await expect(rogueService.createWeeklyBackup()).rejects.toThrow(/Source media directory cannot reside inside/i);
     });
   });
 
-  describe('9. Service Status Reporting', () => {
+  describe('11. Service Status Reporting', () => {
     it('getBackupStatus accurately reflects status before and after backups', async () => {
       const statusBefore = backupService.getBackupStatus();
       expect(statusBefore.lastBackupAt).toBeNull();

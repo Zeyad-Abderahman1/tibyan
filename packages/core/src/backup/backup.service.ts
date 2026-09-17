@@ -7,8 +7,10 @@ import type {
 } from '@tibyan/contracts';
 import {
   type DatabaseType,
+  type SystemDrizzle,
   createRawDatabase,
   type AcademicYearRow,
+  type NewBackupRecordRow,
   AcademicYearRepository,
   BackupRecordRepository,
   SystemAuditRepository,
@@ -17,6 +19,7 @@ import {
   isAcademicDatabaseOpen,
   getAcademicDatabase,
 } from '@tibyan/db';
+import { requirePermission } from '../auth/permissions.js';
 import { type DateProvider, DefaultDateProvider } from '../common/date-provider.js';
 import type { AuthenticatedUser } from '../students/student.service.js';
 
@@ -27,7 +30,8 @@ export type BackupErrorCode =
   | 'BACKUP_INTEGRITY_FAILED'
   | 'BACKUP_MEDIA_COPY_FAILED'
   | 'ACADEMIC_YEAR_NOT_FOUND'
-  | 'INVALID_BACKUP_PATH';
+  | 'INVALID_BACKUP_PATH'
+  | 'PERMISSION_DENIED';
 
 export class BackupError extends Error {
   constructor(public readonly code: BackupErrorCode, message: string) {
@@ -70,6 +74,7 @@ export interface BackupServiceConfig {
   weeklyIntervalDays?: number;
   dateProvider?: DateProvider;
   systemDb?: DatabaseType;
+  systemDrizzle?: SystemDrizzle;
   academicYearRepo?: AcademicYearRepository;
   backupRecordRepo?: BackupRecordRepository;
   systemAuditRepo?: SystemAuditRepository;
@@ -130,6 +135,7 @@ export class BackupService {
   private readonly weeklyIntervalDays: number;
   private readonly dateProvider: DateProvider;
   private readonly systemDb?: DatabaseType;
+  private readonly systemDrizzle?: SystemDrizzle;
   private readonly academicYearRepo: AcademicYearRepository;
   private readonly backupRecordRepo: BackupRecordRepository;
   private readonly systemAuditRepo?: SystemAuditRepository;
@@ -156,6 +162,7 @@ export class BackupService {
     this.weeklyIntervalDays = config.weeklyIntervalDays ?? 7;
     this.dateProvider = config.dateProvider ?? new DefaultDateProvider();
     this.systemDb = config.systemDb;
+    this.systemDrizzle = config.systemDrizzle;
     this.academicYearRepo = config.academicYearRepo ?? new AcademicYearRepository();
     this.backupRecordRepo = config.backupRecordRepo ?? new BackupRecordRepository();
     this.systemAuditRepo = config.systemAuditRepo ?? new SystemAuditRepository();
@@ -191,16 +198,34 @@ export class BackupService {
 
   /**
    * Determines if a weekly backup is due based on the configured weekly interval (7 days).
-   * Returns true if no successful backup exists or if the last successful backup is >= 7 days ago.
+   * - Only confirmed SUCCESS weekly or manual backups satisfy the interval.
+   * - FAILED records NEVER suppress a due weekly backup.
+   * - ARCHIVAL records NEVER suppress a due weekly backup.
+   * - A successful manual backup resets the 7-day interval because it creates an identical full multi-year generation.
    */
   isWeeklyBackupDue(): boolean {
-    const records = this.backupRecordRepo.listRecent(20);
-    const lastSuccess = records.find((r) => r.status === 'SUCCESS');
-    if (!lastSuccess) {
+    const records = this.backupRecordRepo.listRecent(50);
+    const archiveRoot = path.resolve(path.join(this.backupRootDir, 'archive'));
+
+    const lastSuccessWeekly = records.find((r) => {
+      if (r.status !== 'SUCCESS') return false;
+      const resolvedPath = path.resolve(r.backupPath);
+      // Exclude archival backups
+      if (
+        resolvedPath.startsWith(archiveRoot) ||
+        r.backupPath.includes('/archive/') ||
+        r.backupPath.includes('\\archive\\')
+      ) {
+        return false;
+      }
+      return fs.existsSync(r.backupPath);
+    });
+
+    if (!lastSuccessWeekly) {
       return true;
     }
 
-    const lastBackupTime = new Date(lastSuccess.backupDate || lastSuccess.createdAt).getTime();
+    const lastBackupTime = new Date(lastSuccessWeekly.backupDate || lastSuccessWeekly.createdAt).getTime();
     const nowTime = this.dateProvider.nowDate ? this.dateProvider.nowDate().getTime() : Date.now();
 
     const intervalMs = this.weeklyIntervalDays * 24 * 60 * 60 * 1000;
@@ -208,27 +233,39 @@ export class BackupService {
   }
 
   /**
-   * Executes a scheduled weekly backup.
+   * Executes a scheduled or automated weekly backup.
+   * If initiated by a USER actor, requires BACKUP_MANAGE permission.
+   * Automatic SYSTEM weekly backups (actor undefined/null) require no human permission.
    */
   async createWeeklyBackup(actor?: AuthenticatedUser): Promise<BackupRecordDto> {
+    if (actor) {
+      requirePermission(actor.role, actor.permissions ?? [], 'BACKUP_MANAGE');
+    }
     return this.executeBackupGeneration({ backupType: 'WEEKLY', actor });
   }
 
   /**
    * Executes an explicit manual backup using the identical verified multi-year engine.
+   * Requires BACKUP_MANAGE permission.
    */
   async createManualBackup(actor: AuthenticatedUser): Promise<BackupRecordDto> {
+    requirePermission(actor.role, actor.permissions ?? [], 'BACKUP_MANAGE');
     return this.executeBackupGeneration({ backupType: 'MANUAL', actor });
   }
 
   /**
    * Creates a dedicated archival backup for a specific academic year before or during archiving.
+   * If initiated by a USER, requires BACKUP_MANAGE permission.
    * Archival backups are placed in the separate 'archive' root and are never pruned by weekly retention.
    */
   async createAcademicYearArchiveBackup(
     academicYearId: string,
     actor?: AuthenticatedUser
   ): Promise<BackupRecordDto> {
+    if (actor) {
+      requirePermission(actor.role, actor.permissions ?? [], 'BACKUP_MANAGE');
+    }
+
     if (this.isRunning) {
       throw new BackupError('BACKUP_ALREADY_RUNNING', 'A backup operation is already in progress');
     }
@@ -237,9 +274,7 @@ export class BackupService {
     const backupId = crypto.randomUUID();
     const nowIso = this.dateProvider.nowIso ? this.dateProvider.nowIso() : new Date().toISOString();
     const stagingDir = path.join(this.backupRootDir, 'staging', `staging_${backupId}`);
-
-    // Audit START
-    this.logAudit('BACKUP_STARTED', backupId, { backupType: 'ARCHIVAL', academicYearId }, actor);
+    let publishedDir: string | null = null;
 
     try {
       // 1. Locate academic year
@@ -331,39 +366,47 @@ export class BackupService {
       }
 
       fs.renameSync(stagingDir, finalArchiveDir);
+      publishedDir = finalArchiveDir;
 
-      // 7. Persist record in system DB
-      const record = this.backupRecordRepo.create({
-        id: backupId,
-        backupPath: finalArchiveDir,
-        backupDate: nowIso,
-        status: 'SUCCESS',
-        sizeBytes: totalSizeBytes,
-        academicYearsIncludedJson: JSON.stringify([year.name]),
-        createdAt: nowIso,
-      });
-
-      this.logAudit(
-        'ACADEMIC_YEAR_ARCHIVE_BACKUP_CREATED',
-        backupId,
-        { academicYearId: year.id, academicYearName: year.name, backupPath: finalArchiveDir },
+      // 7. Atomically commit SUCCESS backup record and system audit in one transaction
+      const recordDto = this.commitSuccess(
+        {
+          id: backupId,
+          backupPath: finalArchiveDir,
+          backupDate: nowIso,
+          status: 'SUCCESS',
+          sizeBytes: totalSizeBytes,
+          academicYearsIncludedJson: JSON.stringify([year.name]),
+          createdAt: nowIso,
+        },
+        {
+          action: 'ACADEMIC_YEAR_ARCHIVE_BACKUP_CREATED',
+          entityId: backupId,
+          metadata: {
+            academicYearId: year.id,
+            academicYearName: year.name,
+            backupPath: finalArchiveDir,
+            sizeBytes: totalSizeBytes,
+          },
+        },
         actor
       );
 
-      return {
-        id: record.id,
-        backupPath: record.backupPath,
-        backupDate: record.backupDate,
-        status: record.status,
-        sizeBytes: record.sizeBytes,
-        academicYearsIncluded: [year.name],
-        createdAt: record.createdAt,
-      };
+      return recordDto;
     } catch (err) {
-      // Clean up staging directory on failure
+      // Compensating cleanup of staging directory
       if (fs.existsSync(stagingDir)) {
         try {
           fs.rmSync(stagingDir, { recursive: true, force: true });
+        } catch {
+          // ignore cleanup error
+        }
+      }
+
+      // Compensating cleanup of published directory if metadata commit failed during this process
+      if (publishedDir && fs.existsSync(publishedDir)) {
+        try {
+          fs.rmSync(publishedDir, { recursive: true, force: true });
         } catch {
           // ignore cleanup error
         }
@@ -397,33 +440,65 @@ export class BackupService {
   }
 
   /**
-   * Applies rolling weekly retention policy: keeps exactly the newest 4 successful weekly generations.
-   * Archival backups are excluded. Returns paths of deleted directories.
+   * Applies rolling weekly retention policy:
+   * - Authoritative success definition: Requires BOTH a published directory with manifest.json
+   *   AND a matching SUCCESS record in system backup_records.
+   * - Directories in weekly/ lacking a SUCCESS backup record are orphans; they are safely quarantined/removed
+   *   and NEVER counted toward the 4 known-good generations.
+   * - Retains exactly the newest 4 confirmed successful generations.
+   * - Archival backups are placed in 'archive/' and are strictly excluded from weekly retention.
    */
   applyWeeklyRetention(): string[] {
     const weeklyDir = path.join(this.backupRootDir, 'weekly');
     if (!fs.existsSync(weeklyDir)) return [];
 
+    // 1. Fetch all SUCCESS records from backupRecordRepo
+    const records = this.backupRecordRepo.listRecent(100);
+    const successRecordMap = new Map<string, (typeof records)[0]>();
+    for (const r of records) {
+      if (r.status === 'SUCCESS') {
+        successRecordMap.set(path.resolve(r.backupPath), r);
+      }
+    }
+
     const entries = fs.readdirSync(weeklyDir, { withFileTypes: true });
-    const generations: Array<{ fullPath: string; mtimeMs: number }> = [];
+    const confirmedGenerations: Array<{ fullPath: string; mtimeMs: number }> = [];
+    const orphanDirectories: string[] = [];
 
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        const fullPath = path.join(weeklyDir, entry.name);
+        const fullPath = path.resolve(path.join(weeklyDir, entry.name));
         const manifestFile = path.join(fullPath, 'manifest.json');
-        if (fs.existsSync(manifestFile)) {
+
+        const matchingSuccess = successRecordMap.get(fullPath);
+
+        if (fs.existsSync(manifestFile) && matchingSuccess) {
           const stat = fs.statSync(fullPath);
-          generations.push({ fullPath, mtimeMs: stat.mtimeMs });
+          confirmedGenerations.push({ fullPath, mtimeMs: stat.mtimeMs });
+        } else {
+          // Published directory without matching SUCCESS record in DB (orphan)
+          orphanDirectories.push(fullPath);
         }
       }
     }
 
-    // Sort newest first
-    generations.sort((a, b) => b.mtimeMs - a.mtimeMs);
-
     const deletedPaths: string[] = [];
-    if (generations.length > this.weeklyRetentionCount) {
-      const toDelete = generations.slice(this.weeklyRetentionCount);
+
+    // Safely remove orphan directories so they never count as known-good generations
+    for (const orphan of orphanDirectories) {
+      try {
+        fs.rmSync(orphan, { recursive: true, force: true });
+        deletedPaths.push(orphan);
+      } catch {
+        // ignore cleanup error
+      }
+    }
+
+    // 2. Retain exactly the newest 4 confirmed successful generations
+    confirmedGenerations.sort((a, b) => b.mtimeMs - a.mtimeMs);
+
+    if (confirmedGenerations.length > this.weeklyRetentionCount) {
+      const toDelete = confirmedGenerations.slice(this.weeklyRetentionCount);
       for (const gen of toDelete) {
         try {
           fs.rmSync(gen.fullPath, { recursive: true, force: true });
@@ -451,8 +526,7 @@ export class BackupService {
     const backupId = crypto.randomUUID();
     const nowIso = this.dateProvider.nowIso ? this.dateProvider.nowIso() : new Date().toISOString();
     const stagingDir = path.join(this.backupRootDir, 'staging', `staging_${backupId}`);
-
-    this.logAudit('BACKUP_STARTED', backupId, { backupType: options.backupType }, options.actor);
+    let publishedDir: string | null = null;
 
     try {
       fs.mkdirSync(stagingDir, { recursive: true });
@@ -540,47 +614,50 @@ export class BackupService {
       }
 
       fs.renameSync(stagingDir, finalWeeklyDir);
+      publishedDir = finalWeeklyDir;
 
-      // 5. Apply rolling weekly retention (new generation published, now safely prune older than 4)
-      this.applyWeeklyRetention();
-
-      // 6. Record SUCCESS in system DB
-      const record = this.backupRecordRepo.create({
-        id: backupId,
-        backupPath: finalWeeklyDir,
-        backupDate: nowIso,
-        status: 'SUCCESS',
-        sizeBytes: totalSizeBytes,
-        academicYearsIncludedJson: JSON.stringify(includedYearNames),
-        createdAt: nowIso,
-      });
-
-      this.logAudit(
-        'BACKUP_COMPLETED',
-        backupId,
+      // 5. Write SUCCESS backup record and system audit in one SQLite transaction
+      const recordDto = this.commitSuccess(
         {
-          backupType: options.backupType,
+          id: backupId,
           backupPath: finalWeeklyDir,
+          backupDate: nowIso,
+          status: 'SUCCESS',
           sizeBytes: totalSizeBytes,
-          academicYearsCount: academicYearEntries.length,
+          academicYearsIncludedJson: JSON.stringify(includedYearNames),
+          createdAt: nowIso,
+        },
+        {
+          action: 'BACKUP_COMPLETED',
+          entityId: backupId,
+          metadata: {
+            backupType: options.backupType,
+            backupPath: finalWeeklyDir,
+            sizeBytes: totalSizeBytes,
+            academicYearsCount: academicYearEntries.length,
+          },
         },
         options.actor
       );
 
-      return {
-        id: record.id,
-        backupPath: record.backupPath,
-        backupDate: record.backupDate,
-        status: record.status,
-        sizeBytes: record.sizeBytes,
-        academicYearsIncluded: includedYearNames,
-        createdAt: record.createdAt,
-      };
+      // 6. Apply rolling weekly retention only after success is confirmed
+      this.applyWeeklyRetention();
+
+      return recordDto;
     } catch (err) {
       // Failure atomicity: remove incomplete staging directory immediately
       if (fs.existsSync(stagingDir)) {
         try {
           fs.rmSync(stagingDir, { recursive: true, force: true });
+        } catch {
+          // ignore cleanup error
+        }
+      }
+
+      // Compensating cleanup of published directory if metadata commit failed during this process
+      if (publishedDir && fs.existsSync(publishedDir)) {
+        try {
+          fs.rmSync(publishedDir, { recursive: true, force: true });
         } catch {
           // ignore cleanup error
         }
@@ -611,6 +688,99 @@ export class BackupService {
     } finally {
       this.isRunning = false;
     }
+  }
+
+  /**
+   * Commits the SUCCESS backup_record and system_audit_log entry in ONE system SQLite transaction.
+   */
+  private commitSuccess(
+    record: NewBackupRecordRow,
+    auditData: {
+      action: string;
+      entityId: string;
+      metadata?: Record<string, any>;
+    },
+    actor?: AuthenticatedUser
+  ): BackupRecordDto {
+    const nowIso = this.dateProvider.nowIso ? this.dateProvider.nowIso() : new Date().toISOString();
+    const actorType = actor ? 'USER' : 'SYSTEM';
+    const actorUserId = actor ? actor.userId : null;
+    const actorNameSnapshot = actor ? actor.fullName : 'Automated Backup Engine';
+
+    const executeInTx = (drizzleClient: SystemDrizzle) => {
+      const recordRepo = new BackupRecordRepository(drizzleClient);
+      const auditRepo = new SystemAuditRepository(drizzleClient);
+
+      const created = recordRepo.create(record);
+      auditRepo.insert({
+        id: crypto.randomUUID(),
+        actorType,
+        actorUserId,
+        actorNameSnapshot,
+        action: auditData.action,
+        entityType: 'BACKUP',
+        entityId: auditData.entityId,
+        beforeJson: null,
+        afterJson: null,
+        metadataJson: auditData.metadata ? JSON.stringify(auditData.metadata) : null,
+        createdAt: nowIso,
+      });
+      return created;
+    };
+
+    let resultRecord: any;
+    if (this.systemDrizzle) {
+      resultRecord = this.systemDrizzle.transaction((tx) => executeInTx(tx));
+    } else if (isSystemDatabaseOpen()) {
+      resultRecord = getSystemDatabase().db.transaction((tx) => executeInTx(tx));
+    } else if (this.systemDb && this.systemDb.open) {
+      const tx = this.systemDb.transaction(() => {
+        resultRecord = this.backupRecordRepo.create(record);
+        if (this.systemAuditRepo) {
+          this.systemAuditRepo.insert({
+            id: crypto.randomUUID(),
+            actorType,
+            actorUserId,
+            actorNameSnapshot,
+            action: auditData.action,
+            entityType: 'BACKUP',
+            entityId: auditData.entityId,
+            beforeJson: null,
+            afterJson: null,
+            metadataJson: auditData.metadata ? JSON.stringify(auditData.metadata) : null,
+            createdAt: nowIso,
+          });
+        }
+      });
+      tx();
+    } else {
+      resultRecord = this.backupRecordRepo.create(record);
+      if (this.systemAuditRepo) {
+        this.systemAuditRepo.insert({
+          id: crypto.randomUUID(),
+          actorType,
+          actorUserId,
+          actorNameSnapshot,
+          action: auditData.action,
+          entityType: 'BACKUP',
+          entityId: auditData.entityId,
+          beforeJson: null,
+          afterJson: null,
+          metadataJson: auditData.metadata ? JSON.stringify(auditData.metadata) : null,
+          createdAt: nowIso,
+        });
+      }
+    }
+
+    return {
+      id: resultRecord.id,
+      backupPath: resultRecord.backupPath,
+      backupDate: resultRecord.backupDate,
+      status: resultRecord.status,
+      sizeBytes: resultRecord.sizeBytes,
+      academicYearsIncluded: JSON.parse(resultRecord.academicYearsIncludedJson),
+      createdAt: resultRecord.createdAt,
+    };
   }
 
   /**
