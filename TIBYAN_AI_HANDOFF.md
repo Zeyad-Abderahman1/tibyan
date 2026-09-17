@@ -5,10 +5,10 @@
 > **Target Audience:** Incoming Autonomous AI Engineering Agents  
 > **Approved Architecture Version:** `v2.1` (Final Alignment)  
 > **Current Project Phase:** Phase 1 — Foundation & Desktop Core  
-> **Tasks Completed:** Tasks 1 through 11 inclusive (Final hardening commit: `145e0d3`)  
-> **Immediate Next Task:** **Task 12 — 4-Digit PIN Authentication Screen & Session Store**  
-> **Task 12 Status:** **NOT STARTED** (Zero Task 12 code has been implemented)  
-> **Regression Test Baseline:** 17 test files, 349 passing tests across 5 packages  
+> **Tasks Completed:** Tasks 1 through 12 inclusive (Final commit: `f79c8a3`)  
+> **Immediate Next Task:** **Task 13 — Student Management UI**  
+> **Task 13 Status:** **NOT STARTED** (Zero Task 13 code has been implemented)  
+> **Regression Test Baseline:** 18 test files, 373 passing tests across 5 packages  
 > **Official Logo SHA-256:** `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`  
 
 ---
@@ -21,8 +21,8 @@ Welcome, agent. This document is the **single canonical, durable, and authoritat
 1. **Inspect Actual Source Before Changing Architecture:** Do not trust memory or assume conventions. Before modifying any behavior, inspect the actual source code, migration files, and active tests.
 2. **Current Source Code Trumps Stale Walkthroughs:** If an older plan document or early design sketch contradicts the current production TypeScript files or latest database migrations in `packages/`, the **current production code and migration journals are authoritative**. Report any discrepancies before proposing architectural changes.
 3. **Architecture is v2.1:** All development conforms strictly to the revised v2.1 architectural alignments detailed in [TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md](file:///F:/tebyan/TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md).
-4. **Tasks 1 through 11 are COMPLETE:** All foundation, dual-database, domain core services (auth, student, group, session, backup, dashboard), design system, and Electron shell/wizard components are built, fully tested, and hardened up to commit `145e0d3`.
-5. **Task 12 Has NOT Started:** Do not assume Task 12 is underway. Task 12 is the 4-digit PIN login screen and Zustand presentation session store.
+4. **Tasks 1 through 12 are COMPLETE:** All foundation, dual-database, domain core services (auth, student, group, session, backup, dashboard), design system, Electron shell/wizard, PIN login screen, and session presentation store are built, fully tested, and hardened up to commit `f79c8a3`.
+5. **Task 13 Has NOT Started:** Do not assume Task 13 is underway. Task 13 is the Student Management UI.
 6. **One Task at a Time:** Always follow the strict workflow: understand requirements, inspect target files, formulate an implementation plan, obtain user approval, execute, verify against regression tests, and halt for review. Never batch multiple tasks.
 
 ---
@@ -420,7 +420,7 @@ The onboarding flow was implemented in Task 11 (`a6c0d04`, hardened in `145e0d3`
 
 ---
 
-## 18. Completed Task Ledger (Tasks 1–11)
+## 18. Completed Task Ledger (Tasks 1–12)
 
 All commits have been extracted directly from the live Git log:
 
@@ -437,6 +437,7 @@ All commits have been extracted directly from the live Git log:
 | **Task 9** | Design System Tokens & Primitives | COMPLETE | `7564386` | `20af589` | Brand colors (`#0B3D3D`, `#C59B27`), typography, Light/Dark themes, official logo hash, `PinPad` component. |
 | **Task 10** | Electron Desktop Shell & Typed IPC | COMPLETE | `b207312` | `56724e2` | Electron shell, secure preload bridge, native module packaging, typed IPC handlers. |
 | **Task 11** | Desktop AppShell & First-Run Wizard | COMPLETE | `a6c0d04` | `145e0d3` | RTL layout, official logo sidebar, topbar, First-Run Wizard, atomic recovery on setup error. |
+| **Task 12** | 4-Digit PIN Auth Screen & Session Store | COMPLETE | `f79c8a3` | — | UserCard, LoginScreen with account-scoped cooldown and absolute deadline derivation, safe LoginUserDto projection, RootLayout splash/retry boot, cross-user cache isolation, immediate PIN wipe. |
 
 ---
 
@@ -444,27 +445,26 @@ All commits have been extracted directly from the live Git log:
 
 The repository has been empirically verified with zero failures across all packages:
 
-- **Vitest Unit & Integration Tests (17 files, 349 tests):**
-  - `@tibyan/contracts`: 1 test file, **39 passed**
+- **Vitest Unit & Integration Tests (18 files, 373 tests):**
+  - `@tibyan/contracts`: 1 test file, **42 passed**
   - `@tibyan/db`: 1 test file, **25 passed**
   - `@tibyan/core`: 10 test files, **196 passed**
   - `@tibyan/design-system`: 1 test file, **29 passed**
-  - `@tibyan/desktop`: 4 test files, **60 passed**
-  - **Monorepo Total:** **349 tests passed (0 failed)**
+  - `@tibyan/desktop`: 5 test files, **81 passed**
+  - **Monorepo Total:** **373 tests passed (0 failed)**
 - **TypeScript Typecheck (`pnpm -r typecheck`):** **0 errors** across all 5 workspace projects.
 - **Database Schema Drift (`pnpm --filter @tibyan/db db:generate`):** **Zero schema drift** ("No schema changes, nothing to migrate 😴").
 - **Official Logo Integrity:** SHA-256 is exactly `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`.
 - **Lint Scripts:** Package-level lint scripts are currently unconfigured in `package.json` (as expected).
-- **Working Tree:** Clean at Task 11 handoff commit `145e0d3`.
+- **Working Tree:** Clean at Task 12 commit `f79c8a3`.
 
 ---
 
-## 20. Remaining Phase 1 Tasks (Tasks 12–17)
+## 20. Remaining Phase 1 Tasks (Tasks 13–17)
 
 | Task # | Task Name | Status | Primary Responsibilities |
 |---|---|---|---|
-| **Task 12** | 4-Digit PIN Authentication Screen & Session Store | **NEXT** | User card selection + 4-digit PIN pad login screen + cooldown countdown timer + Zustand presentation session store + auth hook. |
-| **Task 13** | Student Management UI | PENDING | Student list table, search, create/edit modal with `EducationSystem` & `GradeLevel`, photo upload, profile, notes timeline. |
+| **Task 13** | Student Management UI | **NEXT** | Student list table, search, create/edit modal with `EducationSystem` & `GradeLevel`, photo upload, profile, notes timeline. |
 | **Task 14** | Group Management UI, Enrollment Picker & Reschedule Modal | PENDING | Group cards/table, recurring schedule picker, student enrollment modal with fee overrides, session reschedule modal. |
 | **Task 15** | Real-Data Today Dashboard UI | PENDING | Today's scheduled/rescheduled classes using live SQLite data, quick stats, `NEEDS_FOLLOW_UP` attention card. |
 | **Task 16** | Settings, Academic Year Switcher & Backup Tab | PENDING | Academic year manager (create/switch), user & assistant account management, manual backup trigger & status view. |
@@ -472,84 +472,36 @@ The repository has been empirically verified with zero failures across all packa
 
 ---
 
-## 21. Task 12 Starting Context
+## 21. Task 13 Starting Context
 
-Task 12 is the **immediate next task** to execute. Here is the complete execution specification derived directly from current contracts and runtime source:
+Task 13 is the **immediate next task** to execute.
+
+> [!IMPORTANT]
+> **Task 13 is NOT STARTED.** Zero Task 13 code has been written. Await explicit user approval of the Task 13 plan before writing any Task 13 code.
 
 ### 21.1 Task Objective
-Build the login interface for the desktop app, allowing the user to select an active account (Teacher/Owner or Assistant), enter their 4-digit PIN on the design system `PinPad`, view lock status and active cooldown countdowns on brute-force lockout, and store the authenticated session in a lightweight Zustand presentation store.
+Build the Student Management user interface for the desktop application:
+1. Student Directory / List Table (`StudentsPage.tsx`): High-density, RTL data table displaying active students with searchable names, student code (`TB-XXXX`), grade level badge, education system badge, and enrolled groups count.
+2. Student Creation Modal (`StudentCreateModal.tsx`): Dialog for onboarding a new student with photo upload/preview, academic system, grade level, language track, parent WhatsApp phone, and optional group enrollment.
+3. Student Profile / Details View (`StudentProfilePage.tsx`): Detailed student card showing personal information, attendance rate, payment status, and notes timeline.
+4. Student Notes Timeline (`StudentNotesView.tsx`): Chronological note stream supporting `NEEDS_FOLLOW_UP`, `ACADEMIC_WEAKNESS`, `BEHAVIOR`, and `GENERAL` notes.
+5. TanStack Query Integration Hook (`useStudents.ts`): Typed queries and mutations interfacing with `window.tibyan.student`.
+6. Unit & Component Tests (`StudentsPage.test.tsx`): Vitest tests covering student listing, filtering, search, and modal interactions.
 
-### 21.2 Expected Files
-- `apps/desktop/src/features/auth/LoginScreen.tsx` — Main login page component with user picker and PIN pad.
-- `apps/desktop/src/features/auth/UserCard.tsx` — Avatar/card component for selecting the active account.
-- `apps/desktop/src/features/auth/auth.state.ts` — Zustand store for holding the current session presentation state.
-- `apps/desktop/src/hooks/useAuth.ts` — React hook wrapping login, logout, and session query.
-- `apps/desktop/tests/LoginScreen.test.tsx` — Vitest unit tests for the login flow and cooldown timer.
+### 21.2 Available IPC Integration Surface (`window.tibyan.student`):
+- `list(filter?: StudentFilterInput)`: Returns `IpcResult<StudentDto[]>`.
+- `getById(id: string)`: Returns `IpcResult<StudentDto>`.
+- `create(input: CreateStudentInput)`: Returns `IpcResult<StudentDto>`.
+- `update(input: UpdateStudentInput)`: Returns `IpcResult<StudentDto>`.
+- `delete(id: string)`: Returns `IpcResult<void>`.
+- `addNote(input: AddStudentNoteInput)`: Returns `IpcResult<StudentNoteDto>`.
+- `getNotes(studentId: string)`: Returns `IpcResult<StudentNoteDto[]>`.
+- `uploadPhoto(input: UploadPhotoInput)`: Returns `IpcResult<{ photoUrl: string }>`.
 
-### 21.3 Actual Current IPC Integration Points & Signatures
-
-#### Preload API Interface (`packages/contracts/src/ipc/api.ts` & `apps/desktop/electron/preload.ts`):
-```ts
-export interface TibyanApi {
-  auth: {
-    listUsers(): Promise<IpcResult<UserDto[]>>;
-    loginWithPin(input: LoginWithPinInput): Promise<IpcResult<UserSessionDto>>;
-    logout(): Promise<IpcResult<void>>;
-    getSession(): Promise<IpcResult<UserSessionDto | null>>;
-    bootstrapOwner(input: BootstrapOwnerInput): Promise<IpcResult<UserDto>>;
-    createUser(input: CreateUserInput): Promise<IpcResult<UserDto>>;
-    updatePermissions(input: UpdatePermissionsInput): Promise<IpcResult<void>>;
-    changeUserStatus(input: ChangeUserStatusInput): Promise<IpcResult<void>>;
-    resetPin(input: ResetUserPinInput): Promise<IpcResult<void>>;
-  };
-  // ... other domains
-}
-```
-
-#### DTO & Input Shapes (`packages/contracts/src/models/auth.dto.ts`):
-```ts
-export const PinSchema = z
-  .string()
-  .trim()
-  .regex(/^\d{4}$/, 'PIN must be exactly 4 numeric digits');
-
-export const LoginWithPinSchema = z.object({
-  userId: z.string().uuid('Invalid user ID format'),
-  pin: PinSchema,
-});
-export type LoginWithPinInput = z.infer<typeof LoginWithPinSchema>;
-```
-The exact `LoginWithPinInput` shape is:
-```ts
-{
-  userId: string; // Valid UUIDv4 identifying the chosen user
-  pin: string;    // Exactly 4 numeric digits ('0000' - '9999')
-}
-```
-
-#### IPC Channels & Handlers Mapping:
-- **`window.tibyan.auth.listUsers()`:**
-  - Channel: `IPC_CHANNELS.AUTH_LIST_USERS` (`'auth:listUsers'`).
-  - Handler in Main (`apps/desktop/electron/ipc/auth.ipc.ts`): Invokes `runtime.authService.listLoginUsers()`, which returns active users filtered by `status === 'ACTIVE'` with `{ id, fullName, username, role }`.
-- **`window.tibyan.auth.loginWithPin(input: LoginWithPinInput)`:**
-  - Channel: `IPC_CHANNELS.AUTH_LOGIN_PIN` (`'auth:loginPin'`).
-  - Validates `LoginWithPinSchema.parse(payload)`.
-  - Handler in Main: Invokes `runtime.authService.loginWithPin(validated)`, which verifies scrypt hash, manages failed attempt counters/lockout, and on success sets `runtime.setSession(session)`.
-  - On lockout: Returns `IpcResult` error with code `'ACCOUNT_LOCKED'` and `details: { retryAfterSeconds: number }`.
-- **`window.tibyan.auth.getSession()`:**
-  - Channel: `IPC_CHANNELS.AUTH_GET_SESSION` (`'auth:getSession'`).
-  - Returns `IpcResult<UserSessionDto | null>` representing the authoritative Main process session.
-- **`window.tibyan.auth.logout()`:**
-  - Channel: `IPC_CHANNELS.AUTH_LOGOUT` (`'auth:logout'`).
-  - Clears `runtime.currentSession` in Main.
-
-### 21.4 Key Invariants for Task 12:
-- **Reuse Design System `PinPad`:** Do not create a duplicate PIN pad component. Use `packages/design-system/src/components/PinPad.tsx`.
-- **Main Process Authority:** The Main process session (`runtime.currentSession`) remains the sole authority. The Zustand session state is purely for UI presentation and cache.
-- **Never Persist PIN:** Plaintext PIN must exist only in ephemeral component memory and must be wiped immediately upon submission.
-- **Cooldown Countdown:** When `ACCOUNT_LOCKED` is returned, extract `retryAfterSeconds` from error details and display a live countdown timer until retry is allowed.
-- **Do NOT Change Core Cooldown:** Do not modify the 5-attempt / 30-second cooldown behavior in `@tibyan/core`.
-- **Do NOT Start Task 13:** Complete Task 12, verify tests, and halt for user review before proceeding.
+### 21.3 Key Invariants for Task 13:
+- **Strict Isolation:** UI components must interact exclusively via `window.tibyan.student` IPC API.
+- **RTL & Brand Standards:** Follow Arabic typography, brand colors (`#0B3D3D`, `#C59B27`), and design system primitives.
+- **Do NOT Start Task 14:** Complete Task 13 in isolation and await user review before proceeding.
 
 ---
 

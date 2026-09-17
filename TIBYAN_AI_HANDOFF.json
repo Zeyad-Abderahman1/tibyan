@@ -14,10 +14,10 @@
     "phaseName": "Foundation & Desktop Core",
     "totalTasks": 17
   },
-  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
   "nextTask": {
-    "taskNumber": 12,
-    "taskName": "4-Digit PIN Authentication Screen & Session Store",
+    "taskNumber": 13,
+    "taskName": "Student Management UI",
     "isStarted": false
   },
   "taskStatus": {
@@ -32,8 +32,8 @@
     "9": "COMPLETE",
     "10": "COMPLETE",
     "11": "COMPLETE",
-    "12": "NOT_STARTED",
-    "13": "PENDING",
+    "12": "COMPLETE",
+    "13": "NOT_STARTED",
     "14": "PENDING",
     "15": "PENDING",
     "16": "PENDING",
@@ -348,15 +348,21 @@
       "sha": "145e0d3",
       "type": "hardening",
       "message": "fix(desktop): harden first-run recovery and academic-year creation"
+    },
+    {
+      "task": 12,
+      "sha": "f79c8a3",
+      "type": "base",
+      "message": "feat(desktop): implement PIN login screen and session presentation store"
     }
   ],
   "testBaseline": {
-    "totalTestFiles": 17,
-    "totalTests": 349,
+    "totalTestFiles": 18,
+    "totalTests": 373,
     "packages": {
       "@tibyan/contracts": {
         "testFiles": 1,
-        "testsPassed": 39
+        "testsPassed": 42
       },
       "@tibyan/db": {
         "testFiles": 1,
@@ -371,8 +377,8 @@
         "testsPassed": 29
       },
       "@tibyan/desktop": {
-        "testFiles": 4,
-        "testsPassed": 60
+        "testFiles": 5,
+        "testsPassed": 81
       }
     },
     "typecheckErrors": 0,
@@ -382,11 +388,6 @@
     "workingTreeClean": true
   },
   "remainingTasks": [
-    {
-      "task": 12,
-      "title": "4-Digit PIN Authentication Screen & Session Store",
-      "scope": "UserCard, LoginScreen, auth.state.ts (Zustand), useAuth hook, cooldown countdown, LoginScreen.test.tsx"
-    },
     {
       "task": 13,
       "title": "Student Management UI",
