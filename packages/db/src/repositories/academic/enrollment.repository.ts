@@ -1,8 +1,10 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray, sql, asc } from 'drizzle-orm';
 import type { PaymentType } from '@tibyan/contracts';
 import { type AcademicDrizzle, getAcademicDatabase } from '../../connection.js';
 import {
   groupEnrollments,
+  groups,
+  students,
   type GroupEnrollmentRow,
   type NewGroupEnrollmentRow,
 } from '../../schema/academic.schema.js';
@@ -111,4 +113,72 @@ export class EnrollmentRepository {
       .run();
     return this.findById(id);
   }
+
+  countActiveByGroupIds(groupIds: string[]): Map<string, number> {
+    const map = new Map<string, number>();
+    if (groupIds.length === 0) return map;
+    const rows = this.client
+      .select({
+        groupId: groupEnrollments.groupId,
+        count: sql<number>`count(*)`,
+      })
+      .from(groupEnrollments)
+      .where(
+        and(
+          inArray(groupEnrollments.groupId, groupIds),
+          eq(groupEnrollments.status, 'ACTIVE')
+        )
+      )
+      .groupBy(groupEnrollments.groupId)
+      .all();
+    for (const row of rows) {
+      map.set(row.groupId, row.count);
+    }
+    return map;
+  }
+
+  countDistinctActiveEnrolledStudents(): number {
+    const result = this.client
+      .select({
+        count: sql<number>`count(distinct ${groupEnrollments.studentId})`,
+      })
+      .from(groupEnrollments)
+      .innerJoin(students, eq(groupEnrollments.studentId, students.id))
+      .where(
+        and(
+          eq(groupEnrollments.status, 'ACTIVE'),
+          eq(students.status, 'ACTIVE')
+        )
+      )
+      .get();
+    return result?.count ?? 0;
+  }
+
+  getActiveGroupsForStudents(studentIds: string[]): Map<string, Array<{ groupId: string; groupName: string }>> {
+    const map = new Map<string, Array<{ groupId: string; groupName: string }>>();
+    if (studentIds.length === 0) return map;
+    const rows = this.client
+      .select({
+        studentId: groupEnrollments.studentId,
+        groupId: groups.id,
+        groupName: groups.name,
+      })
+      .from(groupEnrollments)
+      .innerJoin(groups, eq(groupEnrollments.groupId, groups.id))
+      .where(
+        and(
+          inArray(groupEnrollments.studentId, studentIds),
+          eq(groupEnrollments.status, 'ACTIVE')
+        )
+      )
+      .orderBy(asc(groups.name), asc(groups.id))
+      .all();
+    for (const row of rows) {
+      const list = map.get(row.studentId) ?? [];
+      list.push({ groupId: row.groupId, groupName: row.groupName });
+      map.set(row.studentId, list);
+    }
+    return map;
+  }
 }
+

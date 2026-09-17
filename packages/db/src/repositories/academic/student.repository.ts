@@ -1,4 +1,4 @@
-import { eq, and, desc, like, or } from 'drizzle-orm';
+import { eq, and, desc, asc, like, or } from 'drizzle-orm';
 import { type AcademicDrizzle, getAcademicDatabase } from '../../connection.js';
 import {
   students,
@@ -122,4 +122,23 @@ export class StudentRepository {
       .orderBy(desc(studentNotes.createdAt))
       .all();
   }
+
+  listFollowUpNotesWithActiveStudents(): Array<{ note: StudentNoteRow; student: StudentRow }> {
+    return this.client
+      .select({
+        note: studentNotes,
+        student: students,
+      })
+      .from(studentNotes)
+      .innerJoin(students, eq(studentNotes.studentId, students.id))
+      .where(
+        and(
+          eq(studentNotes.tag, 'NEEDS_FOLLOW_UP'),
+          eq(students.status, 'ACTIVE')
+        )
+      )
+      .orderBy(desc(studentNotes.createdAt), asc(students.fullName), asc(students.id))
+      .all();
+  }
 }
+

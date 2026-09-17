@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { type AcademicDrizzle, getAcademicDatabase } from '../../connection.js';
 import {
   groups,
@@ -31,6 +31,20 @@ export class GroupRepository {
   findById(id: string): GroupRow | null {
     const row = this.client.select().from(groups).where(eq(groups.id, id)).get();
     return row ?? null;
+  }
+
+  findByIds(ids: string[]): GroupRow[] {
+    if (ids.length === 0) return [];
+    return this.client.select().from(groups).where(inArray(groups.id, ids)).all();
+  }
+
+  countActive(): number {
+    const result = this.client
+      .select({ count: sql<number>`count(*)` })
+      .from(groups)
+      .where(eq(groups.status, 'ACTIVE'))
+      .get();
+    return result?.count ?? 0;
   }
 
   create(newGroup: NewGroupRow): GroupRow {
