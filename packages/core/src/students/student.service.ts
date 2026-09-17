@@ -111,16 +111,31 @@ export class StudentService {
     }
   }
 
+  private isStudentCodeCollisionError(err: unknown): boolean {
+    if (!err || typeof err !== 'object') return false;
+    const anyErr = err as Record<string, unknown>;
+    const code = anyErr.code;
+    const message = typeof anyErr.message === 'string' ? anyErr.message : '';
+
+    return (
+      (code === 'SQLITE_CONSTRAINT_UNIQUE' || code === 'SQLITE_CONSTRAINT') &&
+      (message.includes('students.student_code') ||
+        message.includes('student_code') ||
+        message.includes('students.barcode_value') ||
+        message.includes('barcode_value'))
+    );
+  }
+
   /**
    * Generates a unique, human-friendly student code with collision resistance.
    */
-  private generateUniqueStudentCode(repo: StudentRepository): string {
-    const totalCount = repo.list().length + 1;
+  private generateUniqueStudentCode(repo: StudentRepository, retryAttempt: number = 0): string {
+    const totalCount = repo.list().length + 1 + retryAttempt;
 
     // 1. Sequential attempt based on active student count
     for (let i = 0; i < 20; i++) {
       const candidateNumber = totalCount + i;
-      const candidateCode = `ST-${candidateNumber.toString().padStart(4, '0')}`;
+      const candidateCode = `TB-${candidateNumber.toString().padStart(4, '0')}`;
       if (!repo.findByCode(candidateCode)) {
         return candidateCode;
       }
@@ -129,7 +144,7 @@ export class StudentService {
     // 2. Bounded random fallback
     for (let attempt = 0; attempt < 25; attempt++) {
       const randomDigits = Math.floor(1000 + Math.random() * 9000);
-      const candidateCode = `ST-${randomDigits}`;
+      const candidateCode = `TB-${randomDigits}`;
       if (!repo.findByCode(candidateCode)) {
         return candidateCode;
       }
@@ -162,71 +177,90 @@ export class StudentService {
     }
 
     const nowIso = new Date().toISOString();
+    const MAX_CREATION_ATTEMPTS = 5;
+    let lastCollisionError: unknown = null;
 
     try {
-      // 2. Database mutation and academic audit log in a single transaction
-      const createdStudent = this.client.transaction((tx) => {
-        const studentRepoTx = new StudentRepository(tx as any);
-        const auditRepoTx = new AcademicAuditRepository(tx as any);
+      // 2. Bounded retry loop for TOCTOU constraint collision safety
+      for (let attempt = 0; attempt < MAX_CREATION_ATTEMPTS; attempt++) {
+        try {
+          const createdStudent = this.client.transaction((tx) => {
+            const studentRepoTx = new StudentRepository(tx as any);
+            const auditRepoTx = new AcademicAuditRepository(tx as any);
 
-        const studentCode = this.generateUniqueStudentCode(studentRepoTx);
-        // Opaque 16-byte random QR token containing no PII
-        const qrToken = crypto.randomBytes(16).toString('hex');
-        const barcodeValue = studentCode;
+            const studentCode = this.generateUniqueStudentCode(studentRepoTx, attempt);
+            // Opaque 16-byte random QR token containing no PII
+            const qrToken = crypto.randomBytes(16).toString('hex');
+            const barcodeValue = studentCode;
 
-        const row = studentRepoTx.create({
-          id: studentId,
-          studentCode,
-          fullName: validated.fullName.trim(),
-          photoPath: managedPhotoPath,
-          educationSystem: validated.educationSystem,
-          gradeLevel: validated.gradeLevel,
-          languageTrack: validated.languageTrack,
-          guardianPhone: validated.guardianPhone,
-          status: 'ACTIVE',
-          qrToken,
-          barcodeValue,
-          createdAt: nowIso,
-          updatedAt: nowIso,
-        });
+            const row = studentRepoTx.create({
+              id: studentId,
+              studentCode,
+              fullName: validated.fullName.trim(),
+              photoPath: managedPhotoPath,
+              educationSystem: validated.educationSystem,
+              gradeLevel: validated.gradeLevel,
+              languageTrack: validated.languageTrack,
+              guardianPhone: validated.guardianPhone,
+              status: 'ACTIVE',
+              qrToken,
+              barcodeValue,
+              createdAt: nowIso,
+              updatedAt: nowIso,
+            });
 
-        // Optional initial student note
-        if (validated.initialNote && validated.initialNote.trim().length > 0) {
-          studentRepoTx.addNote({
-            id: crypto.randomUUID(),
-            studentId,
-            authorUserId: actor.userId,
-            authorNameSnapshot: actor.fullName,
-            noteText: validated.initialNote.trim(),
-            tag: 'GENERAL',
-            createdAt: nowIso,
+            // Optional initial student note
+            if (validated.initialNote && validated.initialNote.trim().length > 0) {
+              studentRepoTx.addNote({
+                id: crypto.randomUUID(),
+                studentId,
+                authorUserId: actor.userId,
+                authorNameSnapshot: actor.fullName,
+                noteText: validated.initialNote.trim(),
+                tag: 'GENERAL',
+                createdAt: nowIso,
+              });
+            }
+
+            // Academic audit entry
+            auditRepoTx.insert({
+              id: crypto.randomUUID(),
+              actorType: 'USER',
+              actorUserId: actor.userId,
+              actorNameSnapshot: actor.fullName,
+              action: 'STUDENT_CREATED',
+              entityType: 'STUDENT',
+              entityId: studentId,
+              beforeJson: null,
+              afterJson: JSON.stringify(this.toStudentDto(row)),
+              metadataJson: JSON.stringify({
+                studentCode,
+                educationSystem: row.educationSystem,
+                gradeLevel: row.gradeLevel,
+                languageTrack: row.languageTrack,
+              }),
+              createdAt: nowIso,
+            });
+
+            return row;
           });
+
+          return this.toStudentDto(createdStudent);
+        } catch (txError: unknown) {
+          if (this.isStudentCodeCollisionError(txError)) {
+            lastCollisionError = txError;
+            continue;
+          }
+          // Non-collision errors (audit failure, validation error, etc.) must not be retried as collisions
+          throw txError;
         }
+      }
 
-        // Academic audit entry
-        auditRepoTx.insert({
-          id: crypto.randomUUID(),
-          actorType: 'USER',
-          actorUserId: actor.userId,
-          actorNameSnapshot: actor.fullName,
-          action: 'STUDENT_CREATED',
-          entityType: 'STUDENT',
-          entityId: studentId,
-          beforeJson: null,
-          afterJson: JSON.stringify(this.toStudentDto(row)),
-          metadataJson: JSON.stringify({
-            studentCode,
-            educationSystem: row.educationSystem,
-            gradeLevel: row.gradeLevel,
-            languageTrack: row.languageTrack,
-          }),
-          createdAt: nowIso,
-        });
-
-        return row;
-      });
-
-      return this.toStudentDto(createdStudent);
+      // Exhausted bounded retry budget
+      throw new StudentError(
+        'STUDENT_CODE_CONFLICT',
+        `Exhausted collision retry budget for studentCode: ${(lastCollisionError as any)?.message || 'repeated constraint violations'}`
+      );
     } catch (dbError) {
       // Compensating action: remove newly copied photo on DB failure
       if (managedPhotoPath) {

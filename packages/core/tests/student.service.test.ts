@@ -138,19 +138,19 @@ describe('Task 5: Students Domain Core & Media Storage Service', () => {
       ownerActor
     );
 
-    expect(s1.studentCode).toMatch(/^ST-\d{4}$/);
-    expect(s2.studentCode).toMatch(/^ST-\d{4}$/);
+    expect(s1.studentCode).toMatch(/^TB-\d{4}$/);
+    expect(s2.studentCode).toMatch(/^TB-\d{4}$/);
     expect(s1.studentCode).not.toBe(s2.studentCode);
   });
 
   // Test 3: A forced studentCode collision retries safely rather than silently duplicating
   it('3. A forced studentCode collision retries safely rather than silently duplicating', async () => {
-    // Manually pre-seed a student with ST-0002 directly into the database
+    // Manually pre-seed a student with TB-0002 directly into the database
     const manualId = crypto.randomUUID();
     const now = new Date().toISOString();
     studentRepo.create({
       id: manualId,
-      studentCode: 'ST-0002',
+      studentCode: 'TB-0002',
       fullName: 'طالب موجود مسبقاً',
       photoPath: null,
       educationSystem: 'GENERAL',
@@ -159,13 +159,13 @@ describe('Task 5: Students Domain Core & Media Storage Service', () => {
       guardianPhone: '01099998888',
       status: 'ACTIVE',
       qrToken: 'manual-qr-12345678901234567890',
-      barcodeValue: 'ST-0002',
+      barcodeValue: 'TB-0002',
       createdAt: now,
       updatedAt: now,
     });
 
-    // Create a student through the service. Since there is 1 student in DB, candidate is ST-0002.
-    // The retry mechanism should detect that ST-0002 is occupied and step forward to ST-0003.
+    // Create a student through the service. Since there is 1 student in DB, candidate is TB-0002.
+    // The retry mechanism should detect that TB-0002 is occupied and step forward to TB-0003.
     const created = await studentService.createStudent(
       {
         fullName: 'طالب يتفادى التصادم',
@@ -177,8 +177,96 @@ describe('Task 5: Students Domain Core & Media Storage Service', () => {
       ownerActor
     );
 
-    expect(created.studentCode).not.toBe('ST-0002');
-    expect(created.studentCode).toBe('ST-0003');
+    expect(created.studentCode).not.toBe('TB-0002');
+    expect(created.studentCode).toBe('TB-0003');
+  });
+
+  // Test 3b: TOCTOU collision between candidate selection and final INSERT
+  it('3b. Simulates a collision occurring between candidate selection and final INSERT (TOCTOU race)', async () => {
+    let callCount = 0;
+    const originalCreate = StudentRepository.prototype.create;
+
+    // Simulate concurrent INSERT race condition on first attempt
+    vi.spyOn(StudentRepository.prototype, 'create').mockImplementation(function (this: any, newStudent) {
+      callCount++;
+      if (callCount === 1) {
+        // Concurrently collided right at INSERT time
+        const err = new Error('UNIQUE constraint failed: students.student_code');
+        (err as any).code = 'SQLITE_CONSTRAINT_UNIQUE';
+        throw err;
+      }
+      return originalCreate.call(this, newStudent);
+    });
+
+    const student = await studentService.createStudent(
+      {
+        fullName: 'طالب تعافى من سباق الإدخال',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'SEC_1',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+      },
+      ownerActor
+    );
+
+    // Call count was 2 (attempt 1 collided on insert, attempt 2 succeeded with a new code)
+    expect(callCount).toBe(2);
+    expect(student.id).toBeDefined();
+    expect(student.studentCode).toMatch(/^TB-\d{4}$/);
+
+    const fromDb = studentRepo.findById(student.id);
+    expect(fromDb).not.toBeNull();
+    expect(fromDb?.studentCode).toBe(student.studentCode);
+  });
+
+  // Test 3c: Exhausts retry budget and throws STUDENT_CODE_CONFLICT
+  it('3c. Exhausts collision retry budget and throws STUDENT_CODE_CONFLICT when collisions persist', async () => {
+    // Mock create to always throw SQLite UNIQUE constraint error
+    vi.spyOn(StudentRepository.prototype, 'create').mockImplementation(() => {
+      const err = new Error('UNIQUE constraint failed: students.student_code');
+      (err as any).code = 'SQLITE_CONSTRAINT_UNIQUE';
+      throw err;
+    });
+
+    await expect(
+      studentService.createStudent(
+        {
+          fullName: 'طالب استنفاد المحاولات',
+          educationSystem: 'GENERAL',
+          gradeLevel: 'SEC_1',
+          languageTrack: 'ARABIC',
+          guardianPhone: '01012345678',
+        },
+        ownerActor
+      )
+    ).rejects.toThrowError(expect.objectContaining({ code: 'STUDENT_CODE_CONFLICT' }));
+  });
+
+  // Test 3d: Does not retry unrelated transaction failures as code collisions
+  it('3d. Does not retry unrelated transaction failures as code collisions', async () => {
+    let callCount = 0;
+    vi.spyOn(StudentRepository.prototype, 'create').mockImplementation(() => {
+      callCount++;
+      const err = new Error('Disk I/O error or syntax failure');
+      (err as any).code = 'SQLITE_IOERR';
+      throw err;
+    });
+
+    await expect(
+      studentService.createStudent(
+        {
+          fullName: 'طالب خطأ غير متعلق',
+          educationSystem: 'GENERAL',
+          gradeLevel: 'SEC_1',
+          languageTrack: 'ARABIC',
+          guardianPhone: '01012345678',
+        },
+        ownerActor
+      )
+    ).rejects.toThrow('Disk I/O error or syntax failure');
+
+    // Was called only once, not retried
+    expect(callCount).toBe(1);
   });
 
   // Test 4: qrToken is opaque, cryptographically generated, and unique
@@ -653,7 +741,7 @@ describe('Task 5: Students Domain Core & Media Storage Service', () => {
       ownerActor
     );
 
-    expect(student.photoPath).toMatch(/^students\/[a-f0-9-]+-\d+\.jpg$/i);
+    expect(student.photoPath).toMatch(/^students\/[a-f0-9-]+-[a-f0-9-]+\.jpg$/i);
     const fullPath = photoService.resolveFullPath(student.photoPath!);
     expect(fs.existsSync(fullPath)).toBe(true);
 

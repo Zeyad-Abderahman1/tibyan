@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
@@ -136,9 +137,10 @@ export class PhotoService {
       );
     }
 
-    // Generate safe, non-user-controlled filename: <studentId>-<timestamp>.<ext>
+    // Generate safe, non-user-controlled filename: <studentId>-<randomUUID>.<ext>
     const safeStudentId = studentId.replace(/[^a-zA-Z0-9_-]/g, '');
-    const fileName = `${safeStudentId}-${Date.now()}.${imageExt}`;
+    const randomSuffix = crypto.randomUUID();
+    const fileName = `${safeStudentId}-${randomSuffix}.${imageExt}`;
     const destinationPath = path.join(this.studentsDir, fileName);
 
     // Guard against path traversal

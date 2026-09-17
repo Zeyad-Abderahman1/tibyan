@@ -45,7 +45,7 @@ describe('PhotoService', () => {
     const studentId = 'test-student-123';
     const result = await photoService.saveStudentPhoto(studentId, srcFile);
 
-    expect(result.relativePath).toMatch(/^students\/test-student-123-\d+\.jpg$/);
+    expect(result.relativePath).toMatch(/^students\/test-student-123-[a-f0-9-]+\.jpg$/);
     expect(result.fullPath).toBe(path.resolve(tempMediaDir, result.relativePath));
     expect(fs.existsSync(result.fullPath)).toBe(true);
 
@@ -61,12 +61,37 @@ describe('PhotoService', () => {
     fs.writeFileSync(webpFile, validWebpHeader);
 
     const pngRes = await photoService.saveStudentPhoto('std-png', pngFile);
-    expect(pngRes.relativePath).toMatch(/^students\/std-png-\d+\.png$/);
+    expect(pngRes.relativePath).toMatch(/^students\/std-png-[a-f0-9-]+\.png$/);
     expect(fs.existsSync(pngRes.fullPath)).toBe(true);
 
     const webpRes = await photoService.saveStudentPhoto('std-webp', webpFile);
-    expect(webpRes.relativePath).toMatch(/^students\/std-webp-\d+\.webp$/);
+    expect(webpRes.relativePath).toMatch(/^students\/std-webp-[a-f0-9-]+\.webp$/);
     expect(fs.existsSync(webpRes.fullPath)).toBe(true);
+  });
+
+  it('Two photo imports for the same student cannot resolve to the same managed destination path even when time is identical', async () => {
+    const srcFile1 = path.join(tempSourceDir, 'source1.jpg');
+    const srcFile2 = path.join(tempSourceDir, 'source2.jpg');
+    fs.writeFileSync(srcFile1, validJpegHeader);
+    fs.writeFileSync(srcFile2, validJpegHeader);
+
+    // Mock Date.now to return an identical timestamp for both calls
+    const fixedTime = 1773750000000;
+    const realDateNow = Date.now;
+    Date.now = () => fixedTime;
+
+    try {
+      const studentId = 'test-student-collision-check';
+      const res1 = await photoService.saveStudentPhoto(studentId, srcFile1);
+      const res2 = await photoService.saveStudentPhoto(studentId, srcFile2);
+
+      expect(res1.relativePath).not.toBe(res2.relativePath);
+      expect(res1.fullPath).not.toBe(res2.fullPath);
+      expect(fs.existsSync(res1.fullPath)).toBe(true);
+      expect(fs.existsSync(res2.fullPath)).toBe(true);
+    } finally {
+      Date.now = realDateNow;
+    }
   });
 
   it('Unsupported or corrupted image input is rejected', async () => {
