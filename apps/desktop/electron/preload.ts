@@ -5,6 +5,7 @@ import {
   type IpcResult,
   type UserDto,
   type UserSessionDto,
+  type LoginUserDto,
   type LoginWithPinInput,
   type BootstrapOwnerInput,
   type CreateUserInput,
@@ -49,7 +50,7 @@ import {
  */
 export const tibyanApi: TibyanApi = {
   auth: {
-    listUsers(): Promise<IpcResult<UserDto[]>> {
+    listUsers(): Promise<IpcResult<LoginUserDto[]>> {
       return ipcRenderer.invoke(IPC_CHANNELS.AUTH_LIST_USERS);
     },
     loginWithPin(input: LoginWithPinInput): Promise<IpcResult<UserSessionDto>> {

@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Calendar, Moon, Sun } from 'lucide-react';
+import { Calendar, Moon, Sun, LogOut } from 'lucide-react';
 import { Badge, Button, useTheme } from '@tibyan/design-system';
+import { useAuth } from '../../hooks/useAuth.js';
 
 export function Topbar() {
   const { theme, setTheme } = useTheme();
+  const { session, logout } = useAuth();
 
   // Dynamically fetch authoritative system settings containing active academic year
   const { data: settings } = useQuery({
@@ -21,9 +24,18 @@ export function Topbar() {
   });
 
   const activeAcademicYearName = settings?.activeAcademicYearName;
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
   const handleToggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
+
+  const handleLogout = async () => {
+    setLogoutError(null);
+    const res = await logout();
+    if (!res.success) {
+      setLogoutError(res.error?.message || 'تعذر تسجيل الخروج من النظام.');
+    }
   };
 
   return (
@@ -48,8 +60,48 @@ export function Topbar() {
         )}
       </div>
 
-      {/* Right section: System controls */}
-      <div className="flex items-center gap-2">
+      {/* Right section: User session info & System controls */}
+      <div className="flex items-center gap-3">
+        {session && (
+          <div className="flex items-center gap-2.5 pl-3 border-l border-[var(--color-border-subtle)]" data-testid="topbar-user-info">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-[var(--color-text-primary)]">
+                {session.fullName}
+              </span>
+              <Badge
+                variant={session.role === 'OWNER' ? 'primary' : 'neutral'}
+                size="sm"
+                className="text-[10px] py-0 px-1.5"
+              >
+                {session.role === 'OWNER' ? 'المعلم المسؤول' : 'مساعد'}
+              </Badge>
+            </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              aria-label="تسجيل الخروج"
+              title="تسجيل الخروج"
+              className="p-1.5 text-[var(--color-text-secondary)] hover:text-[var(--color-status-danger)]"
+              data-testid="topbar-logout-btn"
+            >
+              <LogOut className="w-4 h-4" aria-hidden="true" />
+            </Button>
+
+            {logoutError && (
+              <span
+                className="text-[11px] text-[var(--color-status-danger)] max-w-[150px] truncate"
+                role="alert"
+                title={logoutError}
+                data-testid="logout-error-msg"
+              >
+                {logoutError}
+              </span>
+            )}
+          </div>
+        )}
+
         <Button
           variant="ghost"
           size="sm"

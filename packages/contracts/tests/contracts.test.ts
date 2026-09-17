@@ -24,6 +24,8 @@ import {
   isValidCalendarDate,
   normalizeEgyptianPhone,
   BootstrapOwnerSchema,
+  LoginUserSchema,
+  type LoginUserDto,
   IPC_CHANNELS,
 } from '../src/index.js';
 
@@ -448,3 +450,80 @@ describe('Contracts — IPC Channels & BootstrapOwner Schema', () => {
     expect(IPC_CHANNELS.SYSTEM_GET_SETUP_STATE).toBe('system:getSetupState');
   });
 });
+
+describe('Contracts — Safe Pre-Authentication LoginUserDto', () => {
+  it('LoginUserSchema accepts valid pre-auth user projection', () => {
+    const valid: LoginUserDto = {
+      id: VALID_UUID,
+      fullName: 'الأستاذ أحمد الشريف',
+      username: 'teacher',
+      role: 'OWNER',
+    };
+    const parsed = LoginUserSchema.parse(valid);
+    expect(parsed.id).toBe(VALID_UUID);
+    expect(parsed.fullName).toBe('الأستاذ أحمد الشريف');
+    expect(parsed.username).toBe('teacher');
+    expect(parsed.role).toBe('OWNER');
+  });
+
+  it('LoginUserDto strictly exposes only id, fullName, username, role and strips/rejects non-public fields', () => {
+    const rawWithSensitiveFields = {
+      id: VALID_UUID,
+      fullName: 'الأستاذ أحمد الشريف',
+      username: 'teacher',
+      role: 'OWNER',
+      // Fields that must NEVER be exposed pre-auth
+      status: 'ACTIVE',
+      permissions: ['ALL'],
+      pinHash: 'sensitive-hash',
+      salt: 'sensitive-salt',
+      failedAttempts: 0,
+      lockedUntil: null,
+      createdAt: '2026-09-17T00:00:00.000Z',
+      updatedAt: '2026-09-17T00:00:00.000Z',
+    };
+
+    // Parse strips extra keys by default in Zod
+    const parsed = LoginUserSchema.parse(rawWithSensitiveFields);
+    const keys = Object.keys(parsed).sort();
+    expect(keys).toEqual(['fullName', 'id', 'role', 'username']);
+
+    // Ensure sensitive fields are not in the parsed contract object
+    expect((parsed as any).pinHash).toBeUndefined();
+    expect((parsed as any).salt).toBeUndefined();
+    expect((parsed as any).status).toBeUndefined();
+    expect((parsed as any).permissions).toBeUndefined();
+    expect((parsed as any).failedAttempts).toBeUndefined();
+    expect((parsed as any).lockedUntil).toBeUndefined();
+  });
+
+  it('LoginUserSchema rejects invalid UUID or empty fullName or short username', () => {
+    expect(() =>
+      LoginUserSchema.parse({
+        id: 'invalid-id',
+        fullName: 'أحمد',
+        username: 'teacher',
+        role: 'OWNER',
+      })
+    ).toThrow();
+
+    expect(() =>
+      LoginUserSchema.parse({
+        id: VALID_UUID,
+        fullName: '',
+        username: 'teacher',
+        role: 'OWNER',
+      })
+    ).toThrow();
+
+    expect(() =>
+      LoginUserSchema.parse({
+        id: VALID_UUID,
+        fullName: 'أحمد',
+        username: 'te',
+        role: 'OWNER',
+      })
+    ).toThrow();
+  });
+});
+

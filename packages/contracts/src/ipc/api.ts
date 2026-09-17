@@ -2,6 +2,7 @@ import { IpcResult } from '../common/result.js';
 import {
   UserDto,
   UserSessionDto,
+  LoginUserDto,
   LoginWithPinInput,
   BootstrapOwnerInput,
   CreateUserInput,
@@ -54,7 +55,7 @@ import {
 
 export interface TibyanApi {
   auth: {
-    listUsers(): Promise<IpcResult<UserDto[]>>;
+    listUsers(): Promise<IpcResult<LoginUserDto[]>>;
     loginWithPin(input: LoginWithPinInput): Promise<IpcResult<UserSessionDto>>;
     logout(): Promise<IpcResult<void>>;
     getSession(): Promise<IpcResult<UserSessionDto | null>>;

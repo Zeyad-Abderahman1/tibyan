@@ -10,7 +10,7 @@ import {
   Input,
   Badge,
 } from '@tibyan/design-system';
-import type { SetupStateDto, UserDto } from '@tibyan/contracts';
+import type { SetupStateDto, LoginUserDto } from '@tibyan/contracts';
 
 export interface FirstRunWizardProps {
   setupState?: SetupStateDto | null;
@@ -148,7 +148,7 @@ export function FirstRunWizard({ setupState, onComplete }: FirstRunWizardProps) 
       if (!usersRes.success || !usersRes.data) {
         throw new Error('تعذر تحميل بيانات المستخدمين للتحقق.');
       }
-      const ownerUser = usersRes.data.find((u: UserDto) => u.role === 'OWNER');
+      const ownerUser = usersRes.data.find((u: LoginUserDto) => u.role === 'OWNER');
       if (!ownerUser) {
         // Fallback: If no owner found unexpectedly, restart wizard
         setStep('owner');

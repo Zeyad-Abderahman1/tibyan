@@ -8,18 +8,24 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { AppShell } from '../components/layout/AppShell.js';
 import { FirstRunWizard } from '../features/onboarding/FirstRunWizard.js';
-import { Card } from '@tibyan/design-system';
+import { Card, Button } from '@tibyan/design-system';
+
+import { useAuthStore } from '../features/auth/auth.state.js';
+import { LoginScreen } from '../features/auth/LoginScreen.js';
 
 /**
  * Root Controller: Checks authoritative persisted SQLite setup state.
  * Directs fresh installations or interrupted setups to FirstRunWizard,
- * and configured installations to AppShell.
+ * unauthenticated users to LoginScreen, and authenticated users to AppShell.
  */
 export function RootLayout() {
+  const authStoreSession = useAuthStore((s) => s.session);
+  const setSession = useAuthStore((s) => s.setSession);
+
   const {
     data: setupState,
-    isLoading,
-    refetch,
+    isLoading: isSetupLoading,
+    refetch: refetchSetup,
   } = useQuery({
     queryKey: ['setupState'],
     queryFn: async () => {
@@ -34,7 +40,61 @@ export function RootLayout() {
     staleTime: 1000 * 10,
   });
 
-  if (isLoading) {
+  const {
+    data: sessionResult,
+    isLoading: isSessionLoading,
+    isError: isSessionQueryError,
+    refetch: refetchSession,
+  } = useQuery({
+    queryKey: ['authSession'],
+    queryFn: async () => {
+      if (typeof window !== 'undefined' && window.tibyan?.auth?.getSession) {
+        const res = await window.tibyan.auth.getSession();
+        if (res.success) {
+          setSession(res.data);
+        }
+        return res;
+      }
+      return { success: true, data: null };
+    },
+    staleTime: 1000 * 60 * 5,
+    retry: 1,
+  });
+
+  const isSessionError = isSessionQueryError || sessionResult?.success === false;
+  const session = sessionResult?.success ? sessionResult.data : authStoreSession;
+
+  // 1. Safe retryable error state on IPC failure (does not masquerade as unauthenticated)
+  if (isSessionError) {
+    return (
+      <div
+        className="h-screen w-screen flex items-center justify-center bg-[var(--color-bg-app)] text-[var(--color-text-primary)]"
+        dir="rtl"
+        data-testid="session-error-state"
+      >
+        <div className="flex flex-col items-center gap-3 p-6 max-w-sm text-center">
+          <div className="w-10 h-10 rounded-full bg-[var(--color-status-danger-bg)] text-[var(--color-status-danger)] flex items-center justify-center font-bold text-lg">
+            !
+          </div>
+          <h2 className="font-bold text-base text-[var(--color-text-primary)]">تعذر التحقق من الجلسة</h2>
+          <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
+            حدث خطأ أثناء محاولة استرجاع حالة تسجيل الدخول من النظام الرئيسي.
+          </p>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => refetchSession()}
+            data-testid="retry-session-btn"
+          >
+            إعادة المحاولة
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Authoritative resolution loading / splash state
+  if (isSetupLoading || isSessionLoading) {
     return (
       <div
         className="h-screen w-screen flex items-center justify-center bg-[var(--color-bg-app)] text-[var(--color-text-primary)]"
@@ -49,12 +109,31 @@ export function RootLayout() {
     );
   }
 
-  // If setup is incomplete (no Owner OR no active academic year), render FirstRunWizard
+  // 3. If setup is incomplete, render FirstRunWizard
   if (!setupState?.isSetupComplete) {
-    return <FirstRunWizard setupState={setupState} onComplete={() => refetch()} />;
+    return (
+      <FirstRunWizard
+        setupState={setupState}
+        onComplete={() => {
+          refetchSetup();
+          refetchSession();
+        }}
+      />
+    );
   }
 
-  // Once setup is authoritatively complete, render the AppShell
+  // 4. Only render LoginScreen after getSession() successfully confirms session === null
+  if (!session) {
+    return (
+      <LoginScreen
+        onLoginSuccess={() => {
+          refetchSession();
+        }}
+      />
+    );
+  }
+
+  // 5. Once setup is complete and user is authoritatively authenticated, render AppShell
   return <AppShell />;
 }
 

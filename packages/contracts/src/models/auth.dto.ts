@@ -68,3 +68,11 @@ export interface UserSessionDto {
   permissions: z.infer<typeof PermissionCodeSchema>[];
   tokenExpiresAt: string;
 }
+
+export const LoginUserSchema = z.object({
+  id: z.string().uuid('Invalid user ID format'),
+  fullName: z.string().min(1, 'Full name cannot be empty'),
+  username: z.string().min(3, 'Username must be at least 3 characters'),
+  role: UserRoleSchema,
+});
+export type LoginUserDto = z.infer<typeof LoginUserSchema>;
