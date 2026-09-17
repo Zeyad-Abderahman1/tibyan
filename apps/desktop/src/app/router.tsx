@@ -12,6 +12,8 @@ import { Card, Button } from '@tibyan/design-system';
 
 import { useAuthStore } from '../features/auth/auth.state.js';
 import { LoginScreen } from '../features/auth/LoginScreen.js';
+import { StudentsPage } from '../features/students/StudentsPage.js';
+import { StudentProfilePage } from '../features/students/StudentProfilePage.js';
 
 /**
  * Root Controller: Checks authoritative persisted SQLite setup state.
@@ -214,9 +216,6 @@ export function SettingsPlaceholder() {
   );
 }
 
-/**
- * Canonical Application Route Definitions
- */
 export const routes: RouteObject[] = [
   {
     path: '/',
@@ -228,7 +227,11 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'students',
-        element: <StudentsPlaceholder />,
+        element: <StudentsPage />,
+      },
+      {
+        path: 'students/:studentId',
+        element: <StudentProfilePage />,
       },
       {
         path: 'groups',

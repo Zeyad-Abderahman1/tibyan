@@ -4,7 +4,8 @@ import type { IpcResult, UserSessionDto } from '@tibyan/contracts';
 import { useAuthStore } from '../features/auth/auth.state.js';
 
 export function useAuth() {
-  const session = useAuthStore((state) => state.session);
+  const storeSession = useAuthStore((state) => state.session);
+  const session = storeSession ?? useAuthStore.getState().session;
   const status = useAuthStore((state) => state.status);
   const setSession = useAuthStore((state) => state.setSession);
   const clearSession = useAuthStore((state) => state.clearSession);

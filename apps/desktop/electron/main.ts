@@ -1,6 +1,7 @@
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, protocol } from 'electron';
 import {
   SECURE_WEB_PREFERENCES,
   configureWindowSecurity,
@@ -8,6 +9,20 @@ import {
 } from './security.js';
 import { Runtime } from './runtime.js';
 import { registerAllIpcHandlers, unregisterAllIpcHandlers } from './ipc/index.js';
+
+// Register privileged scheme for managed media (student photos)
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'tibyan-media',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+    },
+  },
+]);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -83,6 +98,47 @@ app.on('before-quit', () => {
 if (gotTheLock) {
   app.whenReady().then(async () => {
     runtime.initialize();
+
+    // Register media handler for safe, sandboxed student photo serving
+    protocol.handle('tibyan-media', async (request) => {
+      try {
+        if (!runtime.currentSession) {
+          return new Response('Unauthorized', { status: 401 });
+        }
+        if (!runtime.studentService) {
+          return new Response('Service Unavailable', { status: 503 });
+        }
+
+        const url = new URL(request.url);
+        const relativePath = (url.host ? `${url.host}${url.pathname}` : url.pathname).replace(/^\/+/, '');
+        const fullPath = runtime.studentService.photoService.resolveFullPath(relativePath);
+
+        if (!fs.existsSync(fullPath)) {
+          return new Response('Not Found', { status: 404 });
+        }
+
+        const stat = await fs.promises.stat(fullPath);
+        if (!stat.isFile()) {
+          return new Response('Bad Request', { status: 400 });
+        }
+
+        const ext = path.extname(fullPath).toLowerCase();
+        const mimeType = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg';
+        const buffer = await fs.promises.readFile(fullPath);
+
+        return new Response(buffer, {
+          status: 200,
+          headers: {
+            'Content-Type': mimeType,
+            'Content-Length': String(stat.size),
+            'Cache-Control': 'public, max-age=3600',
+          },
+        });
+      } catch {
+        return new Response('Forbidden', { status: 403 });
+      }
+    });
+
     await createWindow();
 
     app.on('activate', async () => {

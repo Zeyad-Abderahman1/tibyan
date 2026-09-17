@@ -18,6 +18,7 @@ import {
   type UpdateStudentInput,
   type CreateStudentNoteInput,
   type StudentFilterInput,
+  type PhotoSelectionDto,
   type GroupDto,
   type CreateGroupInput,
   type UpdateGroupInput,
@@ -98,7 +99,7 @@ export const tibyanApi: TibyanApi = {
     listNotes(studentId: string): Promise<IpcResult<StudentNoteDto[]>> {
       return ipcRenderer.invoke(IPC_CHANNELS.STUDENTS_LIST_NOTES, studentId);
     },
-    choosePhotoDialog(): Promise<IpcResult<string | null>> {
+    choosePhotoDialog(): Promise<IpcResult<PhotoSelectionDto | null>> {
       return ipcRenderer.invoke(IPC_CHANNELS.STUDENTS_CHOOSE_PHOTO_DIALOG);
     },
   },

@@ -17,6 +17,7 @@ import {
   UpdateStudentInput,
   CreateStudentNoteInput,
   StudentFilterInput,
+  PhotoSelectionDto,
 } from '../models/student.dto.js';
 import {
   GroupDto,
@@ -72,7 +73,7 @@ export interface TibyanApi {
     update(input: UpdateStudentInput): Promise<IpcResult<StudentDto>>;
     addNote(input: CreateStudentNoteInput): Promise<IpcResult<StudentNoteDto>>;
     listNotes(studentId: string): Promise<IpcResult<StudentNoteDto[]>>;
-    choosePhotoDialog(): Promise<IpcResult<string | null>>;
+    choosePhotoDialog(): Promise<IpcResult<PhotoSelectionDto | null>>;
   };
   groups: {
     list(): Promise<IpcResult<GroupDto[]>>;

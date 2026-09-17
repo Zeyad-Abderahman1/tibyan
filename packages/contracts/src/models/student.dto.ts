@@ -82,3 +82,8 @@ export interface StudentNoteDto {
   tag: z.infer<typeof StudentNoteTagSchema>;
   createdAt: string;
 }
+
+export interface PhotoSelectionDto {
+  photoToken: string;
+  previewUrl: string;
+}
