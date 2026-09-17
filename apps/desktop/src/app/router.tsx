@@ -14,6 +14,8 @@ import { useAuthStore } from '../features/auth/auth.state.js';
 import { LoginScreen } from '../features/auth/LoginScreen.js';
 import { StudentsPage } from '../features/students/StudentsPage.js';
 import { StudentProfilePage } from '../features/students/StudentProfilePage.js';
+import { GroupsPage } from '../features/groups/GroupsPage.js';
+import { GroupDetailsPage } from '../features/groups/GroupDetailsPage.js';
 
 /**
  * Root Controller: Checks authoritative persisted SQLite setup state.
@@ -180,6 +182,7 @@ export function StudentsPlaceholder() {
   );
 }
 
+
 export function GroupsPlaceholder() {
   return (
     <div className="space-y-4" data-testid="page-groups">
@@ -235,7 +238,11 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'groups',
-        element: <GroupsPlaceholder />,
+        element: <GroupsPage />,
+      },
+      {
+        path: 'groups/:groupId',
+        element: <GroupDetailsPage />,
       },
       {
         path: 'settings',
