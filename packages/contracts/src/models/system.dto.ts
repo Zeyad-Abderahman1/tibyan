@@ -55,3 +55,10 @@ export interface GlobalSettingsDto {
   activeAcademicYearId: string | null;
   activeAcademicYearName: string | null;
 }
+
+export interface SetupStateDto {
+  isSetupComplete: boolean;
+  hasOwner: boolean;
+  hasActiveAcademicYear: boolean;
+  activeAcademicYearName: string | null;
+}

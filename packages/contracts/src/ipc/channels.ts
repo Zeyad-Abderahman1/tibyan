@@ -49,6 +49,7 @@ export const IPC_CHANNELS = {
   // System & Academic Year
   SYSTEM_GET_INFO: 'system:getInfo',
   SYSTEM_GET_SETTINGS: 'system:getSettings',
+  SYSTEM_GET_SETUP_STATE: 'system:getSetupState',
   SYSTEM_UPDATE_THEME: 'system:updateTheme',
   SYSTEM_LIST_ACADEMIC_YEARS: 'system:listAcademicYears',
   SYSTEM_CREATE_ACADEMIC_YEAR: 'system:createAcademicYear',

@@ -36,6 +36,7 @@ import {
   type CreateBackupInput,
   type AppInfoDto,
   type GlobalSettingsDto,
+  type SetupStateDto,
   type AcademicYearDto,
   type CreateAcademicYearInput,
   type SwitchAcademicYearInput,
@@ -173,6 +174,9 @@ export const tibyanApi: TibyanApi = {
     },
     getSettings(): Promise<IpcResult<GlobalSettingsDto>> {
       return ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_GET_SETTINGS);
+    },
+    getSetupState(): Promise<IpcResult<SetupStateDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_GET_SETUP_STATE);
     },
     updateTheme(input: UpdateThemeSettingInput): Promise<IpcResult<void>> {
       return ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_UPDATE_THEME, input);

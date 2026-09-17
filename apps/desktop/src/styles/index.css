@@ -1,0 +1,24 @@
+@import '@tibyan/design-system/tokens/colors.css';
+@import '@tibyan/design-system/tokens/typography.css';
+@import '@tibyan/design-system/tokens/layout.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Electron desktop app baseline adjustments */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Ensure numerical isolated digits for RTL contexts where required */
+.num-isolate {
+  direction: ltr;
+  unicode-bidi: isolate;
+}

@@ -445,5 +445,6 @@ describe('Contracts — IPC Channels & BootstrapOwner Schema', () => {
     const uniqueValues = new Set(values);
     expect(uniqueValues.size).toBe(values.length);
     expect(IPC_CHANNELS.AUTH_BOOTSTRAP_OWNER).toBe('auth:bootstrapOwner');
+    expect(IPC_CHANNELS.SYSTEM_GET_SETUP_STATE).toBe('system:getSetupState');
   });
 });

@@ -45,6 +45,7 @@ import {
 import {
   AppInfoDto,
   GlobalSettingsDto,
+  SetupStateDto,
   AcademicYearDto,
   CreateAcademicYearInput,
   SwitchAcademicYearInput,
@@ -102,6 +103,7 @@ export interface TibyanApi {
   system: {
     getInfo(): Promise<IpcResult<AppInfoDto>>;
     getSettings(): Promise<IpcResult<GlobalSettingsDto>>;
+    getSetupState(): Promise<IpcResult<SetupStateDto>>;
     updateTheme(input: UpdateThemeSettingInput): Promise<IpcResult<void>>;
     listAcademicYears(): Promise<IpcResult<AcademicYearDto[]>>;
     createAcademicYear(input: CreateAcademicYearInput): Promise<IpcResult<AcademicYearDto>>;
