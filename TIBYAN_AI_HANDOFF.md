@@ -439,7 +439,7 @@ All commits have been extracted directly from the live Git log:
 | **Task 11** | Desktop AppShell & First-Run Wizard | COMPLETE | `a6c0d04` | `145e0d3` | RTL layout, official logo sidebar, topbar, First-Run Wizard, atomic recovery on setup error. |
 | **Task 12** | 4-Digit PIN Auth Screen & Session Store | COMPLETE | `f79c8a3` | — | UserCard, LoginScreen with account-scoped cooldown and absolute deadline derivation, safe LoginUserDto projection, RootLayout splash/retry boot, cross-user cache isolation, immediate PIN wipe. |
 | **Task 13** | Student Management UI | COMPLETE | `a88be7f` | `34169ba` | StudentsPage directory with search/filters, StudentCreateModal with independent dimensions and phone validation, StudentProfilePage, StudentNotesView with distinct tag badges, opaque photo token selection, custom `tibyan-media://` protocol. |
-| **Task 14** | Group Management UI, Enrollment Picker & Reschedule Modal | COMPLETE | `5b0c0ad` | — | Real groups directory, multi-slot schedule editor with duplicate check, student enrollment modal with fee overrides, single-session reschedule modal, useGroups hook. |
+| **Task 14** | Group Management UI, Enrollment Picker & Reschedule Modal | COMPLETE | `5b0c0ad` | `3a05971` | Real groups directory, multi-slot schedule editor with duplicate check, student enrollment modal with fee overrides, single-session reschedule modal, permission boundaries and dashboard cache coherence hardening. |
 
 ---
 
@@ -447,19 +447,19 @@ All commits have been extracted directly from the live Git log:
 
 The repository has been empirically verified with zero failures across all packages:
 
-- **Vitest Unit & Integration Tests (20 files, 432 tests):**
+- **Vitest Unit & Integration Tests (20 files, 439 tests):**
   - `@tibyan/contracts`: 1 test file, **42 passed**
   - `@tibyan/db`: 1 test file, **25 passed**
   - `@tibyan/core`: 10 test files, **196 passed**
   - `@tibyan/design-system`: 1 test file, **29 passed**
-  - `@tibyan/desktop`: 7 test files, **140 passed**
-  - **Monorepo Total:** **432 tests passed (0 failed)**
+  - `@tibyan/desktop`: 7 test files, **147 passed**
+  - **Monorepo Total:** **439 tests passed (0 failed)**
 - **TypeScript Typecheck (`pnpm -r typecheck`):** **0 errors** across all 5 workspace projects.
 - **Production Desktop Build (`pnpm --filter @tibyan/desktop build`):** **0 errors**, full Vite and Electron bundles built.
 - **Database Schema Drift (`pnpm --filter @tibyan/db db:generate`):** **Zero schema drift** ("No schema changes, nothing to migrate 😴").
 - **Official Logo Integrity:** SHA-256 is exactly `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`.
 - **Lint Scripts:** Package-level lint scripts are currently unconfigured in `package.json` (as expected).
-- **Working Tree:** Clean at Task 14 commit `5b0c0ad`.
+- **Working Tree:** Clean at Task 14 hardening commit `3a05971`.
 
 ---
 

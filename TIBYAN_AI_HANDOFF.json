@@ -372,11 +372,17 @@
       "sha": "5b0c0ad",
       "type": "base",
       "message": "feat(desktop): build group management UI, enrollment picker, and reschedule modal"
+    },
+    {
+      "task": 14,
+      "sha": "3a05971",
+      "type": "hardening",
+      "message": "fix(desktop): harden group lifecycle permissions and cache coherence"
     }
   ],
   "testBaseline": {
     "totalTestFiles": 20,
-    "totalTests": 432,
+    "totalTests": 439,
     "packages": {
       "@tibyan/contracts": {
         "testFiles": 1,
@@ -396,7 +402,7 @@
       },
       "@tibyan/desktop": {
         "testFiles": 7,
-        "testsPassed": 140
+        "testsPassed": 147
       }
     },
     "typecheckErrors": 0,
