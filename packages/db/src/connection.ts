@@ -4,6 +4,7 @@ import * as systemSchema from './schema/system.schema.js';
 import * as academicSchema from './schema/academic.schema.js';
 import { migrateSystemDatabase, migrateAcademicDatabase } from './migrations/migrator.js';
 
+export { Database, type DatabaseType };
 export type SystemDrizzle = BetterSQLite3Database<typeof systemSchema>;
 export type AcademicDrizzle = BetterSQLite3Database<typeof academicSchema>;
 

@@ -5,6 +5,8 @@
 export interface DateProvider {
   today(): string;    // Returns local calendar date formatted as YYYY-MM-DD
   nowTime(): string;  // Returns local wall-clock time formatted as HH:mm
+  nowIso?(): string;  // Returns ISO timestamp
+  nowDate?(): Date;   // Returns Date object
 }
 
 export class DefaultDateProvider implements DateProvider {
@@ -22,6 +24,14 @@ export class DefaultDateProvider implements DateProvider {
     const minutes = String(d.getMinutes()).padStart(2, '0');
     return `${hours}:${minutes}`;
   }
+
+  nowIso(): string {
+    return new Date().toISOString();
+  }
+
+  nowDate(): Date {
+    return new Date();
+  }
 }
 
 export class FixedDateProvider implements DateProvider {
@@ -38,11 +48,28 @@ export class FixedDateProvider implements DateProvider {
     return this.fixedTime;
   }
 
+  nowDate(): Date {
+    return new Date(`${this.fixedDate}T${this.fixedTime}:00.000Z`);
+  }
+
+  nowIso(): string {
+    return this.nowDate().toISOString();
+  }
+
   setDate(newDate: string): void {
     this.fixedDate = newDate;
   }
 
   setTime(newTime: string): void {
     this.fixedTime = newTime;
+  }
+
+  advanceDays(days: number): void {
+    const current = this.nowDate();
+    current.setUTCDate(current.getUTCDate() + days);
+    const year = current.getUTCFullYear();
+    const month = String(current.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(current.getUTCDate()).padStart(2, '0');
+    this.fixedDate = `${year}-${month}-${day}`;
   }
 }
