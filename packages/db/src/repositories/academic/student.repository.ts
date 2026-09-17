@@ -1,4 +1,4 @@
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, like, or } from 'drizzle-orm';
 import { type AcademicDrizzle, getAcademicDatabase } from '../../connection.js';
 import {
   students,
@@ -16,6 +16,7 @@ import type {
 } from '@tibyan/contracts';
 
 export interface StudentFilter {
+  searchQuery?: string;
   status?: StudentStatus;
   gradeLevel?: GradeLevel;
   educationSystem?: EducationSystem;
@@ -70,6 +71,17 @@ export class StudentRepository {
 
   list(filter?: StudentFilter): StudentRow[] {
     const conditions = [];
+
+    if (filter?.searchQuery && filter.searchQuery.trim().length > 0) {
+      const term = `%${filter.searchQuery.trim()}%`;
+      conditions.push(
+        or(
+          like(students.fullName, term),
+          like(students.studentCode, term),
+          like(students.guardianPhone, term)
+        )
+      );
+    }
     if (filter?.status) {
       conditions.push(eq(students.status, filter.status));
     }

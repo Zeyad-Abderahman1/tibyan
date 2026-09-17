@@ -1,4 +1,9 @@
-import { type SystemDrizzle, getSystemDatabase } from '@tibyan/db';
+import {
+  type SystemDrizzle,
+  getSystemDatabase,
+  type AcademicDrizzle,
+  getAcademicDatabase,
+} from '@tibyan/db';
 
 /**
  * Runs the given operation inside a system database transaction.
@@ -11,3 +16,16 @@ export function runInSystemTransaction<T>(
   const client = db ?? getSystemDatabase().db;
   return client.transaction(fn);
 }
+
+/**
+ * Runs the given operation inside an academic database transaction.
+ * If an error is thrown, the transaction is automatically rolled back.
+ */
+export function runInAcademicTransaction<T>(
+  fn: (tx: AcademicDrizzle) => T,
+  db?: AcademicDrizzle
+): T {
+  const client = db ?? getAcademicDatabase().db;
+  return client.transaction(fn);
+}
+

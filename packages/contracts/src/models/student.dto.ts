@@ -25,7 +25,7 @@ export const CreateStudentSchema = z.object({
   photoPath: z.string().trim().nullable().optional().default(null),
   initialNote: z.string().trim().optional(),
 });
-export type CreateStudentInput = z.infer<typeof CreateStudentSchema>;
+export type CreateStudentInput = z.input<typeof CreateStudentSchema>;
 
 export const UpdateStudentSchema = z.object({
   studentId: z.string().uuid('Invalid student ID format'),
@@ -44,7 +44,7 @@ export const CreateStudentNoteSchema = z.object({
   noteText: z.string().trim().min(1, 'Note text cannot be empty'),
   tag: StudentNoteTagSchema.default('GENERAL'),
 });
-export type CreateStudentNoteInput = z.infer<typeof CreateStudentNoteSchema>;
+export type CreateStudentNoteInput = z.input<typeof CreateStudentNoteSchema>;
 
 export const StudentFilterSchema = z.object({
   searchQuery: z.string().trim().optional(),
