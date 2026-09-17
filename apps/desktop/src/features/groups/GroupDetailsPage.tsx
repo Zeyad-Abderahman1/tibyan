@@ -12,6 +12,7 @@ import {
   TableCell,
   Modal,
   Input,
+  Select,
 } from '@tibyan/design-system';
 import {
   ArrowRight,
@@ -24,7 +25,7 @@ import {
   AlertCircle,
   History,
 } from 'lucide-react';
-import type { SessionDto, GroupEnrollmentDto } from '@tibyan/contracts';
+import type { SessionDto, GroupEnrollmentDto, PaymentType } from '@tibyan/contracts';
 import {
   useGroup,
   useGroupEnrollments,
@@ -47,6 +48,7 @@ export function GroupDetailsPage() {
   const permissions = session?.permissions ?? [];
   const canWrite = isOwner || permissions.includes('GROUPS_WRITE');
   const canManageSessions = isOwner || permissions.includes('SESSIONS_MANAGE');
+  const canReadStudents = isOwner || permissions.includes('STUDENTS_READ');
 
   // Modals state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -59,6 +61,8 @@ export function GroupDetailsPage() {
 
   // Payment Override quick-edit state
   const [enrollmentToEditPayment, setEnrollmentToEditPayment] = useState<GroupEnrollmentDto | null>(null);
+  const [editPaymentTypeOverride, setEditPaymentTypeOverride] = useState<string>('INHERIT');
+  const [isCustomAmount, setIsCustomAmount] = useState(false);
   const [editPaymentAmount, setEditPaymentAmount] = useState('');
 
   // Ended students toggle
@@ -115,13 +119,24 @@ export function GroupDetailsPage() {
 
   const handleConfirmUpdatePayment = async () => {
     if (!enrollmentToEditPayment) return;
-    const amountNum = Number(editPaymentAmount);
+    const typeOverride = editPaymentTypeOverride === 'INHERIT' ? null : (editPaymentTypeOverride as PaymentType);
+    let amountOverride: number | null = null;
+    if (isCustomAmount) {
+      const parsed = Number(editPaymentAmount);
+      if (isNaN(parsed) || parsed < 0) {
+        return;
+      }
+      amountOverride = parsed;
+    }
     await updatePaymentMutation.mutateAsync({
       enrollmentId: enrollmentToEditPayment.id,
-      paymentAmountOverride: isNaN(amountNum) ? null : amountNum,
+      paymentTypeOverride: typeOverride,
+      paymentAmountOverride: amountOverride,
     });
     setEnrollmentToEditPayment(null);
     setEditPaymentAmount('');
+    setEditPaymentTypeOverride('INHERIT');
+    setIsCustomAmount(false);
   };
 
   if (isGroupLoading) {
@@ -220,6 +235,8 @@ export function GroupDetailsPage() {
                 variant="primary"
                 size="sm"
                 onClick={() => setIsEnrollModalOpen(true)}
+                disabled={!canReadStudents}
+                title={!canReadStudents ? 'يتطلب صلاحية قراءة الطلاب (STUDENTS_READ)' : undefined}
                 className="gap-1 text-xs"
                 data-testid="btn-open-enroll-modal"
               >
@@ -383,7 +400,9 @@ export function GroupDetailsPage() {
                           size="sm"
                           onClick={() => {
                             setEnrollmentToEditPayment(e);
-                            setEditPaymentAmount(String(e.paymentAmountOverride ?? group.defaultPaymentAmount));
+                            setEditPaymentTypeOverride(e.paymentTypeOverride ?? 'INHERIT');
+                            setIsCustomAmount(e.paymentAmountOverride !== null);
+                            setEditPaymentAmount(e.paymentAmountOverride !== null ? String(e.paymentAmountOverride) : '');
                           }}
                           className="text-xs"
                           data-testid={`btn-edit-payment-${e.id}`}
@@ -626,23 +645,59 @@ export function GroupDetailsPage() {
           onClose={() => setEnrollmentToEditPayment(null)}
           size="sm"
           title="تعديل مصروفات الطالب"
-          description={`تعديل المصروفات للطالب ${enrollmentToEditPayment.studentName}.`}
+          description={`تعديل شروط المصروفات للطالب ${enrollmentToEditPayment.studentName}.`}
         >
-          <div className="space-y-3 p-5">
-            <Input
-              label="المبلغ المخصص (ج.م)"
-              type="number"
-              min="0"
-              step="5"
-              value={editPaymentAmount}
-              onChange={(e) => setEditPaymentAmount(e.target.value)}
-              dir="ltr"
-              required
-              data-testid="input-edit-payment-amount"
-            />
-            <p className="text-[11px] text-[var(--color-text-muted)]">
-              المصروفات الافتراضية للمجموعة هي {group.defaultPaymentAmount} ج.م.
-            </p>
+          <div className="space-y-4 p-5">
+            <div>
+              <label className="block text-xs font-semibold text-[var(--color-text-primary)] mb-1">
+                نظام المصروفات
+              </label>
+              <Select
+                value={editPaymentTypeOverride}
+                onChange={(e) => setEditPaymentTypeOverride(e.target.value)}
+                options={[
+                  {
+                    value: 'INHERIT',
+                    label: `افتراضي المجموعة (موروث - ${group.defaultPaymentType === 'MONTHLY' ? 'شهري' : 'بالحصة'})`,
+                  },
+                  { value: 'MONTHLY', label: 'شهري (MONTHLY)' },
+                  { value: 'PER_SESSION', label: 'بالحصة (PER_SESSION)' },
+                ]}
+                data-testid="select-edit-payment-type"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-[var(--color-text-primary)]">
+                <input
+                  type="checkbox"
+                  checked={isCustomAmount}
+                  onChange={(e) => setIsCustomAmount(e.target.checked)}
+                  className="rounded border-[var(--color-border-bold)] text-[var(--color-brand-primary)] focus:ring-[var(--color-brand-primary)]"
+                  data-testid="checkbox-edit-custom-amount"
+                />
+                <span>تخصيص قيمة المصروفات لهذا الطالب</span>
+              </label>
+
+              {isCustomAmount ? (
+                <Input
+                  label="المبلغ المخصص (ج.م)"
+                  type="number"
+                  min="0"
+                  step="5"
+                  value={editPaymentAmount}
+                  onChange={(e) => setEditPaymentAmount(e.target.value)}
+                  dir="ltr"
+                  required
+                  data-testid="input-edit-payment-amount"
+                />
+              ) : (
+                <p className="text-[11px] text-[var(--color-text-muted)] bg-[var(--color-bg-subtle)] p-2 rounded-[var(--radius-sm)]">
+                  قيمة المصروفات موروثة من المجموعة ({group.defaultPaymentAmount} ج.م).
+                </p>
+              )}
+            </div>
+
             <div className="flex justify-end gap-2 pt-3 border-t border-[var(--color-border-subtle)]">
               <Button variant="secondary" onClick={() => setEnrollmentToEditPayment(null)}>
                 إلغاء

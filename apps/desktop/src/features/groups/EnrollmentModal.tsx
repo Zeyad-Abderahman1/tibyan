@@ -7,6 +7,7 @@ import {
 } from '@tibyan/design-system';
 import { AlertCircle, Info } from 'lucide-react';
 import type { GroupDto, PaymentType } from '@tibyan/contracts';
+import { useAuth } from '../../hooks/useAuth.js';
 import { useStudentsList } from '../../hooks/useStudents.js';
 import { useGroupEnrollments, useEnrollStudent } from '../../hooks/useGroups.js';
 
@@ -22,6 +23,11 @@ const PAYMENT_TYPE_OPTIONS = [
 ];
 
 export function EnrollmentModal({ isOpen, onClose, group }: EnrollmentModalProps) {
+  const { session } = useAuth();
+  const isOwner = session?.role === 'OWNER';
+  const permissions = session?.permissions ?? [];
+  const canReadStudents = isOwner || permissions.includes('STUDENTS_READ');
+
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [hasCustomPayment, setHasCustomPayment] = useState<boolean>(false);
   const [paymentTypeOverride, setPaymentTypeOverride] = useState<PaymentType>(group.defaultPaymentType);
@@ -123,6 +129,17 @@ export function EnrollmentModal({ isOpen, onClose, group }: EnrollmentModalProps
           </div>
         )}
 
+        {!canReadStudents && (
+          <div
+            role="alert"
+            className="flex items-center gap-2 p-3 text-xs text-[var(--color-status-danger)] bg-[var(--color-status-danger-bg)] border border-[var(--color-status-danger-border)] rounded-[var(--radius-md)]"
+            data-testid="alert-no-students-read-permission"
+          >
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>لا تملك صلاحية عرض قائمة الطلاب (STUDENTS_READ) لاختيار المرشحين للتسجيل في المجموعة.</span>
+          </div>
+        )}
+
         <div className="space-y-4">
           {/* Target Group Info Summary */}
           <div className="p-3 bg-[var(--color-bg-surface-subtle)] border border-[var(--color-border-subtle)] rounded-[var(--radius-md)] space-y-1.5">
@@ -149,11 +166,11 @@ export function EnrollmentModal({ isOpen, onClose, group }: EnrollmentModalProps
               value={selectedStudentId}
               onChange={(e) => setSelectedStudentId(e.target.value)}
               options={studentOptions}
-              disabled={enrollMutation.isPending || isStudentsLoading}
+              disabled={!canReadStudents || enrollMutation.isPending || isStudentsLoading}
               required
               data-testid="select-student"
             />
-            {availableCandidates.length === 0 && !isStudentsLoading && (
+            {availableCandidates.length === 0 && !isStudentsLoading && canReadStudents && (
               <p className="text-[11px] text-[var(--color-status-warning)]">
                 لا يوجد طلاب نشطين متوافقين مع مرحلة ونظام هذه المجموعة غير مسجلين بالفعل.
               </p>
@@ -229,7 +246,7 @@ export function EnrollmentModal({ isOpen, onClose, group }: EnrollmentModalProps
             type="submit"
             variant="primary"
             loading={enrollMutation.isPending}
-            disabled={!selectedStudentId || enrollMutation.isPending}
+            disabled={!canReadStudents || !selectedStudentId || enrollMutation.isPending}
             data-testid="btn-submit-enroll"
           >
             تسجيل الطالب

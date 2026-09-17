@@ -183,23 +183,6 @@ export function StudentsPlaceholder() {
 }
 
 
-export function GroupsPlaceholder() {
-  return (
-    <div className="space-y-4" data-testid="page-groups">
-      <div className="flex items-center justify-between pb-2 border-b border-[var(--color-border-subtle)]">
-        <div>
-          <h1 className="text-xl font-bold text-[var(--color-text-primary)]">إدارة المجموعات</h1>
-          <p className="text-xs text-[var(--color-text-secondary)]">تنظيم المجموعات والجداول الأسبوعية</p>
-        </div>
-      </div>
-      <Card variant="default" className="p-8 text-center text-[var(--color-text-secondary)] space-y-2">
-        <p className="text-sm max-w-md mx-auto">
-          واجهة إنشاء المجموعات وضبط مواعيد الحصص ستكتمل في المرحلة المخصصة للمجموعات.
-        </p>
-      </Card>
-    </div>
-  );
-}
 
 export function SettingsPlaceholder() {
   return (

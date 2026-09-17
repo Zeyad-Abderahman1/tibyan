@@ -29,6 +29,12 @@ export const sessionKeys = {
   range: (params: ListSessionsByDateRangeInput) => [...sessionKeys.all, 'range', params] as const,
 };
 
+export const dashboardKeys = {
+  all: ['dashboard'] as const,
+  today: () => [...dashboardKeys.all, 'today'] as const,
+  date: (date: string) => [...dashboardKeys.all, 'date', date] as const,
+};
+
 /**
  * Fetches the list of all academic groups in the active academic year.
  */
@@ -147,6 +153,7 @@ export function useUpdateGroup() {
       if (res.success) {
         queryClient.invalidateQueries({ queryKey: groupKeys.lists() });
         queryClient.invalidateQueries({ queryKey: groupKeys.detail(variables.groupId) });
+        queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
       }
     },
   });
@@ -170,6 +177,7 @@ export function useSetGroupSchedule() {
         queryClient.invalidateQueries({ queryKey: groupKeys.detail(variables.groupId) });
         queryClient.invalidateQueries({ queryKey: groupKeys.lists() });
         queryClient.invalidateQueries({ queryKey: sessionKeys.all });
+        queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
       }
     },
   });
@@ -193,6 +201,7 @@ export function useEnrollStudent() {
         queryClient.invalidateQueries({ queryKey: groupKeys.enrollments(variables.groupId) });
         queryClient.invalidateQueries({ queryKey: groupKeys.detail(variables.groupId) });
         queryClient.invalidateQueries({ queryKey: groupKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
       }
     },
   });
@@ -214,6 +223,7 @@ export function useUpdateEnrollmentPayment(groupId: string) {
     onSuccess: (res) => {
       if (res.success) {
         queryClient.invalidateQueries({ queryKey: groupKeys.enrollments(groupId) });
+        queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
       }
     },
   });
@@ -237,6 +247,7 @@ export function useEndEnrollment(groupId: string) {
         queryClient.invalidateQueries({ queryKey: groupKeys.enrollments(groupId) });
         queryClient.invalidateQueries({ queryKey: groupKeys.detail(groupId) });
         queryClient.invalidateQueries({ queryKey: groupKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
       }
     },
   });
@@ -261,8 +272,7 @@ export function useRescheduleSession(groupId?: string) {
         if (groupId) {
           queryClient.invalidateQueries({ queryKey: groupKeys.sessions(groupId) });
         }
-        // Invalidate today dashboard if applicable
-        queryClient.invalidateQueries({ queryKey: ['dashboard', 'today'] });
+        queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
       }
     },
   });

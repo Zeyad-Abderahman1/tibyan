@@ -80,14 +80,25 @@ const WEEKDAY_OPTIONS = [
 export function GroupCreateModal({ isOpen, onClose, groupToEdit }: GroupCreateModalProps) {
   const isEditMode = Boolean(groupToEdit);
 
-  const [name, setName] = useState('');
-  const [educationSystem, setEducationSystem] = useState<EducationSystem>('GENERAL');
-  const [gradeLevel, setGradeLevel] = useState<GradeLevel>('SEC_1');
-  const [languageTrack, setLanguageTrack] = useState<LanguageTrack>('ARABIC');
-  const [focusMathBranch, setFocusMathBranch] = useState<string>('');
-  const [defaultPaymentType, setDefaultPaymentType] = useState<PaymentType>('MONTHLY');
-  const [defaultPaymentAmount, setDefaultPaymentAmount] = useState<string>('250');
-  const [schedules, setSchedules] = useState<WeeklyScheduleSlotInput[]>([]);
+  const [name, setName] = useState(groupToEdit?.name ?? '');
+  const [educationSystem, setEducationSystem] = useState<EducationSystem>(groupToEdit?.educationSystem ?? 'GENERAL');
+  const [gradeLevel, setGradeLevel] = useState<GradeLevel>(groupToEdit?.gradeLevel ?? 'SEC_1');
+  const [languageTrack, setLanguageTrack] = useState<LanguageTrack>(groupToEdit?.languageTrack ?? 'ARABIC');
+  const [focusMathBranch, setFocusMathBranch] = useState<string>(groupToEdit?.focusMathBranch ?? '');
+  const [defaultPaymentType, setDefaultPaymentType] = useState<PaymentType>(groupToEdit?.defaultPaymentType ?? 'MONTHLY');
+  const [defaultPaymentAmount, setDefaultPaymentAmount] = useState<string>(
+    groupToEdit ? String(groupToEdit.defaultPaymentAmount) : '250'
+  );
+  const [schedules, setSchedules] = useState<WeeklyScheduleSlotInput[]>(
+    groupToEdit
+      ? groupToEdit.schedules.map((s) => ({
+          id: s.id,
+          weekday: s.weekday,
+          startTime: s.startTime,
+          durationMinutes: s.durationMinutes,
+        }))
+      : [{ weekday: 0, startTime: '16:00', durationMinutes: 120 }]
+  );
 
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -218,7 +229,9 @@ export function GroupCreateModal({ isOpen, onClose, groupToEdit }: GroupCreateMo
         });
 
         if (!scheduleRes.success) {
-          setFormError(scheduleRes.error.message || 'فشل تحديث جدول المواعيد الأسبوعي');
+          setFormError(
+            `تم حفظ بيانات المجموعة بنجاح، ولكن فشل تحديث جدول المواعيد: ${scheduleRes.error.message || 'خطأ في حفظ المواعيد'}`
+          );
           return;
         }
 

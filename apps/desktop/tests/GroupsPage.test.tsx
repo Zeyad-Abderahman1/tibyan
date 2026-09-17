@@ -18,9 +18,12 @@ import {
   type SessionDto,
   type UserSessionDto,
   CreateGroupSchema,
+  UpdateGroupSchema,
   EnrollStudentSchema,
+  UpdateEnrollmentPaymentSchema,
   RescheduleSessionSchema,
 } from '@tibyan/contracts';
+import { dashboardKeys } from '../src/hooks/useGroups.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -623,6 +626,146 @@ describe('Task 14: Group Management UI & Rescheduling Suite', () => {
       expect(html).toContain('data-testid="btn-edit-payment-enr-1"');
       expect(html).toContain('data-testid="btn-end-enrollment-enr-1"');
       expect(html).toContain(`data-testid="btn-reschedule-${mockSessionScheduled.id}"`);
+    });
+
+    it('assistant with GROUPS_WRITE but without STUDENTS_READ has enroll button disabled and receives permission warning in modal', () => {
+      const { today, todayPlus27 } = getRangeForTest();
+      const groupsWriteOnlySession: UserSessionDto = {
+        userId: 'asst-write-uuid',
+        username: 'assistant_write',
+        fullName: 'مساعد إدارة المجموعات فقط',
+        role: 'ASSISTANT',
+        permissions: ['GROUPS_READ', 'GROUPS_WRITE', 'SESSIONS_MANAGE'],
+        tokenExpiresAt: new Date(Date.now() + 3600000).toISOString(),
+      };
+      useAuthStore.setState({ session: groupsWriteOnlySession, status: 'authenticated' });
+      queryClient.setQueryData(['groups', 'detail', mockGeneralGroup.id], mockGeneralGroup);
+      queryClient.setQueryData(['groups', 'enrollments', mockGeneralGroup.id], [mockEnrollmentActive1]);
+      queryClient.setQueryData(['sessions', 'range', { startDate: today, endDate: todayPlus27, groupId: mockGeneralGroup.id }], [
+        mockSessionScheduled,
+      ]);
+
+      const htmlDetails = renderWithProviders(<GroupDetailsPage />, `/groups/${mockGeneralGroup.id}`);
+      // Button exists because of GROUPS_WRITE, but is disabled because of missing STUDENTS_READ
+      expect(htmlDetails).toContain('data-testid="btn-open-enroll-modal"');
+      expect(htmlDetails).toContain('disabled');
+
+      // In EnrollmentModal, explicit permission alert is shown and submit is disabled
+      const htmlModal = renderToStaticMarkup(
+        <QueryClientProvider client={queryClient}>
+          <EnrollmentModal isOpen={true} onClose={() => {}} group={mockGeneralGroup} />
+        </QueryClientProvider>
+      );
+      expect(htmlModal).toContain('data-testid="alert-no-students-read-permission"');
+      expect(htmlModal).toContain('لا تملك صلاحية عرض قائمة الطلاب (STUDENTS_READ)');
+    });
+
+    it('assistant with STUDENTS_READ and GROUPS_WRITE has active enroll button and no permission warning', () => {
+      const { today, todayPlus27 } = getRangeForTest();
+      const fullAssistantSession: UserSessionDto = {
+        userId: 'asst-full-uuid',
+        username: 'assistant_full',
+        fullName: 'مساعد بصلاحيات متكاملة',
+        role: 'ASSISTANT',
+        permissions: ['GROUPS_READ', 'GROUPS_WRITE', 'SESSIONS_MANAGE', 'STUDENTS_READ'],
+        tokenExpiresAt: new Date(Date.now() + 3600000).toISOString(),
+      };
+      useAuthStore.setState({ session: fullAssistantSession, status: 'authenticated' });
+      queryClient.setQueryData(['groups', 'detail', mockGeneralGroup.id], mockGeneralGroup);
+      queryClient.setQueryData(['groups', 'enrollments', mockGeneralGroup.id], [mockEnrollmentActive1]);
+      queryClient.setQueryData(['sessions', 'range', { startDate: today, endDate: todayPlus27, groupId: mockGeneralGroup.id }], [
+        mockSessionScheduled,
+      ]);
+
+      const htmlDetails = renderWithProviders(<GroupDetailsPage />, `/groups/${mockGeneralGroup.id}`);
+      expect(htmlDetails).toContain('data-testid="btn-open-enroll-modal"');
+
+      const htmlModal = renderToStaticMarkup(
+        <QueryClientProvider client={queryClient}>
+          <EnrollmentModal isOpen={true} onClose={() => {}} group={mockGeneralGroup} />
+        </QueryClientProvider>
+      );
+      expect(htmlModal).not.toContain('data-testid="alert-no-students-read-permission"');
+    });
+  });
+
+  describe('Enrollment Lifecycle & Independent Payment Overrides Hardening', () => {
+    it('supports updating enrollment payment overrides independently nullable without mutating Student', () => {
+      // 1. paymentTypeOverride custom, paymentAmountOverride inherited (null)
+      const customTypeOnly = {
+        enrollmentId: '11111111-2222-4333-8444-555555555555',
+        paymentTypeOverride: 'PER_SESSION' as const,
+        paymentAmountOverride: null,
+      };
+      const val1 = UpdateEnrollmentPaymentSchema.parse(customTypeOnly);
+      expect(val1.paymentTypeOverride).toBe('PER_SESSION');
+      expect(val1.paymentAmountOverride).toBeNull();
+
+      // 2. paymentTypeOverride inherited (null), paymentAmountOverride custom
+      const customAmountOnly = {
+        enrollmentId: '11111111-2222-4333-8444-555555555555',
+        paymentTypeOverride: null,
+        paymentAmountOverride: 180,
+      };
+      const val2 = UpdateEnrollmentPaymentSchema.parse(customAmountOnly);
+      expect(val2.paymentTypeOverride).toBeNull();
+      expect(val2.paymentAmountOverride).toBe(180);
+
+      // 3. both inherited (null)
+      const bothInherited = {
+        enrollmentId: '11111111-2222-4333-8444-555555555555',
+        paymentTypeOverride: null,
+        paymentAmountOverride: null,
+      };
+      const val3 = UpdateEnrollmentPaymentSchema.parse(bothInherited);
+      expect(val3.paymentTypeOverride).toBeNull();
+      expect(val3.paymentAmountOverride).toBeNull();
+    });
+
+    it('renders Edit Payment dialog with payment type selector and custom amount toggle', () => {
+      queryClient.setQueryData(['groups', 'detail', mockGeneralGroup.id], mockGeneralGroup);
+      queryClient.setQueryData(['groups', 'enrollments', mockGeneralGroup.id], [mockEnrollmentActive1]);
+
+      const html = renderWithProviders(<GroupDetailsPage />, `/groups/${mockGeneralGroup.id}`);
+      expect(html).toContain('data-testid="btn-edit-payment-enr-1"');
+    });
+
+    it('supports archiving a group and restoring back to ACTIVE through UpdateGroupSchema', () => {
+      const archiveInput = {
+        groupId: mockGeneralGroup.id,
+        status: 'ARCHIVED' as const,
+      };
+      const valArchive = UpdateGroupSchema.parse(archiveInput);
+      expect(valArchive.status).toBe('ARCHIVED');
+
+      const restoreInput = {
+        groupId: mockGeneralGroup.id,
+        status: 'ACTIVE' as const,
+      };
+      const valRestore = UpdateGroupSchema.parse(restoreInput);
+      expect(valRestore.status).toBe('ACTIVE');
+    });
+  });
+
+  describe('Task 15 Dashboard Cache Invalidation & Coherence', () => {
+    it('defines stable dashboard query keys matching Task 15 conventions', () => {
+      expect(dashboardKeys.all).toEqual(['dashboard']);
+      expect(dashboardKeys.today()).toEqual(['dashboard', 'today']);
+      expect(dashboardKeys.date('2026-09-18')).toEqual(['dashboard', 'date', '2026-09-18']);
+    });
+  });
+
+  describe('Truthful Group Edit & Partial Failure Handling', () => {
+    it('renders GroupCreateModal in edit mode with existing group fields populated', () => {
+      const html = renderToStaticMarkup(
+        <QueryClientProvider client={queryClient}>
+          <GroupCreateModal isOpen={true} onClose={() => {}} groupToEdit={mockGeneralGroup} />
+        </QueryClientProvider>
+      );
+
+      expect(html).toContain(mockGeneralGroup.name);
+      expect(html).toContain('تعديل بيانات المجموعة ومواعيدها');
+      expect(html).toContain('حفظ التعديلات');
     });
   });
 

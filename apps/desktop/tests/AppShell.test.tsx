@@ -8,7 +8,6 @@ import { Providers } from '../src/app/providers.js';
 import {
   TodayPlaceholder,
   StudentsPlaceholder,
-  GroupsPlaceholder,
   SettingsPlaceholder,
   router,
 } from '../src/app/router.js';
@@ -134,12 +133,13 @@ describe('Task 11: Desktop App Shell & RTL Navigation Suite', () => {
     expect(studentsHtml).toContain('data-testid="page-students"');
     expect(studentsHtml).not.toContain('TB-0001');
 
-    const groupsHtml = renderToStaticMarkup(<GroupsPlaceholder />);
-    expect(groupsHtml).toContain('data-testid="page-groups"');
-    expect(groupsHtml).not.toContain('مجموعة النخبة');
-
     const settingsHtml = renderToStaticMarkup(<SettingsPlaceholder />);
     expect(settingsHtml).toContain('data-testid="page-settings"');
+
+    // Groups route is now real GroupsPage
+    const rootRoute = router.routes[0];
+    const groupChildRoute = rootRoute?.children?.find((c) => c.path === 'groups');
+    expect(groupChildRoute).toBeDefined();
   });
 
   it('verifies dark and light theme tokens render AppShell cleanly without broken styles', () => {
