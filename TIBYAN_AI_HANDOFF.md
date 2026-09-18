@@ -5,10 +5,10 @@
 > **Target Audience:** Incoming Autonomous AI Engineering Agents  
 > **Approved Architecture Version:** `v2.1` (Final Alignment)  
 > **Current Project Phase:** Phase 1 — Foundation & Desktop Core  
-> **Tasks Completed:** Tasks 1 through 15 inclusive (Task 14 code: `5b0c0ad`, hardening: `3a05971`, Task 15 code: `c9d7ec1`)  
-> **Immediate Next Task:** **Task 16 — Settings, Academic-Year Switcher, Assistant Management & Backup Tab**  
-> **Task 16 Status:** **NOT STARTED** (Zero Task 16 code has been implemented)  
-> **Regression Test Baseline:** 21 test files, 463 passing tests across 5 packages  
+> **Tasks Completed:** Tasks 1 through 16 inclusive (Task 14 code: `5b0c0ad`, hardening: `3a05971`, Task 15 code: `c9d7ec1`, Task 16 code: `7562a77`)  
+> **Immediate Next Task:** **Task 17 — Windows Packaging Verification, Playwright Smoke Tests & Hardening**  
+> **Task 17 Status:** **NOT STARTED** (Zero Task 17 code has been written)  
+> **Regression Test Baseline:** 22 test files, 497 passing tests across 5 packages (44 contracts + 25 db + 201 core + 29 design-system + 198 desktop)  
 > **Official Logo SHA-256:** `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`  
 
 ---
@@ -469,36 +469,58 @@ The repository has been empirically verified with zero failures across all packa
 
 | Task # | Task Name | Status | Primary Responsibilities |
 |---|---|---|---|
-| **Task 16** | Settings, Academic Year Switcher & Backup Tab | **NEXT** | Academic year manager (create/switch), user & assistant account management, manual backup trigger & status view. |
-| **Task 17** | Windows Packaging, Playwright Smoke Tests & Hardening | PENDING | End-to-end smoke tests against packaged NSIS binary, ASAR native binary verification, release hardening. |
+| **Task 16** | Settings, Academic Year Switcher & Backup Tab | **COMPLETE** (`7562a77`) | Academic year manager (create/switch), user & assistant account management, manual backup trigger & status view. |
+| **Task 17** | Windows Packaging, Playwright Smoke Tests & Hardening | **NEXT** (NOT STARTED) | End-to-end smoke tests against packaged NSIS binary, ASAR native binary verification, release hardening. |
 
 ---
 
-## 21. Task 16 Starting Context
+## 21. Task 16 Architectural & Security Hardening Summary
 
-Task 16 is the **immediate next task** to execute.
+Task 16 built the administrative control center of Tibyan and underwent rigorous security, correctness, and lifecycle hardening:
 
-> [!IMPORTANT]
-> **Task 16 is NOT STARTED.** Zero Task 16 code has been written. Await explicit user approval of the Task 16 plan before writing any Task 16 code.
+### 21.1 Security & Architecture Implementations
+1. **Critical Finding 1 — Management Read Model Decoupled from Pre-Auth Projection:**
+   - Kept pre-auth `auth.listUsers()` minimal and active-only (`LoginUserDto`: `id, fullName, username, role`).
+   - Introduced dedicated authenticated channel `auth.listManagementUsers()` backed by `AuthService.listManagementUsers(actorUserId)`.
+   - Returns `ManagedUserDto` (`id, fullName, username, role, status, permissions, createdAt, updatedAt`), strictly omitting sensitive credential fields (`pinHash`, `salt`, `failedAttempts`, `lockedUntil`).
+   - Authoritatively enforced in Main IPC requiring `USERS_MANAGE` or `OWNER`.
+   - Accurately includes inactive assistants, allowing deactivation and reactivation workflows.
+2. **Critical Finding 2 — Authoritative Core Privilege Escalation Protections:**
+   - Disallowed non-Owner actors from granting permissions they do not possess (`USERS_MANAGE` assistant cannot grant `SETTINGS_WRITE`, `BACKUP_MANAGE`, etc.).
+   - Disallowed mutating Owner role or creating a second Owner via `createAssistant`.
+   - Disallowed mutating Owner permissions or status (`setUserStatus` & `setAssistantPermissions`).
+   - Disallowed Assistants from resetting Owner PIN (`resetUserPin`).
+   - Disallowed Assistants from mutating their own permissions (self-escalation check: `actor.id === targetUser.id`).
+3. **Critical Finding 3 — Authoritative Academic Year Switch IPC Gate:**
+   - `SYSTEM_SWITCH_ACADEMIC_YEAR` Main handler authoritatively verifies active session and requires `SETTINGS_WRITE` or `OWNER` role.
+   - Validates `SwitchAcademicYearSchema` strictly in Main.
+4. **High Finding 4 — Year Switch Cache Isolation:**
+   - `useSwitchAcademicYear` purges all academic-year scoped queries by canonical key factories: `studentKeys.all`, `groupKeys.all`, `sessionKeys.all`, `dashboardKeys.all`.
+   - System queries (`systemSettings`, `academicYears`, `setupState`) are refreshed rather than destroyed.
+5. **High Finding 5 — Theme Restart Hydration:**
+   - Implemented `ThemeHydrator` bridge inside `Providers` that reads `system.getSettings().theme` and authoritatively applies it on application startup without requiring visiting `SettingsPage`.
+6. **High Finding 6 — Backup Path Isolation:**
+   - Introduced `BackupHistoryItemDto` (`id, backupDate, status, sizeBytes, academicYearsIncluded, createdAt`) omitting `backupPath`.
+   - Main IPC mappings strictly isolate host filesystem paths (`C:\...`, `AppData`) from the renderer.
+7. **High Finding 7 — Direct IPC Backup Authorization:**
+   - Main IPC `BACKUP_TRIGGER` authoritatively checks that the actor has `BACKUP_MANAGE` or `OWNER` role.
+8. **Medium Finding 8 — Settings Route & Tab Permissions:**
+   - Tabs display safe Arabic fallback messages when permissions are absent.
+   - Owner deactivation button is hidden in UI and authoritatively rejected in Core.
+   - Assistant reactivation action supported for deactivated accounts.
 
-### 21.1 Task Objective
-Build the Settings Screen, Academic-Year Switcher, Assistant Management & Backup Tab:
-1. **Settings View (`SettingsPage.tsx`):** Tabbed administrative interface replacing `SettingsPlaceholder`.
-2. **Academic Year Manager (`AcademicYearManager.tsx`):** List all academic years, create new academic year with atomic on-disk SQLite creation, switch active academic year safely.
-3. **Assistant Management Tab (`UserManagementTab.tsx`):** List assistants, create assistant with 4-digit PIN and role/permissions, toggle status (ACTIVE/INACTIVE), reset assistant PIN, update granular permissions (`STUDENTS_READ`, `STUDENTS_WRITE`, `GROUPS_READ`, `GROUPS_WRITE`, etc.).
-4. **Backup Management Tab (`BackupSettingsTab.tsx`):** Inspect current backup engine status, list backup archive records, trigger on-demand snapshot backup.
-5. **Theme & System Preferences:** Toggle Light / Dark / System theme preference using existing design tokens.
-6. **Unit & Component Tests (`SettingsPage.test.tsx`):** Comprehensive Vitest suite covering permissions, tab navigation, academic year creation/switching, assistant management, and backup triggering.
+### 21.2 Process Violation Notice & Governance Remediation
+- **Process Violation Recorded:** During the initial Task 16 phase, production files were created before receiving explicit user approval following implementation plan creation.
+- **Remediation & Binding Rule for Task 17:** For Task 17, planning must operate in `PLANNING_ONLY` mode and terminate the agent turn before modifying any code. Execution may proceed ONLY after a separate explicit user approval message.
 
-### 21.2 Available IPC Integration Surface:
-- `window.tibyan.system`: `getSettings()`, `getSetupState()`, `updateTheme()`, `listAcademicYears()`, `createAcademicYear()`, `switchAcademicYear()`
-- `window.tibyan.auth`: `createUser()`, `updatePermissions()`, `changeUserStatus()`, `resetPin()`
-- `window.tibyan.backup`: `getStatus()`, `trigger()`, `listRecords()`
+---
 
-### 21.3 Key Invariants for Task 16:
-- **Owner-Only Security Boundaries:** Switching academic years, creating users, and triggering manual backups require `OWNER` role or `SETTINGS_WRITE` permission where specified by Core.
-- **Atomic Year Switching:** Switching active academic year unmounts the previous academic SQLite database and mounts the new one safely without tearing down system database connections.
-- **Do NOT Start Task 17:** Complete Task 16 in isolation and await explicit user review before proceeding.
+## 22. Task 17 Starting Context
+
+Task 17 is the final task of Phase 1:
+- **Scope:** Production ASAR packaging verification, native module unpack check (`better-sqlite3`), and Playwright E2E smoke tests (`apps/desktop/e2e/smoke.spec.ts`).
+- **Status:** **NOT STARTED** (Zero Task 17 code or tests written).
+- **Mandatory Requirement:** Must formulate `implementation_plan.md` first and wait for explicit user approval before execution.
 
 ---
 
