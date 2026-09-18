@@ -404,11 +404,17 @@
       "commit": "f2c1e8b",
       "type": "CODE",
       "message": "feat(core): implement Task 18 attendance schema, repository, and session attendance tracking core"
+    },
+    {
+      "task": 18,
+      "commit": "6e61eac",
+      "type": "FIX",
+      "message": "fix(attendance): harden Task 18 validation, projections, and media safety"
     }
   ],
   "testBaseline": {
     "totalTestFiles": 24,
-    "totalTests": 539,
+    "totalTests": 545,
     "e2eSmokeTests": 1,
     "packages": {
       "@tibyan/contracts": {
@@ -417,11 +423,11 @@
       },
       "@tibyan/db": {
         "testFiles": 1,
-        "testsPassed": 27
+        "testsPassed": 28
       },
       "@tibyan/core": {
         "testFiles": 11,
-        "testsPassed": 220
+        "testsPassed": 225
       },
       "@tibyan/design-system": {
         "testFiles": 1,

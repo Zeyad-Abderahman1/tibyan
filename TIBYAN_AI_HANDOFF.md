@@ -5,10 +5,10 @@
 > **Target Audience:** Incoming Autonomous AI Engineering Agents  
 > **Approved Architecture Version:** `v2.1` (Final Alignment)  
 > **Current Project Phase:** Phase 2 (Attendance, Operations & Student Identity)  
-> **Tasks Completed:** Tasks 1 through 18 inclusive (Task 17 code: `c11b46c`, Task 18 code: `f2c1e8b`)  
-> **Phase 2 Status:** Task 18 Complete; Task 19 Ready  
+> **Tasks Completed:** Tasks 1 through 18 inclusive (Task 17 code: `c11b46c`, Task 18 baseline code: `f2c1e8b`, Task 18 hardening fix: `6e61eac`)  
+> **Phase 2 Status:** Task 18 Complete (Hardened); Task 19 Ready  
 > **Next Task:** Task 19 — Attendance Scanner & Rapid Check-In UI (Camera/Barcode & Manual Roster)  
-> **Regression Test Baseline:** 24 test files, 539 passing unit/component tests across 5 packages (53 contracts + 27 db + 220 core + 29 design-system + 210 desktop) + 1 Playwright E2E smoke suite (8 lifecycle steps passed)  
+> **Regression Test Baseline:** 24 test files, 545 passing unit/component tests across 5 packages (53 contracts + 28 db + 225 core + 29 design-system + 210 desktop) + 1 Playwright E2E smoke suite (8 lifecycle steps passed)  
 > **Official Logo SHA-256:** `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`  
 
 ---
@@ -546,34 +546,39 @@ Task 17 marks the formal completion of **Phase 1: Foundation & Desktop Core**:
 
 ---
 
-## 23. Task 18 Completion & Attendance Tracking Core Architecture
+## 23. Task 18 Completion & Attendance Tracking Core Architecture (Hardened)
 
-Task 18 marks the foundational entry into **Phase 2: Attendance, Operations & Student Identity**:
-- **Persistence & Migration:**
+Task 18 marks the foundational entry into **Phase 2: Attendance, Operations & Student Identity**, reinforced by in-place hardening patch commit `6e61eac`:
+- **Persistence & Migrations:**
   - Added `attendanceRecords` table to `packages/db/src/schema/academic.schema.ts` with foreign keys to `sessions` and `students` (`onDelete: 'restrict'`).
   - Added composite unique index `idx_attendance_session_student` on `(sessionId, studentId)` to prevent duplicate records.
-  - Generated and verified deterministic migration `packages/db/src/migrations/academic/0003_neat_krista_starr.sql` and registered it in `migrator.ts`.
+  - Generated and verified deterministic migrations:
+    - `0003_neat_krista_starr.sql`: Initial attendance table creation.
+    - `0004_cold_bullseye.sql`: Enforces SQLite `CHECK` constraints on `attendance_records` directly in the database engine (`chk_attendance_status` and `chk_attendance_arrival_time` ensuring strict 24-hour HH:mm format, `LATE` requires arrival time, `ABSENT`/`EXCUSED` must have null arrival time).
   - Implemented `AttendanceRepository` with atomic `upsert`, `batchUpsert`, `findById`, `findBySessionAndStudent`, `listBySessionId`, `countByStatusForSession`, and `listByDateWithDetails`.
   - Extended `SessionRepository` with `updateStatus(id, status)` for lifecycle tracking.
-- **Contracts & Validation:**
+- **Contracts, Validation & Data Minimization:**
   - Defined `AttendanceStatus` enum (`PRESENT`, `ABSENT`, `LATE`, `EXCUSED`) in `packages/contracts/src/enums/attendance.ts`.
   - Added DTOs and Zod validation schemas in `packages/contracts/src/models/attendance.dto.ts` (`AttendanceRecordDto`, `SessionRosterItemDto`, `SessionAttendanceRosterDto`, `EndOfDayFollowUpDto`, `RecordAttendanceInputSchema`, `BatchRecordAttendanceInputSchema`, `CompleteSessionInputSchema`).
+  - Strictly minimized `SessionRosterItemDto`: financial fields (`paymentType`, `paymentAmount`) and contact fields (`guardianPhone`) are stripped from the normal attendance roster to prevent exposure on check-in screens.
+  - Hardened arrival-time rules in Zod (`LATE` requires `00:00`–`23:59`, `PRESENT` permits null or HH:mm, `ABSENT`/`EXCUSED` require null).
+  - Enforced batch duplicate rejection (`studentId` cannot appear more than once in `records` array).
   - Registered IPC channels in `packages/contracts/src/ipc/channels.ts` (`attendance:get-roster`, `attendance:record`, `attendance:batch-record`, `attendance:get-end-of-day`, `sessions:complete`).
   - Added `attendance` namespace and `sessions.complete` to `TibyanApi` contract in `packages/contracts/src/ipc/api.ts`.
-- **Domain Services & Audit Logging:**
+- **Domain Services, Media Safety & Audit Logging:**
   - Implemented `AttendanceService` in `packages/core/src/attendance/attendance.service.ts`:
-    - `getSessionRoster(actor, sessionId)`: Enforces `ATTENDANCE_READ` permission, resolves enrolled students, inherits effective fee/payment terms from group or student override, sorts alphabetically using Arabic locale (`ar-EG`), and computes summary metrics (total, present, absent, late, excused, unmarked).
-    - `recordAttendance(actor, input)`: Enforces `ATTENDANCE_RECORD` permission, performs atomic database upsert, and writes an audit log entry (`ATTENDANCE_RECORDED` or `ATTENDANCE_UPDATED`) within the same transaction.
-    - `batchRecordAttendance(actor, input)`: Enforces `ATTENDANCE_RECORD` permission, performs atomic batch upsert across multiple students, and logs batch audit entries atomically.
-    - `completeSession(input, actor)`: Enforces `ATTENDANCE_RECORD` permission, verifies session exists, updates status to `COMPLETED`, and logs `SESSION_COMPLETED` audit event atomically.
-    - `getEndOfDayFollowUp(actor, dateStr)`: Aggregates daily attendance metrics across all sessions on the given date and generates polite Arabic WhatsApp parent notification templates (`أهلاً بحضرتك...`).
+    - `getSessionRoster(actor, sessionId)`: Enforces `ATTENDANCE_READ` permission, resolves enrolled students as of `session.effectiveDate`, strips financial and contact info, sanitizes photo paths to safe `tibyan-media://` protocol (strictly rejecting Windows drive letters, UNC paths, `..` traversal, and AppData paths), sorts alphabetically using Arabic locale (`ar-EG`), and computes summary metrics (total, present, absent, late, excused, unmarked).
+    - `recordAttendance(actor, input)`: Enforces `ATTENDANCE_RECORD` permission, validates temporal enrollment on `effectiveDate`, rejects cancelled sessions, performs atomic database upsert, and writes an audit log entry (`ATTENDANCE_RECORDED` or `ATTENDANCE_UPDATED`) within the same transaction.
+    - `batchRecordAttendance(actor, input)`: Enforces `ATTENDANCE_RECORD` permission, validates distinct students and temporal enrollment, performs atomic batch upsert across multiple students, and logs batch audit entries atomically.
+    - `completeSession(input, actor)`: Enforces `SESSIONS_MANAGE` permission, verifies session exists, updates status to `COMPLETED`, atomically creates `ABSENT` records with notes `'غياب تلقائي عند اكتمال الحصة'` for all unmarked eligible enrolled students, and logs `SESSION_COMPLETED` and attendance audit events atomically. Rejects completing `CANCELLED_BY_TEACHER` sessions.
+    - `getEndOfDayFollowUp(actor, dateStr)`: Aggregates daily attendance metrics across active sessions on the given date (excluding cancelled sessions) and generates polite Arabic WhatsApp parent notification templates without hardcoded subject names.
 - **Electron IPC & Preload Security:**
   - Implemented `attendance.ipc.ts` with frame validation (`validateSenderFrame`), active session checking, and permission enforcement.
   - Implemented `sessions:complete` handler in `sessions.ipc.ts`.
   - Mounted attendance IPC in `apps/desktop/electron/ipc/index.ts` and `runtime.ts`.
   - Exposed sanitized `window.tibyan.attendance` and `window.tibyan.sessions.complete` via `apps/desktop/electron/preload.ts`.
 - **Verification Baseline:**
-  - All 539 unit/component tests pass across 24 test files in all 5 workspace packages (53 contracts + 27 db + 220 core + 29 design-system + 210 desktop).
+  - All 545 unit/component tests pass across 24 test files in all 5 workspace packages (53 contracts + 28 db + 225 core + 29 design-system + 210 desktop).
   - Zero typecheck errors (`pnpm -r typecheck`).
   - Zero schema drift (`pnpm --filter @tibyan/db db:generate`).
   - Windows packaging succeeds (`pnpm --filter @tibyan/desktop run pack`).
