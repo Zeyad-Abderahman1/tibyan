@@ -4,11 +4,11 @@
 > **Repository Root:** `F:\tebyan`  
 > **Target Audience:** Incoming Autonomous AI Engineering Agents  
 > **Approved Architecture Version:** `v2.1` (Final Alignment)  
-> **Current Project Phase:** Phase 1 — Foundation & Desktop Core  
-> **Tasks Completed:** Tasks 1 through 16 inclusive (Task 14 code: `5b0c0ad`, hardening: `3a05971`, Task 15 code: `c9d7ec1`, Task 16 code: `7562a77`)  
-> **Immediate Next Task:** **Task 17 — Windows Packaging Verification, Playwright Smoke Tests & Hardening**  
-> **Task 17 Status:** **NOT STARTED** (Zero Task 17 code has been written)  
-> **Regression Test Baseline:** 22 test files, 497 passing tests across 5 packages (44 contracts + 25 db + 201 core + 29 design-system + 198 desktop)  
+> **Current Project Phase:** Phase 1 Complete (Foundation & Desktop Core)  
+> **Tasks Completed:** Tasks 1 through 17 inclusive (Task 14 code: `5b0c0ad`, hardening: `3a05971`, Task 15 code: `c9d7ec1`, Task 16 code: `7562a77`, Task 17 code: `c11b46c`)  
+> **Phase 1 Status:** **COMPLETE** (All 17 Phase 1 tasks verified and hardened)  
+> **Next Phase:** Phase 2 — Attendance, QR/Barcode, Student Cards, Finance & Thermal Receipts (Awaiting User Direction)  
+> **Regression Test Baseline:** 24 test files, 504 passing unit/component tests across 5 packages (44 contracts + 25 db + 201 core + 29 design-system + 205 desktop) + 1 Playwright E2E smoke suite (8 lifecycle steps passed)  
 > **Official Logo SHA-256:** `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`  
 
 ---
@@ -515,12 +515,34 @@ Task 16 built the administrative control center of Tibyan and underwent rigorous
 
 ---
 
-## 22. Task 17 Starting Context
+## 22. Task 17 Completion & Windows Packaging Architecture
 
-Task 17 is the final task of Phase 1:
-- **Scope:** Production ASAR packaging verification, native module unpack check (`better-sqlite3`), and Playwright E2E smoke tests (`apps/desktop/e2e/smoke.spec.ts`).
-- **Status:** **NOT STARTED** (Zero Task 17 code or tests written).
-- **Mandatory Requirement:** Must formulate `implementation_plan.md` first and wait for explicit user approval before execution.
+Task 17 marks the formal completion of **Phase 1: Foundation & Desktop Core**:
+- **Production Packaging Verified:**
+  - `electron-builder` configuration in `apps/desktop/electron-builder.json5` builds unpacked Windows directory (`release/win-unpacked/تِبيان.exe`) with `asar: true` and `asarUnpack: ["**/*.node"]`.
+  - Configured `scripts/after-pack.cjs` hook that guarantees the Electron ABI-compatible `better_sqlite3.node` (NODE_MODULE_VERSION 132 for Electron 34) is placed into `app.asar.unpacked/node_modules/better-sqlite3/build/Release/` while preserving the host Node.js binary (NODE_MODULE_VERSION 137) in workspace `node_modules` for instant Vitest test execution without version conflicts.
+- **Preload Script Sandbox Hardening:**
+  - Configured `apps/desktop/vite.config.ts` to bundle `electron/preload.ts` as CommonJS (`preload.cjs`) with `inlineDynamicImports: true`.
+  - Updated `apps/desktop/electron/main.ts` to dynamically resolve `preload.cjs` when present, preventing Chromium sandbox `SyntaxError: Cannot use import statement outside a module`.
+- **Test-Data Isolation & Packaging Tests:**
+  - `apps/desktop/electron/runtime.ts` accepts `process.env.TIBYAN_APP_DATA_DIR` fallback, enabling automated testing to run against temporary isolated directories (`os.tmpdir()`) without polluting or reading `%APPDATA%\تِبيان`.
+  - `apps/desktop/tests/packaging.test.ts` asserts runtime path resolution, `electron-builder.json5` configuration integrity, `better-sqlite3` native dependency presence, and official logo SHA-256 matching.
+- **Playwright E2E Smoke Suite (`apps/desktop/e2e/smoke.spec.ts`):**
+  - Configured `apps/desktop/playwright.config.ts` with single-worker execution and 60s timeout.
+  - Smoke suite launches `apps/desktop/release/win-unpacked/تِبيان.exe` against isolated temporary `os.tmpdir()` and verifies 8 full lifecycle stages:
+    1. First-Run Wizard welcome screen.
+    2. Owner account setup (`fullName`, `username`, `pin`, `confirmPin`).
+    3. Academic year creation (`2026-2027`).
+    4. Transition into `AppShell` with active academic year badge and teacher name in `Topbar`.
+    5. Core route navigation across Students (`/students`), Groups (`/groups`), Settings (`/settings`), and Today Dashboard (`/`).
+    6. Dynamic theme toggling (`topbar-theme-toggle-btn`) with DOM class verification.
+    7. Clean logout (`topbar-logout-btn`) followed by `LoginScreen` invalid PIN rejection (`9999`) and valid PIN authentication (`1234`).
+    8. App shutdown (`electronApp.close()`), restart against existing testDataDir, verification that FirstRunWizard is bypassed, login screen rendered, and session re-established with restored academic year.
+- **Regression Verification:**
+  - All 504 unit/component tests pass across 24 test files in all 5 workspace packages.
+  - Zero typecheck errors (`pnpm -r typecheck`).
+  - Zero schema drift (`pnpm --filter @tibyan/db db:generate`).
+  - Official logo hash matches `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`.
 
 ---
 
