@@ -239,9 +239,12 @@ Canonical spec §9.4 dictates:
      - `UNCONTACTED` (لم يتم التواصل) — Default.
      - `CONTACTED` (تم التواصل) — Marked after teacher/assistant copies message or opens WhatsApp.
      - `UNREACHABLE` (تعذر التواصل) — Marked if phone is disconnected or invalid.
-   - **Persistence Strategy:**
-     - To maintain database schema stability and avoid premature schema migrations before full guardian messaging requirements are formalized, contact status and follow-up notes for the current date are stored in a persistent local-storage cache (`tibyan_followup_state_${academicYearId}_${date}`) or dedicated component state.
-     - When a status is clicked, the UI updates instantly with visual badge indicators.
+    - **Authoritative Persistence Architecture:**
+      - Authoritative follow-up contact states and notes are stored permanently in the academic SQLite database in table `attendance_follow_ups` (migration `0005_rainy_silvermane.sql`).
+      - Scoped to the active academic year, surviving application restarts, and backed up alongside all academic records.
+      - Mutations occur via `window.tibyan.attendance.updateFollowUpStatus` requiring `ATTENDANCE_WRITE` permission.
+      - Mutations are atomically audited to `academic_audit_log` (`action: 'FOLLOW_UP_STATUS_UPDATED'`); audit failure rolls back the mutation.
+      - Unique index on `attendance_record_id` strictly prevents ambiguous or duplicate follow-up records.
 
 ### 8.2 Safe WhatsApp Workflow (Zero Cloud API)
 Canonical spec §22 dictates:

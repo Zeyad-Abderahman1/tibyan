@@ -26,22 +26,20 @@ Deliver a fast, responsive, and aesthetically stunning teacher-facing attendance
 - **Phase 2 — Task 3 of 5:** Does NOT generate printable student cards, render card templates, or generate Code128 barcodes / PDF exports. Task 2 consumes `studentCode` directly.
 - **Phase 2 — Task 4 of 5:** Does NOT process payments, fees, subscriptions, or financial ledgers.
 - **Phase 2 — Task 5 of 5:** Does NOT print thermal receipts (ESC/POS).
-- **Backend / Database Changes:** Task 1 of 5 already migrated and hardened `attendance_records` and SQLite CHECK constraints. No database migrations or core business logic rewrites are permitted in Task 2.
+- **Backend / Database Changes:** Hardened in Architecture Hardening pass via academic migration `0005_rainy_silvermane.sql` (`attendance_follow_ups` table with unique constraint on `attendance_record_id`, foreign key, and check constraint). No further schema changes needed.
 
 ---
 
 ## 2. Discovered Live Architecture & Preload Contracts
 
-Task 1 of 5 already exposed the following typed methods on `window.tibyan.attendance` and `window.tibyan.sessions`:
+Task 1 of 5 and Architecture Hardening exposed the following typed methods on `window.tibyan.attendance`, `window.tibyan.sessions`, and `window.tibyan.system`:
 - `window.tibyan.attendance.getRoster(sessionId: string): Promise<IpcResult<SessionAttendanceRosterDto>>`
 - `window.tibyan.attendance.record(input: RecordAttendanceInput): Promise<IpcResult<AttendanceRecordDto>>`
 - `window.tibyan.attendance.batchRecord(input: BatchRecordAttendanceInput): Promise<IpcResult<AttendanceRecordDto[]>>`
 - `window.tibyan.attendance.getEndOfDay(date: string): Promise<IpcResult<EndOfDayFollowUpDto>>`
+- `window.tibyan.attendance.updateFollowUpStatus(input: UpdateFollowUpStatusInput): Promise<IpcResult<AttendanceFollowUpDto>>` (Authoritative persistent academic follow-up state, atomic audit log)
 - `window.tibyan.sessions.complete(input: CompleteSessionInput): Promise<IpcResult<SessionDto>>`
-
-In addition, safe external WhatsApp navigation requires one minimal, strictly allowlisted IPC method in Main process security:
-- `window.tibyan.system.openWhatsApp(input: { phone: string; message: string }): Promise<IpcResult<void>>`
-This opens `https://wa.me/20...` via `shell.openExternal` without exposing arbitrary URL navigation.
+- `window.tibyan.system.openWhatsApp(input: { phone: string; message: string }): Promise<IpcResult<void>>` (Main validates Egyptian prefix, normalizes phone, constructs `https://wa.me/20...`, verifies allowlist, and opens externally. Renderer cannot choose destination host)
 
 ---
 
