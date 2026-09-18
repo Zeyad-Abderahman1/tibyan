@@ -751,7 +751,6 @@ describe('Task 14: Group Management UI & Rescheduling Suite', () => {
     it('defines stable dashboard query keys matching Task 15 conventions', () => {
       expect(dashboardKeys.all).toEqual(['dashboard']);
       expect(dashboardKeys.today()).toEqual(['dashboard', 'today']);
-      expect(dashboardKeys.date('2026-09-18')).toEqual(['dashboard', 'date', '2026-09-18']);
     });
   });
 

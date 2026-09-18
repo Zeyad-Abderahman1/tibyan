@@ -6,7 +6,6 @@ import { Sidebar, NAV_ITEMS } from '../src/components/layout/Sidebar.js';
 import { Topbar } from '../src/components/layout/Topbar.js';
 import { Providers } from '../src/app/providers.js';
 import {
-  TodayPlaceholder,
   StudentsPlaceholder,
   SettingsPlaceholder,
   router,
@@ -124,10 +123,10 @@ describe('Task 11: Desktop App Shell & RTL Navigation Suite', () => {
   });
 
   it('verifies placeholder views contain zero mock data or fake business records', () => {
-    const todayHtml = renderToStaticMarkup(<TodayPlaceholder />);
-    expect(todayHtml).toContain('data-testid="page-today"');
-    expect(todayHtml).not.toContain('حصة 1');
-    expect(todayHtml).not.toContain('طالب تجريبي');
+    // Root index route is now real TodayPage
+    const rootRoute = router.routes[0];
+    const todayIndexRoute = rootRoute?.children?.find((c) => c.index === true);
+    expect(todayIndexRoute).toBeDefined();
 
     const studentsHtml = renderToStaticMarkup(<StudentsPlaceholder />);
     expect(studentsHtml).toContain('data-testid="page-students"');
@@ -137,7 +136,6 @@ describe('Task 11: Desktop App Shell & RTL Navigation Suite', () => {
     expect(settingsHtml).toContain('data-testid="page-settings"');
 
     // Groups route is now real GroupsPage
-    const rootRoute = router.routes[0];
     const groupChildRoute = rootRoute?.children?.find((c) => c.path === 'groups');
     expect(groupChildRoute).toBeDefined();
   });

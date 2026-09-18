@@ -16,6 +16,7 @@ import { StudentsPage } from '../features/students/StudentsPage.js';
 import { StudentProfilePage } from '../features/students/StudentProfilePage.js';
 import { GroupsPage } from '../features/groups/GroupsPage.js';
 import { GroupDetailsPage } from '../features/groups/GroupDetailsPage.js';
+import { TodayPage } from '../features/dashboard/TodayPage.js';
 
 /**
  * Root Controller: Checks authoritative persisted SQLite setup state.
@@ -145,24 +146,6 @@ export function RootLayout() {
  * Placeholder Views for Shell-Level Navigation
  * No mock data, no premature feature logic belonging to later tasks.
  */
-export function TodayPlaceholder() {
-  return (
-    <div className="space-y-4" data-testid="page-today">
-      <div className="flex items-center justify-between pb-2 border-b border-[var(--color-border-subtle)]">
-        <div>
-          <h1 className="text-xl font-bold text-[var(--color-text-primary)]">اليوم</h1>
-          <p className="text-xs text-[var(--color-text-secondary)]">متابعة حصص ومواعيد اليوم الحالي</p>
-        </div>
-      </div>
-      <Card variant="default" className="p-8 text-center text-[var(--color-text-secondary)] space-y-2">
-        <h2 className="text-base font-semibold text-[var(--color-text-primary)]">مرحباً بك في تِبيان</h2>
-        <p className="text-sm max-w-md mx-auto">
-          تم إعداد النظام بنجاح. سيتم عرض حصص وجداول اليوم تلقائياً فور تسجيل المجموعات والطلاب.
-        </p>
-      </Card>
-    </div>
-  );
-}
 
 export function StudentsPlaceholder() {
   return (
@@ -209,7 +192,7 @@ export const routes: RouteObject[] = [
     children: [
       {
         index: true,
-        element: <TodayPlaceholder />,
+        element: <TodayPage />,
       },
       {
         path: 'students',

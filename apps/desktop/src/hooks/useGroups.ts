@@ -29,11 +29,8 @@ export const sessionKeys = {
   range: (params: ListSessionsByDateRangeInput) => [...sessionKeys.all, 'range', params] as const,
 };
 
-export const dashboardKeys = {
-  all: ['dashboard'] as const,
-  today: () => [...dashboardKeys.all, 'today'] as const,
-  date: (date: string) => [...dashboardKeys.all, 'date', date] as const,
-};
+import { dashboardKeys } from './useDashboard.js';
+export { dashboardKeys };
 
 /**
  * Fetches the list of all academic groups in the active academic year.
