@@ -7,6 +7,8 @@ import type {
   CompleteSessionInput,
   SessionDto,
   EndOfDayFollowUpDto,
+  AttendanceFollowUpDto,
+  UpdateFollowUpStatusInput,
 } from '@tibyan/contracts';
 import { dashboardKeys } from './useDashboard.js';
 import { sessionKeys } from './useGroups.js';
@@ -136,3 +138,28 @@ export function useEndOfDayFollowUp(date: string) {
     enabled: Boolean(date),
   });
 }
+
+/**
+ * Updates the persistent follow-up status (UNCONTACTED / CONTACTED / UNREACHABLE) and notes.
+ * Invalidates the End-of-Day follow-up cache on success.
+ */
+export function useUpdateFollowUpStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: UpdateFollowUpStatusInput): Promise<AttendanceFollowUpDto> => {
+      if (typeof window !== 'undefined' && window.tibyan?.attendance?.updateFollowUpStatus) {
+        const res = await window.tibyan.attendance.updateFollowUpStatus(input);
+        if (!res.success) {
+          throw new Error(res.error.message || 'فشل تحديث حالة متابعة ولي الأمر');
+        }
+        return res.data;
+      }
+      throw new Error('API_NOT_AVAILABLE');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: attendanceKeys.all });
+    },
+  });
+}
+

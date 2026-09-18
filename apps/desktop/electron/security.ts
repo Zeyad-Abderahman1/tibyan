@@ -62,6 +62,10 @@ export function isAllowedWhatsAppUrl(targetUrl: string): boolean {
     if (parsed.protocol !== 'https:' || parsed.hostname !== 'wa.me') {
       return false;
     }
+    // Prevent credentials injection or non-standard ports
+    if (parsed.username !== '' || parsed.password !== '' || (parsed.port !== '' && parsed.port !== '443')) {
+      return false;
+    }
     // Strict Egyptian mobile path: /201[0125]\d{8}
     return /^\/201[0125]\d{8}$/.test(parsed.pathname);
   } catch {
@@ -69,24 +73,65 @@ export function isAllowedWhatsAppUrl(targetUrl: string): boolean {
   }
 }
 
+export interface SessionSecurityOptions {
+  allowedDevOrigin?: string;
+}
+
 /**
  * Hardens Electron session by denying permission requests by default,
- * while strictly allowing 'media' permission only for the trusted main window.
+ * while strictly allowing 'media' (video/camera only) for the trusted main window.
+ * Strictly denies audio/microphone, subframes, untrusted origins, and all other permissions.
  */
 export function configureSessionSecurity(
   session: Session,
-  expectedWindow?: BrowserWindow | null
+  expectedWindow?: BrowserWindow | null,
+  options?: SessionSecurityOptions
 ): void {
-  session.setPermissionRequestHandler((webContents, permission, callback) => {
-    // Strictly allow 'media' permission only for the trusted main window
-    if (
-      permission === 'media' &&
-      (!expectedWindow || webContents.id === expectedWindow.webContents.id)
-    ) {
-      callback(true);
+  session.setPermissionRequestHandler((webContents, permission, callback, details?: any) => {
+    // 1. Strictly require the expected main BrowserWindow
+    if (!expectedWindow || (typeof expectedWindow.isDestroyed === 'function' && expectedWindow.isDestroyed())) {
+      callback(false);
       return;
     }
-    callback(false);
+
+    if (webContents && typeof webContents.id === 'number') {
+      if (webContents.id !== expectedWindow.webContents.id) {
+        callback(false);
+        return;
+      }
+    }
+
+    // 2. Deny subframes / iframes
+    if (details && typeof details.isMainFrame === 'boolean' && !details.isMainFrame) {
+      callback(false);
+      return;
+    }
+
+    // 3. Deny unexpected requesting origins
+    if (details?.requestingUrl) {
+      if (!isAllowedNavigationUrl(details.requestingUrl, options?.allowedDevOrigin)) {
+        callback(false);
+        return;
+      }
+    }
+
+    // 4. Deny all permissions except 'media'
+    if (permission !== 'media') {
+      callback(false);
+      return;
+    }
+
+    // 5. Strictly allow camera/video only; deny microphone/audio
+    if (details?.mediaTypes && Array.isArray(details.mediaTypes)) {
+      const hasAudio = details.mediaTypes.includes('audio');
+      const hasVideo = details.mediaTypes.includes('video');
+      if (hasAudio || !hasVideo) {
+        callback(false);
+        return;
+      }
+    }
+
+    callback(true);
   });
 }
 

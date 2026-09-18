@@ -35,6 +35,8 @@ import {
   type ListSessionsByDateRangeInput,
   type MaterializeSessionsResultDto,
   type AttendanceRecordDto,
+  type AttendanceFollowUpDto,
+  type UpdateFollowUpStatusInput,
   type SessionAttendanceRosterDto,
   type RecordAttendanceInput,
   type BatchRecordAttendanceInput,
@@ -177,6 +179,9 @@ export const tibyanApi: TibyanApi = {
     },
     getEndOfDay(date: string): Promise<IpcResult<EndOfDayFollowUpDto>> {
       return ipcRenderer.invoke(IPC_CHANNELS.ATTENDANCE_GET_END_OF_DAY, date);
+    },
+    updateFollowUpStatus(input: UpdateFollowUpStatusInput): Promise<IpcResult<AttendanceFollowUpDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ATTENDANCE_UPDATE_FOLLOW_UP_STATUS, input);
     },
   },
 

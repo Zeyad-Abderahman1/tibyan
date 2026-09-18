@@ -5,6 +5,7 @@ import {
   RecordAttendanceInputSchema,
   BatchRecordAttendanceInputSchema,
   CalendarDateSchema,
+  UpdateFollowUpStatusInputSchema,
 } from '@tibyan/contracts';
 import type { Runtime } from '../runtime.js';
 import { safeIpcCall } from './errors.js';
@@ -62,6 +63,19 @@ export function registerAttendanceIpcHandlers(runtime: Runtime, mainWindow: Brow
       return runtime.attendanceService!.getEndOfDayFollowUp(date, actor);
     });
   });
+
+  // 5. Update Follow-Up Status (Authoritative Academic State)
+  ipcMain.handle(IPC_CHANNELS.ATTENDANCE_UPDATE_FOLLOW_UP_STATUS, async (event, payload) => {
+    if (!validateIpcSender(event, mainWindow)) {
+      throw new Error('UNAUTHORIZED_IPC_SENDER');
+    }
+    return safeIpcCall(async () => {
+      const actor = runtime.requireAuthenticatedActor();
+      runtime.requireActiveAcademicYear();
+      const validated = UpdateFollowUpStatusInputSchema.parse(payload);
+      return runtime.attendanceService!.updateFollowUpStatus(validated, actor);
+    });
+  });
 }
 
 export function unregisterAttendanceIpcHandlers(): void {
@@ -69,4 +83,5 @@ export function unregisterAttendanceIpcHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.ATTENDANCE_RECORD);
   ipcMain.removeHandler(IPC_CHANNELS.ATTENDANCE_BATCH_RECORD);
   ipcMain.removeHandler(IPC_CHANNELS.ATTENDANCE_GET_END_OF_DAY);
+  ipcMain.removeHandler(IPC_CHANNELS.ATTENDANCE_UPDATE_FOLLOW_UP_STATUS);
 }

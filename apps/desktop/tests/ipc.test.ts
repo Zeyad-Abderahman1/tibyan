@@ -1554,6 +1554,41 @@ describe('Task 10 — Typed IPC Bridge & Main Session Authority', () => {
       const lateMsg = eodRes.data.followUps.find((f: any) => f.studentId === studentId1);
       expect(lateMsg.whatsappMessage).toContain('15:15');
     });
+
+    it('updates follow-up status and note via attendance:updateFollowUpStatus and persists', async () => {
+      // 1. Record student2 as ABSENT
+      const rec = await invoke(IPC_CHANNELS.ATTENDANCE_RECORD, {
+        sessionId,
+        studentId: studentId2,
+        status: 'ABSENT',
+        notes: 'غياب بدون عذر',
+      });
+      expect(rec.success).toBe(true);
+      const recordId = rec.data.id;
+
+      // 2. Initial follow-up status in end of day should be UNCONTACTED
+      const eodBefore = await invoke(IPC_CHANNELS.ATTENDANCE_GET_END_OF_DAY, '2026-10-05');
+      const itemBefore = eodBefore.data.followUps.find((f: any) => f.attendanceRecordId === recordId);
+      expect(itemBefore.contactStatus).toBe('UNCONTACTED');
+      expect(itemBefore.contactNote).toBeNull();
+
+      // 3. Update status to CONTACTED with note
+      const updateRes = await invoke(IPC_CHANNELS.ATTENDANCE_UPDATE_FOLLOW_UP_STATUS, {
+        attendanceRecordId: recordId,
+        contactStatus: 'CONTACTED',
+        note: 'تم الاتصال بالأم وأكدت الحضور غداً',
+      });
+      expect(updateRes.success).toBe(true);
+      expect(updateRes.data.contactStatus).toBe('CONTACTED');
+      expect(updateRes.data.note).toBe('تم الاتصال بالأم وأكدت الحضور غداً');
+      expect(updateRes.data.attendanceRecordId).toBe(recordId);
+
+      // 4. Verify End-of-Day reflects updated contactStatus and note
+      const eodAfter = await invoke(IPC_CHANNELS.ATTENDANCE_GET_END_OF_DAY, '2026-10-05');
+      const itemAfter = eodAfter.data.followUps.find((f: any) => f.attendanceRecordId === recordId);
+      expect(itemAfter.contactStatus).toBe('CONTACTED');
+      expect(itemAfter.contactNote).toBe('تم الاتصال بالأم وأكدت الحضور غداً');
+    });
   });
 });
 
