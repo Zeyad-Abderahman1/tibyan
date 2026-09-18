@@ -117,6 +117,7 @@ describe('Task 10 — Typed IPC Bridge & Main Session Authority', () => {
 
   it('verifies all expected channels are registered on ipcMain', () => {
     expect(ipcHandlers.has(IPC_CHANNELS.AUTH_LIST_USERS)).toBe(true);
+    expect(ipcHandlers.has(IPC_CHANNELS.AUTH_LIST_MANAGEMENT_USERS)).toBe(true);
     expect(ipcHandlers.has(IPC_CHANNELS.AUTH_LOGIN_PIN)).toBe(true);
     expect(ipcHandlers.has(IPC_CHANNELS.AUTH_LOGOUT)).toBe(true);
     expect(ipcHandlers.has(IPC_CHANNELS.AUTH_GET_SESSION)).toBe(true);
@@ -1183,4 +1184,177 @@ describe('Task 10 — Typed IPC Bridge & Main Session Authority', () => {
       expect(response.headers.get('Content-Type')).toBe('image/jpeg');
     });
   });
+
+  describe('Task 16 Hardening: Direct IPC Authorization & Path Isolation', () => {
+    let ownerId: string;
+    let assistantWithoutPermsId: string;
+    let assistantWithPermsId: string;
+    let year2Id: string;
+
+    beforeEach(async () => {
+      // 1. Bootstrap Owner
+      const ownerRes = await invoke(IPC_CHANNELS.AUTH_BOOTSTRAP_OWNER, {
+        fullName: 'أحمد المسؤول',
+        username: 'owner_sec',
+        pin: '1234',
+      });
+      ownerId = ownerRes.data.id;
+
+      // Login as Owner to setup resources
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, { userId: ownerId, pin: '1234' });
+
+      // Create second academic year
+      const year2Res = await invoke(IPC_CHANNELS.SYSTEM_CREATE_ACADEMIC_YEAR, {
+        name: '2027-2028',
+      });
+      year2Id = year2Res.data.id;
+
+      // Create assistant without sensitive permissions
+      const asst1Res = await invoke(IPC_CHANNELS.AUTH_CREATE_USER, {
+        fullName: 'مساعد مقيد',
+        username: 'asst_restricted',
+        pin: '2222',
+        role: 'ASSISTANT',
+        permissions: ['STUDENTS_READ'],
+      });
+      assistantWithoutPermsId = asst1Res.data.id;
+
+      // Create assistant with management permissions
+      const asst2Res = await invoke(IPC_CHANNELS.AUTH_CREATE_USER, {
+        fullName: 'مساعد مخول',
+        username: 'asst_authorized',
+        pin: '3333',
+        role: 'ASSISTANT',
+        permissions: ['USERS_MANAGE', 'SETTINGS_WRITE', 'BACKUP_MANAGE'],
+      });
+      assistantWithPermsId = asst2Res.data.id;
+
+      // Deactivate restricted assistant to verify management listing visibility
+      await invoke(IPC_CHANNELS.AUTH_CHANGE_STATUS, {
+        userId: assistantWithoutPermsId,
+        status: 'INACTIVE',
+      });
+
+      // Clear session so each test starts in a known authentication state
+      await invoke(IPC_CHANNELS.AUTH_LOGOUT);
+    });
+
+    it('Direct IPC auth:listManagementUsers enforces authentication and USERS_MANAGE permission', async () => {
+      // 1. Unauthenticated -> fails with PERMISSION_DENIED
+      const unauthRes = await invoke(IPC_CHANNELS.AUTH_LIST_MANAGEMENT_USERS);
+      expect(unauthRes.success).toBe(false);
+      expect(unauthRes.error.code).toBe('PERMISSION_DENIED');
+
+      // 2. Assistant without USERS_MANAGE -> fails with PERMISSION_DENIED
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, { userId: assistantWithoutPermsId, pin: '2222' });
+      // Since assistantWithoutPermsId is INACTIVE, login itself fails:
+      // Let's create an active assistant without USERS_MANAGE
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, { userId: ownerId, pin: '1234' });
+      const activeRestricted = await invoke(IPC_CHANNELS.AUTH_CREATE_USER, {
+        fullName: 'مساعد نشط مقيد',
+        username: 'asst_active_restricted',
+        pin: '4444',
+        role: 'ASSISTANT',
+        permissions: ['STUDENTS_READ'],
+      });
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, { userId: activeRestricted.data.id, pin: '4444' });
+
+      const deniedRes = await invoke(IPC_CHANNELS.AUTH_LIST_MANAGEMENT_USERS);
+      expect(deniedRes.success).toBe(false);
+      expect(deniedRes.error.code).toBe('PERMISSION_DENIED');
+
+      // 3. Assistant with USERS_MANAGE -> succeeds and sees inactive assistant
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, { userId: assistantWithPermsId, pin: '3333' });
+      const allowedRes = await invoke(IPC_CHANNELS.AUTH_LIST_MANAGEMENT_USERS);
+      expect(allowedRes.success).toBe(true);
+      expect(Array.isArray(allowedRes.data)).toBe(true);
+
+      const inactiveUser = allowedRes.data.find((u: any) => u.id === assistantWithoutPermsId);
+      expect(inactiveUser).toBeDefined();
+      expect(inactiveUser.status).toBe('INACTIVE');
+      expect(inactiveUser.permissions).toBeDefined();
+
+      // Ensure no credential secrets leak
+      for (const u of allowedRes.data) {
+        expect(u.pinHash).toBeUndefined();
+        expect(u.salt).toBeUndefined();
+        expect(u.failedAttempts).toBeUndefined();
+        expect(u.lockedUntil).toBeUndefined();
+      }
+    });
+
+    it('Direct IPC system:switchAcademicYear enforces SETTINGS_WRITE permission', async () => {
+      // 1. Unauthenticated -> fails with PERMISSION_DENIED
+      const unauthRes = await invoke(IPC_CHANNELS.SYSTEM_SWITCH_ACADEMIC_YEAR, {
+        academicYearId: year2Id,
+      });
+      expect(unauthRes.success).toBe(false);
+      expect(unauthRes.error.code).toBe('PERMISSION_DENIED');
+
+      // 2. Assistant without SETTINGS_WRITE -> fails with PERMISSION_DENIED
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, { userId: ownerId, pin: '1234' });
+      const noSettingsAssistant = await invoke(IPC_CHANNELS.AUTH_CREATE_USER, {
+        fullName: 'مساعد بدون إعدادات',
+        username: 'asst_nosettings',
+        pin: '5555',
+        role: 'ASSISTANT',
+        permissions: ['STUDENTS_READ', 'USERS_MANAGE'],
+      });
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, { userId: noSettingsAssistant.data.id, pin: '5555' });
+
+      const deniedRes = await invoke(IPC_CHANNELS.SYSTEM_SWITCH_ACADEMIC_YEAR, {
+        academicYearId: year2Id,
+      });
+      expect(deniedRes.success).toBe(false);
+      expect(deniedRes.error.code).toBe('PERMISSION_DENIED');
+
+      // 3. Assistant with SETTINGS_WRITE -> succeeds
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, { userId: assistantWithPermsId, pin: '3333' });
+      const allowedRes = await invoke(IPC_CHANNELS.SYSTEM_SWITCH_ACADEMIC_YEAR, {
+        academicYearId: year2Id,
+      });
+      expect(allowedRes.success).toBe(true);
+    });
+
+    it('Direct IPC backup:trigger enforces BACKUP_MANAGE and isolates backupPath from renderer', async () => {
+      // 1. Unauthenticated -> fails with PERMISSION_DENIED
+      const unauthRes = await invoke(IPC_CHANNELS.BACKUP_TRIGGER, { reason: 'test' });
+      expect(unauthRes.success).toBe(false);
+      expect(unauthRes.error.code).toBe('PERMISSION_DENIED');
+
+      // 2. Assistant without BACKUP_MANAGE -> fails with PERMISSION_DENIED
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, { userId: ownerId, pin: '1234' });
+      const noBackupAssistant = await invoke(IPC_CHANNELS.AUTH_CREATE_USER, {
+        fullName: 'مساعد بدون نسخ',
+        username: 'asst_nobackup',
+        pin: '6666',
+        role: 'ASSISTANT',
+        permissions: ['STUDENTS_READ'],
+      });
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, { userId: noBackupAssistant.data.id, pin: '6666' });
+
+      const deniedRes = await invoke(IPC_CHANNELS.BACKUP_TRIGGER, { reason: 'unauthorized test' });
+      expect(deniedRes.success).toBe(false);
+      expect(deniedRes.error.code).toBe('PERMISSION_DENIED');
+
+      // 3. Authorized Assistant with BACKUP_MANAGE -> succeeds
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, { userId: assistantWithPermsId, pin: '3333' });
+      const triggerRes = await invoke(IPC_CHANNELS.BACKUP_TRIGGER, { reason: 'authorized test' });
+      expect(triggerRes.success).toBe(true);
+      expect(triggerRes.data.id).toBeDefined();
+      expect(triggerRes.data.status).toBe('SUCCESS');
+
+      // Path Isolation Invariant: backupPath must NEVER reach renderer
+      expect(triggerRes.data.backupPath).toBeUndefined();
+
+      // 4. backup:listRecords also omits backupPath
+      const listRes = await invoke(IPC_CHANNELS.BACKUP_LIST_RECORDS);
+      expect(listRes.success).toBe(true);
+      expect(listRes.data.length).toBeGreaterThan(0);
+      for (const rec of listRes.data) {
+        expect(rec.backupPath).toBeUndefined();
+      }
+    });
+  });
 });
+

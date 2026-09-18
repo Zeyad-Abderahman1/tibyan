@@ -15,6 +15,15 @@ export interface BackupRecordDto {
   createdAt: string;
 }
 
+export interface BackupHistoryItemDto {
+  id: string;
+  backupDate: string;
+  status: 'SUCCESS' | 'FAILED';
+  sizeBytes: number;
+  academicYearsIncluded: string[];
+  createdAt: string;
+}
+
 export interface BackupStatusDto {
   lastBackupAt: string | null;
   lastBackupStatus: 'SUCCESS' | 'FAILED' | null;

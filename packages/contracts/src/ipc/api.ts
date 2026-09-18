@@ -3,6 +3,7 @@ import {
   UserDto,
   UserSessionDto,
   LoginUserDto,
+  ManagedUserDto,
   LoginWithPinInput,
   BootstrapOwnerInput,
   CreateUserInput,
@@ -40,7 +41,7 @@ import {
 } from '../models/session.dto.js';
 import { TodayDashboardDto } from '../models/dashboard.dto.js';
 import {
-  BackupRecordDto,
+  BackupHistoryItemDto,
   BackupStatusDto,
   CreateBackupInput,
 } from '../models/backup.dto.js';
@@ -57,6 +58,7 @@ import {
 export interface TibyanApi {
   auth: {
     listUsers(): Promise<IpcResult<LoginUserDto[]>>;
+    listManagementUsers(): Promise<IpcResult<ManagedUserDto[]>>;
     loginWithPin(input: LoginWithPinInput): Promise<IpcResult<UserSessionDto>>;
     logout(): Promise<IpcResult<void>>;
     getSession(): Promise<IpcResult<UserSessionDto | null>>;
@@ -98,9 +100,9 @@ export interface TibyanApi {
     getToday(): Promise<IpcResult<TodayDashboardDto>>;
   };
   backup: {
-    trigger(input?: CreateBackupInput): Promise<IpcResult<BackupRecordDto>>;
+    trigger(input?: CreateBackupInput): Promise<IpcResult<BackupHistoryItemDto>>;
     getStatus(): Promise<IpcResult<BackupStatusDto>>;
-    listRecords(): Promise<IpcResult<BackupRecordDto[]>>;
+    listRecords(): Promise<IpcResult<BackupHistoryItemDto[]>>;
   };
   system: {
     getInfo(): Promise<IpcResult<AppInfoDto>>;

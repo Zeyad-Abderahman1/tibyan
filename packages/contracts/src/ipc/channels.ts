@@ -1,6 +1,7 @@
 export const IPC_CHANNELS = {
   // Auth
   AUTH_LIST_USERS: 'auth:listUsers',
+  AUTH_LIST_MANAGEMENT_USERS: 'auth:listManagementUsers',
   AUTH_LOGIN_PIN: 'auth:loginPin',
   AUTH_LOGOUT: 'auth:logout',
   AUTH_GET_SESSION: 'auth:getSession',

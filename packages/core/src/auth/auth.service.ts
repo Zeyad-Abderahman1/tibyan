@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import {
   type UserDto,
   type UserSessionDto,
+  type ManagedUserDto,
   type CreateUserInput,
   type UpdatePermissionsInput,
   type ChangeUserStatusInput,
@@ -356,6 +357,17 @@ export class AuthService {
       throw new AuthError('INVALID_OPERATION', 'Cannot create additional Owner accounts');
     }
 
+    // Privilege Escalation Defense: Actor cannot grant permissions that they themselves do not possess
+    if (actor.role !== 'OWNER' && input.permissions && input.permissions.length > 0) {
+      const disallowed = input.permissions.filter((p) => !actorPermissions.includes(p));
+      if (disallowed.length > 0) {
+        throw new AuthError(
+          'PERMISSION_DENIED',
+          `Cannot grant permissions that the actor does not possess: ${disallowed.join(', ')}`
+        );
+      }
+    }
+
     const cleanUsername = input.username.trim().toLowerCase();
     const existing = this.userRepo.findByUsername(cleanUsername);
     if (existing) {
@@ -436,6 +448,22 @@ export class AuthService {
       throw new AuthError('INVALID_OPERATION', 'Owner permissions cannot be altered');
     }
 
+    // Privilege Escalation Defense: An Assistant cannot modify their own permissions (self-escalation)
+    if (actor.role !== 'OWNER' && actor.id === targetUser.id) {
+      throw new AuthError('INVALID_OPERATION', 'Cannot modify your own permissions');
+    }
+
+    // Privilege Escalation Defense: Actor cannot grant permissions that they themselves do not possess
+    if (actor.role !== 'OWNER' && input.permissions && input.permissions.length > 0) {
+      const disallowed = input.permissions.filter((p) => !actorPermissions.includes(p));
+      if (disallowed.length > 0) {
+        throw new AuthError(
+          'PERMISSION_DENIED',
+          `Cannot grant permissions that the actor does not possess: ${disallowed.join(', ')}`
+        );
+      }
+    }
+
     const nowIso = this.clock.now().toISOString();
     const beforePermissions = this.userRepo.getUserPermissions(targetUser.id);
 
@@ -487,8 +515,8 @@ export class AuthService {
       throw new AuthError('USER_NOT_FOUND', 'Target user not found');
     }
 
-    if (targetUser.role === 'OWNER' && input.status === 'INACTIVE') {
-      throw new AuthError('INVALID_OPERATION', 'The sole Owner account cannot be deactivated');
+    if (targetUser.role === 'OWNER') {
+      throw new AuthError('INVALID_OPERATION', 'The sole Owner account status cannot be altered');
     }
 
     const nowIso = this.clock.now().toISOString();
@@ -543,6 +571,11 @@ export class AuthService {
       throw new AuthError('USER_NOT_FOUND', 'Target user not found');
     }
 
+    // Privilege Escalation Defense: An Assistant cannot reset the Owner PIN
+    if (targetUser.role === 'OWNER' && actor.id !== targetUser.id) {
+      throw new AuthError('PERMISSION_DENIED', 'Assistants cannot reset the Owner PIN');
+    }
+
     const { pinHash, salt } = await this.pinService.hashPin(input.newPin);
     const nowIso = this.clock.now().toISOString();
 
@@ -590,6 +623,40 @@ export class AuthService {
         username: u.username,
         role: u.role,
       }));
+  }
+
+  /**
+   * Returns all users (both ACTIVE and INACTIVE) for the management UI with status and permissions.
+   * Authoritatively protected: requires USERS_MANAGE on actor.
+   * Strips credential security fields (pinHash, salt, failedAttempts, lockedUntil).
+   */
+  listManagementUsers(actorUserId: string): ManagedUserDto[] {
+    const actor = this.userRepo.findById(actorUserId);
+    if (!actor) {
+      throw new AuthError('USER_NOT_FOUND', 'Actor user not found');
+    }
+
+    const actorPermissions =
+      actor.role === 'OWNER' ? ALL_PERMISSION_CODES : this.userRepo.getUserPermissions(actor.id);
+    requirePermission(actor.role, actorPermissions, 'USERS_MANAGE');
+
+    return this.userRepo.listAll().map((u) => {
+      const permissions =
+        u.role === 'OWNER'
+          ? ALL_PERMISSION_CODES
+          : this.userRepo.getUserPermissions(u.id);
+
+      return {
+        id: u.id,
+        fullName: u.fullName,
+        username: u.username,
+        role: u.role,
+        status: u.status as 'ACTIVE' | 'INACTIVE',
+        permissions,
+        createdAt: u.createdAt,
+        updatedAt: u.updatedAt,
+      };
+    });
   }
 
   /**

@@ -222,12 +222,15 @@ export function registerSystemIpcHandlers(runtime: Runtime, mainWindow: BrowserW
     });
   });
 
-  // 7. Switch Active Academic Year
+  // 7. Switch Active Academic Year (protected: requires SETTINGS_WRITE on MAIN actor)
   ipcMain.handle(IPC_CHANNELS.SYSTEM_SWITCH_ACADEMIC_YEAR, async (event, payload) => {
     if (!validateIpcSender(event, mainWindow)) {
       throw new Error('UNAUTHORIZED_IPC_SENDER');
     }
     return safeIpcCall(() => {
+      const actor = runtime.requireAuthenticatedActor();
+      requirePermission(actor.role, actor.permissions ?? [], 'SETTINGS_WRITE');
+
       const validated = SwitchAcademicYearSchema.parse(payload);
       const targetYear = runtime.academicYearRepo.findById(validated.academicYearId);
       if (!targetYear) {

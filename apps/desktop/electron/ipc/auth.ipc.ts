@@ -21,6 +21,17 @@ export function registerAuthIpcHandlers(runtime: Runtime, mainWindow: BrowserWin
     return safeIpcCall(() => runtime.authService.listLoginUsers());
   });
 
+  // 1b. List management users (authenticated: requires USERS_MANAGE permission)
+  ipcMain.handle(IPC_CHANNELS.AUTH_LIST_MANAGEMENT_USERS, async (event) => {
+    if (!validateIpcSender(event, mainWindow)) {
+      throw new Error('UNAUTHORIZED_IPC_SENDER');
+    }
+    return safeIpcCall(async () => {
+      const actor = runtime.requireAuthenticatedActor();
+      return runtime.authService.listManagementUsers(actor.userId);
+    });
+  });
+
   // 2. Login with PIN (unauthenticated: establishes authoritative MAIN session)
   ipcMain.handle(IPC_CHANNELS.AUTH_LOGIN_PIN, async (event, payload) => {
     if (!validateIpcSender(event, mainWindow)) {
@@ -118,6 +129,7 @@ export function registerAuthIpcHandlers(runtime: Runtime, mainWindow: BrowserWin
 
 export function unregisterAuthIpcHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.AUTH_LIST_USERS);
+  ipcMain.removeHandler(IPC_CHANNELS.AUTH_LIST_MANAGEMENT_USERS);
   ipcMain.removeHandler(IPC_CHANNELS.AUTH_LOGIN_PIN);
   ipcMain.removeHandler(IPC_CHANNELS.AUTH_LOGOUT);
   ipcMain.removeHandler(IPC_CHANNELS.AUTH_GET_SESSION);

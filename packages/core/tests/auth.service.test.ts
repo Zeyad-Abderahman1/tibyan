@@ -516,4 +516,208 @@ describe('AuthService & Authorization Core', () => {
       expect((u as any).salt).toBeUndefined();
     }
   });
+
+  describe('Task 16 Hardening: Management Read Model & Privilege Escalation Defenses', () => {
+    it('listManagementUsers requires USERS_MANAGE, includes inactive users, and excludes sensitive credential fields', async () => {
+      const owner = await authService.bootstrapOwner({
+        fullName: 'Teacher Mohamed',
+        username: 'mohamed',
+        pin: '1234',
+      });
+
+      const assistant = await authService.createAssistant(
+        {
+          fullName: 'Assistant Omar',
+          username: 'omar',
+          pin: '5678',
+          role: 'ASSISTANT',
+          permissions: ['STUDENTS_READ', 'GROUPS_READ'],
+        },
+        owner.id
+      );
+
+      // Deactivate assistant
+      await authService.setUserStatus(
+        {
+          userId: assistant.id,
+          status: 'INACTIVE',
+        },
+        owner.id
+      );
+
+      // Invariant: pre-auth listLoginUsers() must NOT include inactive users
+      const loginUsers = authService.listLoginUsers();
+      expect(loginUsers.find((u) => u.id === assistant.id)).toBeUndefined();
+      expect(loginUsers).toHaveLength(1);
+
+      // Management listing: includes inactive users and exposes status and permissions
+      const managedUsers = authService.listManagementUsers(owner.id);
+      expect(managedUsers).toHaveLength(2);
+
+      const managedAssistant = managedUsers.find((u) => u.id === assistant.id);
+      expect(managedAssistant).toBeDefined();
+      expect(managedAssistant?.status).toBe('INACTIVE');
+      expect(managedAssistant?.permissions).toHaveLength(2);
+      expect(managedAssistant?.permissions).toEqual(
+        expect.arrayContaining(['STUDENTS_READ', 'GROUPS_READ'])
+      );
+
+      // Sensitive fields must be strictly absent
+      expect((managedAssistant as any).pinHash).toBeUndefined();
+      expect((managedAssistant as any).salt).toBeUndefined();
+      expect((managedAssistant as any).failedAttempts).toBeUndefined();
+      expect((managedAssistant as any).lockedUntil).toBeUndefined();
+
+      // Unauthorized assistant without USERS_MANAGE cannot call listManagementUsers
+      expect(() => authService.listManagementUsers(assistant.id)).toThrowError(
+        /Required permission 'USERS_MANAGE'/
+      );
+    });
+
+    it('Privilege Escalation: Assistant with USERS_MANAGE cannot reset Owner PIN', async () => {
+      const owner = await authService.bootstrapOwner({
+        fullName: 'Teacher Mohamed',
+        username: 'mohamed',
+        pin: '1234',
+      });
+
+      const managerAssistant = await authService.createAssistant(
+        {
+          fullName: 'Manager Assistant',
+          username: 'manager',
+          pin: '5678',
+          role: 'ASSISTANT',
+          permissions: ['USERS_MANAGE'],
+        },
+        owner.id
+      );
+
+      // Assistant attempts to reset Owner PIN
+      await expect(
+        authService.resetUserPin(
+          {
+            userId: owner.id,
+            newPin: '9999',
+          },
+          managerAssistant.id
+        )
+      ).rejects.toThrowError(/Assistants cannot reset the Owner PIN/);
+    });
+
+    it('Privilege Escalation: Assistant with USERS_MANAGE cannot alter Owner account status', async () => {
+      const owner = await authService.bootstrapOwner({
+        fullName: 'Teacher Mohamed',
+        username: 'mohamed',
+        pin: '1234',
+      });
+
+      const managerAssistant = await authService.createAssistant(
+        {
+          fullName: 'Manager Assistant',
+          username: 'manager',
+          pin: '5678',
+          role: 'ASSISTANT',
+          permissions: ['USERS_MANAGE'],
+        },
+        owner.id
+      );
+
+      // Assistant attempts to deactivate Owner
+      await expect(
+        authService.setUserStatus(
+          {
+            userId: owner.id,
+            status: 'INACTIVE',
+          },
+          managerAssistant.id
+        )
+      ).rejects.toThrowError(/Owner account status cannot be altered/);
+    });
+
+    it('Privilege Escalation: Assistant with USERS_MANAGE cannot modify own permissions (self-escalation)', async () => {
+      const owner = await authService.bootstrapOwner({
+        fullName: 'Teacher Mohamed',
+        username: 'mohamed',
+        pin: '1234',
+      });
+
+      const managerAssistant = await authService.createAssistant(
+        {
+          fullName: 'Manager Assistant',
+          username: 'manager',
+          pin: '5678',
+          role: 'ASSISTANT',
+          permissions: ['USERS_MANAGE'],
+        },
+        owner.id
+      );
+
+      // Assistant attempts to grant themselves SETTINGS_WRITE and BACKUP_MANAGE
+      await expect(
+        authService.setAssistantPermissions(
+          {
+            userId: managerAssistant.id,
+            permissions: ['USERS_MANAGE', 'SETTINGS_WRITE', 'BACKUP_MANAGE'],
+          },
+          managerAssistant.id
+        )
+      ).rejects.toThrowError(/Cannot modify your own permissions/);
+    });
+
+    it('Privilege Escalation: Assistant cannot grant permissions that the actor does not possess', async () => {
+      const owner = await authService.bootstrapOwner({
+        fullName: 'Teacher Mohamed',
+        username: 'mohamed',
+        pin: '1234',
+      });
+
+      const managerAssistant = await authService.createAssistant(
+        {
+          fullName: 'Manager Assistant',
+          username: 'manager',
+          pin: '5678',
+          role: 'ASSISTANT',
+          permissions: ['USERS_MANAGE'],
+        },
+        owner.id
+      );
+
+      const targetAssistant = await authService.createAssistant(
+        {
+          fullName: 'Target Assistant',
+          username: 'target',
+          pin: '1111',
+          role: 'ASSISTANT',
+          permissions: [],
+        },
+        owner.id
+      );
+
+      // Attempting to grant SETTINGS_WRITE when actor only has USERS_MANAGE
+      await expect(
+        authService.setAssistantPermissions(
+          {
+            userId: targetAssistant.id,
+            permissions: ['SETTINGS_WRITE'],
+          },
+          managerAssistant.id
+        )
+      ).rejects.toThrowError(/Cannot grant permissions that the actor does not possess/);
+
+      // Attempting to create new assistant with SETTINGS_WRITE when actor only has USERS_MANAGE
+      await expect(
+        authService.createAssistant(
+          {
+            fullName: 'Escalated Assistant',
+            username: 'escalated',
+            pin: '2222',
+            role: 'ASSISTANT',
+            permissions: ['SETTINGS_WRITE'],
+          },
+          managerAssistant.id
+        )
+      ).rejects.toThrowError(/Cannot grant permissions that the actor does not possess/);
+    });
+  });
 });
+

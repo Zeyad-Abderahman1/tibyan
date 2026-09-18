@@ -17,6 +17,7 @@ import { StudentProfilePage } from '../features/students/StudentProfilePage.js';
 import { GroupsPage } from '../features/groups/GroupsPage.js';
 import { GroupDetailsPage } from '../features/groups/GroupDetailsPage.js';
 import { TodayPage } from '../features/dashboard/TodayPage.js';
+import { SettingsPage } from '../features/settings/SettingsPage.js';
 
 /**
  * Root Controller: Checks authoritative persisted SQLite setup state.
@@ -212,7 +213,7 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'settings',
-        element: <SettingsPlaceholder />,
+        element: <SettingsPage />,
       },
       {
         path: '*',

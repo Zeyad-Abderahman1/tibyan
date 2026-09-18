@@ -6,6 +6,7 @@ import {
   type UserDto,
   type UserSessionDto,
   type LoginUserDto,
+  type ManagedUserDto,
   type LoginWithPinInput,
   type BootstrapOwnerInput,
   type CreateUserInput,
@@ -33,7 +34,7 @@ import {
   type ListSessionsByDateRangeInput,
   type MaterializeSessionsResultDto,
   type TodayDashboardDto,
-  type BackupRecordDto,
+  type BackupHistoryItemDto,
   type BackupStatusDto,
   type CreateBackupInput,
   type AppInfoDto,
@@ -53,6 +54,9 @@ export const tibyanApi: TibyanApi = {
   auth: {
     listUsers(): Promise<IpcResult<LoginUserDto[]>> {
       return ipcRenderer.invoke(IPC_CHANNELS.AUTH_LIST_USERS);
+    },
+    listManagementUsers(): Promise<IpcResult<ManagedUserDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.AUTH_LIST_MANAGEMENT_USERS);
     },
     loginWithPin(input: LoginWithPinInput): Promise<IpcResult<UserSessionDto>> {
       return ipcRenderer.invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, input);
@@ -159,13 +163,13 @@ export const tibyanApi: TibyanApi = {
   },
 
   backup: {
-    trigger(input?: CreateBackupInput): Promise<IpcResult<BackupRecordDto>> {
+    trigger(input?: CreateBackupInput): Promise<IpcResult<BackupHistoryItemDto>> {
       return ipcRenderer.invoke(IPC_CHANNELS.BACKUP_TRIGGER, input);
     },
     getStatus(): Promise<IpcResult<BackupStatusDto>> {
       return ipcRenderer.invoke(IPC_CHANNELS.BACKUP_GET_STATUS);
     },
-    listRecords(): Promise<IpcResult<BackupRecordDto[]>> {
+    listRecords(): Promise<IpcResult<BackupHistoryItemDto[]>> {
       return ipcRenderer.invoke(IPC_CHANNELS.BACKUP_LIST_RECORDS);
     },
   },

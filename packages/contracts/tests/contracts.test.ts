@@ -25,7 +25,9 @@ import {
   normalizeEgyptianPhone,
   BootstrapOwnerSchema,
   LoginUserSchema,
+  ManagedUserSchema,
   type LoginUserDto,
+  type ManagedUserDto,
   IPC_CHANNELS,
 } from '../src/index.js';
 
@@ -526,4 +528,35 @@ describe('Contracts — Safe Pre-Authentication LoginUserDto', () => {
     ).toThrow();
   });
 });
+
+describe('Contracts — ManagedUserSchema & Channels', () => {
+  it('ManagedUserSchema accepts valid managed user record with status and permissions', () => {
+    const valid: ManagedUserDto = {
+      id: VALID_UUID,
+      fullName: 'مساعد أول',
+      username: 'assistant1',
+      role: 'ASSISTANT',
+      status: 'INACTIVE',
+      permissions: ['STUDENTS_READ', 'GROUPS_READ'],
+      createdAt: '2026-09-01T00:00:00.000Z',
+      updatedAt: '2026-09-01T00:00:00.000Z',
+    };
+
+    const parsed = ManagedUserSchema.parse(valid);
+    expect(parsed.id).toBe(VALID_UUID);
+    expect(parsed.status).toBe('INACTIVE');
+    expect(parsed.permissions).toEqual(['STUDENTS_READ', 'GROUPS_READ']);
+
+    // Ensure pinHash and salt are not defined on parsed object
+    expect((parsed as any).pinHash).toBeUndefined();
+    expect((parsed as any).salt).toBeUndefined();
+    expect((parsed as any).failedAttempts).toBeUndefined();
+    expect((parsed as any).lockedUntil).toBeUndefined();
+  });
+
+  it('verifies AUTH_LIST_MANAGEMENT_USERS channel is present in IPC_CHANNELS', () => {
+    expect(IPC_CHANNELS.AUTH_LIST_MANAGEMENT_USERS).toBe('auth:listManagementUsers');
+  });
+});
+
 
