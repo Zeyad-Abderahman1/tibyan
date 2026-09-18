@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Card,
   Button,
   Badge,
   Input,
@@ -85,16 +84,18 @@ export function GroupsPage() {
 
   return (
     <div className="space-y-6" data-testid="page-groups">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[var(--color-border-subtle)]">
-        <div>
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-[var(--color-brand-primary)]" />
-            <h1 className="text-2xl font-bold text-[var(--color-text-primary)]" data-testid="heading-groups">
+      {/* Professional Page Header: Title + Subtitle on Right, Primary CTA on Left in Same Row */}
+      <div className="flex flex-row items-center justify-between gap-6 pb-6 border-b border-[var(--color-border-subtle)]">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[var(--color-brand-primary)]/10 text-[var(--color-brand-primary)] dark:bg-[#5CE1E6]/10 dark:text-[#5CE1E6] flex items-center justify-center shrink-0">
+              <BookOpen className="w-4 h-4 stroke-[2]" />
+            </div>
+            <h1 className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight" data-testid="heading-groups">
               المجموعات الدراسية
             </h1>
           </div>
-          <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+          <p className="text-sm text-[var(--color-text-secondary)]">
             إدارة المجموعات، الجداول الأسبوعية الدورية، قيد الطلاب، والمصروفات
           </p>
         </div>
@@ -102,8 +103,9 @@ export function GroupsPage() {
         {canWrite && (
           <Button
             variant="primary"
+            size="md"
             onClick={() => setIsCreateModalOpen(true)}
-            className="gap-2 self-start md:self-auto"
+            className="gap-2 shrink-0 shadow-sm hover:shadow font-semibold text-sm px-4 py-2"
             data-testid="btn-create-group"
           >
             <Plus className="w-4 h-4" />
@@ -112,21 +114,24 @@ export function GroupsPage() {
         )}
       </div>
 
-      {/* Filter Bar */}
-      <Card variant="default" className="p-4 space-y-3" data-testid="filter-card">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          {/* Search Input */}
-          <div className="md:col-span-2">
-            <Input
-              placeholder="البحث باسم المجموعة..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full"
-              data-testid="input-search-groups"
-            />
-          </div>
+      {/* Compact Working Toolbar: Search takes primary flex width, filters progressively sized */}
+      <div
+        className="bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] rounded-xl p-2.5 shadow-xs flex flex-wrap lg:flex-nowrap items-center gap-3"
+        data-testid="filter-card"
+      >
+        {/* Search Input */}
+        <div className="flex-1 min-w-[240px]">
+          <Input
+            placeholder="البحث باسم المجموعة..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full text-xs"
+            data-testid="input-search-groups"
+          />
+        </div>
 
-          {/* Education System Filter */}
+        {/* System */}
+        <div className="w-36 shrink-0">
           <Select
             aria-label="تصفية بنظام التعليم"
             value={filterSystem}
@@ -134,12 +139,14 @@ export function GroupsPage() {
             options={[
               { value: 'ALL', label: 'جميع الأنظمة' },
               { value: 'GENERAL', label: 'التعليم العام' },
-              { value: 'EGYPTIAN_BACCALAUREATE', label: 'البكالوريا المصرية' },
+              { value: 'EGYPTIAN_BACCALAUREATE', label: 'البكالوريا' },
             ]}
             data-testid="select-filter-system"
           />
+        </div>
 
-          {/* Grade Level Filter */}
+        {/* Grade */}
+        <div className="w-36 shrink-0">
           <Select
             aria-label="تصفية بالمرحلة الدراسية"
             value={filterGrade}
@@ -155,21 +162,50 @@ export function GroupsPage() {
             ]}
             data-testid="select-filter-grade"
           />
+        </div>
 
-          {/* Status Filter */}
+        {/* Track */}
+        <div className="w-32 shrink-0">
+          <Select
+            aria-label="تصفية بالمسار اللغوي"
+            value={filterTrack}
+            onChange={(e) => setFilterTrack(e.target.value)}
+            options={[
+              { value: 'ALL', label: 'جميع المسارات' },
+              { value: 'ARABIC', label: 'عربي' },
+              { value: 'LANG_ENGLISH', label: 'لغات' },
+            ]}
+            data-testid="select-filter-track"
+          />
+        </div>
+
+        {/* Status */}
+        <div className="w-28 shrink-0">
           <Select
             aria-label="تصفية بالحالة"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             options={[
-              { value: 'ALL', label: 'جميع الحالات' },
-              { value: 'ACTIVE', label: 'المجموعات النشطة' },
-              { value: 'ARCHIVED', label: 'المؤرشفة فقط' },
+              { value: 'ALL', label: 'الكل' },
+              { value: 'ACTIVE', label: 'النشطة' },
+              { value: 'ARCHIVED', label: 'المؤرشفة' },
             ]}
             data-testid="select-filter-status"
           />
         </div>
-      </Card>
+
+        {(searchQuery.trim() !== '' || filterSystem !== 'ALL' || filterGrade !== 'ALL' || filterTrack !== 'ALL' || filterStatus !== 'ACTIVE') && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleResetFilters}
+            className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-status-danger)] shrink-0"
+            data-testid="btn-reset-filters"
+          >
+            إعادة ضبط
+          </Button>
+        )}
+      </div>
 
       {/* Content States */}
       {isLoading ? (
@@ -178,7 +214,7 @@ export function GroupsPage() {
           <p className="text-sm">جاري تحميل المجموعات الدراسية...</p>
         </div>
       ) : isError ? (
-        <Card variant="default" className="p-8 text-center space-y-3" data-testid="groups-error">
+        <div className="max-w-md mx-auto my-8 p-6 text-center space-y-3 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-xs" data-testid="groups-error">
           <AlertCircle className="w-8 h-8 text-[var(--color-status-danger)] mx-auto" />
           <p className="text-sm font-semibold text-[var(--color-text-primary)]">
             {error instanceof Error ? error.message : 'فشل استرجاع قائمة المجموعات'}
@@ -186,38 +222,54 @@ export function GroupsPage() {
           <Button variant="secondary" size="sm" onClick={() => refetch()} data-testid="btn-retry-groups">
             إعادة المحاولة
           </Button>
-        </Card>
+        </div>
       ) : groups.length === 0 ? (
-        <Card variant="default" className="p-12 text-center space-y-3" data-testid="groups-empty">
-          <BookOpen className="w-12 h-12 text-[var(--color-text-muted)] mx-auto" />
-          <h3 className="text-base font-bold text-[var(--color-text-primary)]">لا توجد مجموعات بعد</h3>
-          <p className="text-xs text-[var(--color-text-secondary)] max-w-sm mx-auto">
-            ابدأ بإنشاء أول مجموعة دراسية وتحديد مواعيد حصصها الأسبوعية ومصروفاتها الافتراضية.
-          </p>
+        /* Redesigned Centered Empty State: Proportioned container with no oversized empty box */
+        <div
+          className="max-w-xl mx-auto my-12 p-8 sm:p-10 text-center space-y-5 rounded-2xl bg-[var(--color-bg-surface)]/70 border border-[var(--color-border-subtle)] shadow-xs"
+          data-testid="groups-empty"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-[var(--color-brand-primary)]/10 dark:bg-[#5CE1E6]/10 text-[var(--color-brand-primary)] dark:text-[#5CE1E6] flex items-center justify-center mx-auto border border-[var(--color-brand-primary)]/15 shadow-xs">
+            <BookOpen className="w-8 h-8 stroke-[1.75]" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-lg font-bold text-[var(--color-text-primary)]">
+              لا توجد مجموعات بعد
+            </h3>
+            <p className="text-sm text-[var(--color-text-secondary)] max-w-sm mx-auto leading-relaxed">
+              ابدأ بإنشاء أول مجموعة دراسية وتحديد مواعيد حصصها الأسبوعية ومصروفاتها الافتراضية.
+            </p>
+          </div>
           {canWrite && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => setIsCreateModalOpen(true)}
-              className="gap-1.5 mt-2"
-              data-testid="btn-empty-create-group"
-            >
-              <Plus className="w-4 h-4" />
-              <span>إنشاء مجموعة جديدة</span>
-            </Button>
+            <div className="pt-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsCreateModalOpen(true)}
+                className="gap-1.5 font-medium"
+                data-testid="btn-empty-create-group"
+              >
+                <Plus className="w-4 h-4" />
+                <span>إنشاء أول مجموعة</span>
+              </Button>
+            </div>
           )}
-        </Card>
+        </div>
       ) : filteredGroups.length === 0 ? (
-        <Card variant="default" className="p-8 text-center space-y-3" data-testid="groups-filtered-empty">
+        /* Filtered Empty State */
+        <div
+          className="max-w-md mx-auto my-10 p-6 text-center space-y-3 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-xs"
+          data-testid="groups-filtered-empty"
+        >
           <p className="text-sm text-[var(--color-text-secondary)]">
             لا توجد مجموعات تطابق معايير البحث والتصفية المحددة.
           </p>
           <Button variant="secondary" size="sm" onClick={handleResetFilters} data-testid="btn-reset-filters">
             إعادة ضبط الفلاتر
           </Button>
-        </Card>
+        </div>
       ) : (
-        /* High Density Table */
+        /* High Density Table using full available workspace width */
         <Table data-testid="table-groups">
           <TableHeader>
             <TableRow>
@@ -236,7 +288,7 @@ export function GroupsPage() {
               <TableRow
                 key={group.id}
                 onClick={() => navigate(`/groups/${group.id}`)}
-                className="cursor-pointer hover:bg-[var(--color-bg-surface-subtle)]"
+                className="cursor-pointer hover:bg-[var(--color-bg-surface-subtle)]/70 transition-colors"
                 data-testid={`group-row-${group.id}`}
               >
                 {/* Name & Math Branch */}
@@ -246,7 +298,7 @@ export function GroupsPage() {
                       {group.name}
                     </span>
                     {group.focusMathBranch && (
-                      <span className="text-[11px] text-[var(--color-brand-primary)] font-medium">
+                      <span className="text-[11px] text-[var(--color-brand-primary)] dark:text-[#5CE1E6] font-medium">
                         فرع: {group.focusMathBranch}
                       </span>
                     )}

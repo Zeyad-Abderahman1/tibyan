@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, BookOpen, Settings } from 'lucide-react';
 import { cn } from '@tibyan/design-system';
@@ -24,57 +24,17 @@ export interface DynamicIslandNavProps {
 
 export function DynamicIslandNav({ items = DEFAULT_NAV_ITEMS, className }: DynamicIslandNavProps) {
   const location = useLocation();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number; opacity: number }>({
-    left: 0,
-    width: 0,
-    opacity: 0,
-  });
-
-  // Calculate sliding active capsule position dynamically without hardcoding pixel widths
-  useEffect(() => {
-    if (!containerRef.current || typeof window === 'undefined') return;
-
-    const activeEl = containerRef.current.querySelector<HTMLElement>('[data-active="true"]');
-    if (activeEl) {
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const activeRect = activeEl.getBoundingClientRect();
-
-      setIndicatorStyle({
-        left: activeRect.left - containerRect.left,
-        width: activeRect.width,
-        opacity: 1,
-      });
-    } else {
-      setIndicatorStyle((prev) => ({ ...prev, opacity: 0 }));
-    }
-  }, [location.pathname, items]);
 
   return (
     <nav
-      ref={containerRef}
       className={cn(
-        'relative flex items-center p-1 rounded-full bg-[var(--color-bg-surface-subtle)]/70 dark:bg-[var(--color-bg-surface-subtle)]/50 border border-[var(--color-border-subtle)]/80 select-none transition-all duration-300',
+        'relative flex items-center gap-1 select-none',
         className
       )}
       role="navigation"
       aria-label="التنقل الأساسي في النظام"
       data-testid="dynamic-island-nav"
     >
-      {/* Gliding capsule background indicator (hardware accelerated) */}
-      <span
-        className="absolute top-1 bottom-1 rounded-full pointer-events-none transition-all"
-        style={{
-          transform: `translateX(${indicatorStyle.left}px)`,
-          width: `${indicatorStyle.width}px`,
-          opacity: indicatorStyle.opacity,
-          transitionDuration: 'var(--duration-normal, 250ms)',
-          transitionTimingFunction: 'var(--ease-spring, cubic-bezier(0.16, 1, 0.3, 1))',
-          backgroundColor: 'var(--color-brand-primary)',
-        }}
-        aria-hidden="true"
-      />
-
       {items.map((item) => {
         const Icon = item.icon;
         const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
@@ -87,15 +47,21 @@ export function DynamicIslandNav({ items = DEFAULT_NAV_ITEMS, className }: Dynam
             data-active={isActive ? 'true' : undefined}
             className={({ isActive: navActive }) =>
               cn(
-                'relative z-10 flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-accent)]',
+                'relative flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-accent)]',
                 navActive
-                  ? 'text-white dark:text-[#5EEAD4] bg-[var(--color-brand-primary)] md:bg-transparent'
-                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-black/5 dark:hover:bg-white/5'
+                  ? 'text-[var(--color-brand-primary)] dark:text-[#5CE1E6] font-semibold bg-[var(--color-brand-primary)]/8 dark:bg-[#5CE1E6]/10 shadow-2xs'
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-black/[0.03] dark:hover:bg-white/[0.04]'
               )
             }
           >
             <Icon className="w-4 h-4 shrink-0 transition-transform duration-200" aria-hidden="true" />
             <span className="tracking-tight">{item.label}</span>
+            {isActive && (
+              <span
+                className="absolute bottom-0 inset-x-2.5 h-0.5 rounded-full bg-[var(--color-brand-primary)] dark:bg-[#5CE1E6] shadow-[0_0_8px_rgba(92,225,230,0.5)] transition-all duration-200"
+                aria-hidden="true"
+              />
+            )}
           </NavLink>
         );
       })}

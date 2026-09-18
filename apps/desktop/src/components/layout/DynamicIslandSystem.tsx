@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Moon, Sun, LogOut } from 'lucide-react';
-import { Badge, Button, useTheme, cn } from '@tibyan/design-system';
+import { Button, useTheme, cn } from '@tibyan/design-system';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useUpdateTheme } from '../../hooks/useSettings.js';
 
@@ -47,39 +47,53 @@ export function DynamicIslandSystem({ className }: DynamicIslandSystemProps) {
 
   return (
     <div
-      className={cn('flex items-center gap-2.5 select-none', className)}
+      className={cn('flex items-center gap-3 select-none text-xs', className)}
       data-testid="dynamic-island-system"
     >
-      {/* Active Academic Year Pill */}
+      {/* Active Academic Year (Clean informative label, NOT a giant button pill) */}
       {activeAcademicYearName && (
-        <div className="hidden lg:flex items-center gap-1.5" data-testid="active-year-display">
-          <Badge variant="primary" size="sm" className="font-semibold num-isolate text-[11px] py-0.5 px-2.5 rounded-full">
+        <div
+          className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--color-bg-surface-subtle)] text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]/70"
+          data-testid="active-year-display"
+        >
+          <span className="text-[11px] text-[var(--color-text-muted)] font-normal">العام:</span>
+          <span className="font-semibold text-[var(--color-text-primary)] font-mono num-isolate text-xs">
             {activeAcademicYearName}
-          </Badge>
+          </span>
         </div>
       )}
 
-      {/* User identity & Role badge */}
+      {/* User Information & Logout */}
       {session && (
-        <div className="flex items-center gap-2 pe-2 border-e border-[var(--color-border-subtle)]" data-testid="topbar-user-info">
-          <span className="text-xs font-semibold text-[var(--color-text-primary)] max-w-[120px] truncate">
-            {session.fullName}
-          </span>
-          <Badge
-            variant={session.role === 'OWNER' ? 'primary' : 'neutral'}
-            size="sm"
-            className="text-[10px] py-0 px-1.5 font-medium rounded-full"
+        <div
+          className="flex items-center gap-2 pe-2 border-e border-[var(--color-border-subtle)]/80"
+          data-testid="topbar-user-info"
+        >
+          {/* Avatar initial */}
+          <div
+            className="w-6 h-6 rounded-full bg-[var(--color-brand-primary)]/10 text-[var(--color-brand-primary)] dark:bg-[#5CE1E6]/15 dark:text-[#5CE1E6] flex items-center justify-center font-bold text-[11px]"
+            aria-hidden="true"
           >
-            {session.role === 'OWNER' ? 'المسؤول' : 'مساعد'}
-          </Badge>
+            {session.fullName.trim().charAt(0) || 'م'}
+          </div>
 
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-medium text-[var(--color-text-primary)] max-w-[110px] truncate">
+              {session.fullName}
+            </span>
+            <span className="text-[10px] text-[var(--color-text-muted)] bg-[var(--color-bg-surface-subtle)] px-1.5 py-0.5 rounded font-normal">
+              {session.role === 'OWNER' ? 'المعلم' : 'مساعد'}
+            </span>
+          </div>
+
+          {/* Compact Logout Icon Button */}
           <Button
             variant="ghost"
             size="sm"
             onClick={handleLogout}
             aria-label="تسجيل الخروج"
             title="تسجيل الخروج"
-            className="p-1 text-[var(--color-text-secondary)] hover:text-[var(--color-status-danger)] hover:bg-[var(--color-status-danger-bg)] rounded-full"
+            className="p-1 text-[var(--color-text-secondary)] hover:text-[var(--color-status-danger)] hover:bg-[var(--color-status-danger-bg)] rounded-md transition-colors"
             data-testid="topbar-logout-btn"
           >
             <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
@@ -87,7 +101,7 @@ export function DynamicIslandSystem({ className }: DynamicIslandSystemProps) {
 
           {logoutError && (
             <span
-              className="text-[10px] text-[var(--color-status-danger)] max-w-[120px] truncate"
+              className="text-[10px] text-[var(--color-status-danger)] max-w-[100px] truncate"
               role="alert"
               title={logoutError}
               data-testid="logout-error-msg"
@@ -98,18 +112,18 @@ export function DynamicIslandSystem({ className }: DynamicIslandSystemProps) {
         </div>
       )}
 
-      {/* Animated Theme Toggle Button */}
+      {/* Compact Theme Toggle Icon Button */}
       <Button
         variant="ghost"
         size="sm"
         onClick={handleToggleTheme}
         aria-label={resolvedTheme === 'dark' ? 'التبديل إلى الوضع الفاتح' : 'التبديل إلى الوضع الداكن'}
         title={resolvedTheme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}
-        className="p-1.5 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-subtle)] rounded-full transition-transform active:scale-95"
+        className="p-1.5 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-subtle)] rounded-md transition-colors"
         data-testid="topbar-theme-toggle-btn"
       >
         {resolvedTheme === 'dark' ? (
-          <Sun className="w-4 h-4 text-[var(--color-brand-accent)] transition-transform duration-300 rotate-0 hover:rotate-45" aria-hidden="true" />
+          <Sun className="w-4 h-4 text-[var(--color-brand-accent)] transition-transform duration-300 hover:rotate-45" aria-hidden="true" />
         ) : (
           <Moon className="w-4 h-4 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-transform duration-300" aria-hidden="true" />
         )}

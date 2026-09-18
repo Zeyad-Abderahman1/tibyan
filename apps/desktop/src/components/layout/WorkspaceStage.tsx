@@ -8,14 +8,15 @@ export interface WorkspaceStageProps {
 
 /**
  * WorkspaceStage provides an open, spacious application canvas.
- * Controls top clearance for the floating DynamicIslandShell, spacing, and width constraints
- * without boxing the entire page into a single rigid card.
+ * Implements approximately 40-64px horizontal breathing room at 1920x1080,
+ * generous vertical clearance for the floating navigation island,
+ * and expands data-heavy productivity views without boxing the app into a rigid card.
  */
 export function WorkspaceStage({ children, className }: WorkspaceStageProps) {
   return (
     <main
       className={cn(
-        'flex-1 pt-20 px-6 pb-8 max-w-7xl w-full mx-auto focus:outline-none transition-opacity duration-200',
+        'flex-1 pt-24 px-6 sm:px-10 lg:px-14 xl:px-16 pb-12 w-full max-w-[1600px] mx-auto focus:outline-none transition-opacity duration-200',
         className
       )}
       tabIndex={-1}
