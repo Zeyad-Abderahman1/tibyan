@@ -216,7 +216,7 @@ describe('AttendancePage, Roster & Summary Suite', () => {
     expect(html).toContain('تحديد الكل كـ حاضر');
   });
 
-  it('renders Gate 1 allowed actions and does not expose Camera Gate 2 or Parent Follow-Up Gate 3', () => {
+  it('renders Gate 2 allowed actions and does not expose Parent Follow-Up Gate 3', () => {
     const html = renderToStaticMarkup(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={['/attendance?sessionId=session-1']}>
@@ -230,9 +230,11 @@ describe('AttendancePage, Roster & Summary Suite', () => {
     expect(html).toContain('إنهاء الحصة');
     expect(html).toContain('data-testid="page-attendance"');
 
-    // Future gate controls MUST NOT be exposed in Gate 1
-    expect(html).not.toContain('btn-open-camera-scanner');
-    expect(html).not.toContain('ماسح الكاميرا');
+    // Gate 2 camera control is now exposed
+    expect(html).toContain('btn-open-camera-scanner');
+    expect(html).toContain('ماسح الكاميرا');
+
+    // Gate 3 controls MUST remain concealed
     expect(html).not.toContain('btn-open-followup-drawer');
     expect(html).not.toContain('متابعة الغياب');
   });

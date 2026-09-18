@@ -9,6 +9,7 @@ import {
   Users,
   AlertTriangle,
   Barcode,
+  QrCode,
 } from 'lucide-react';
 import type { AttendanceStatus, TodayClassSlotDto } from '@tibyan/contracts';
 
@@ -25,6 +26,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { AttendanceSummaryStrip } from './AttendanceSummaryStrip.js';
 import { AttendanceRosterTable } from './AttendanceRosterTable.js';
 import { CompleteSessionModal } from './CompleteSessionModal.js';
+import { CameraScannerModal } from './CameraScannerModal.js';
 
 export function AttendancePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -37,8 +39,10 @@ export function AttendancePage() {
   const initialSessionId = searchParams.get('sessionId') || '';
   const [selectedSessionId, setSelectedSessionId] = useState<string>(initialSessionId);
 
-  // Modals & Drawers State (Gate 1 Scope)
+  // Modals & Drawers State (Gate 2 Scope)
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [highlightedStudentId, setHighlightedStudentId] = useState<string | null>(null);
   const [scannerToast, setScannerToast] = useState<{ type: 'success' | 'warning' | 'error'; message: string } | null>(null);
 
   // Today's classes for the session switcher
@@ -172,7 +176,37 @@ export function AttendancePage() {
     }
   };
 
-  // USB Scanner Wedge Integration
+  // Web Audio API Scanner Feedback Chime
+  const playScanSound = (type: 'success' | 'warning' = 'success') => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      const now = ctx.currentTime;
+      if (type === 'success') {
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.setValueAtTime(1174.66, now + 0.08);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        osc.start(now);
+        osc.stop(now + 0.22);
+      } else {
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.setValueAtTime(330, now + 0.08);
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        osc.start(now);
+        osc.stop(now + 0.22);
+      }
+    } catch {}
+  };
+
+  // USB Scanner Wedge & Camera Scanner Integration
   const handleScanCode = (scannedCode: string) => {
     if (!rosterData || isCancelled || !canWrite) return;
 
@@ -183,6 +217,7 @@ export function AttendancePage() {
     });
 
     if (!student) {
+      playScanSound('warning');
       setScannerToast({
         type: 'warning',
         message: `الرمز [${scannedCode}] غير مقيد في هذه الحصة/المجموعة.`,
@@ -191,6 +226,9 @@ export function AttendancePage() {
     }
 
     if (student.attendanceRecord?.status === 'PRESENT') {
+      playScanSound('warning');
+      setHighlightedStudentId(student.studentId);
+      setTimeout(() => setHighlightedStudentId(null), 2500);
       setScannerToast({
         type: 'warning',
         message: `الطالب ${student.studentName} حاضر بالفعل.`,
@@ -198,6 +236,9 @@ export function AttendancePage() {
       return;
     }
 
+    playScanSound('success');
+    setHighlightedStudentId(student.studentId);
+    setTimeout(() => setHighlightedStudentId(null), 2500);
     handleUpdateStatus(student.studentId, 'PRESENT', null);
     setScannerToast({
       type: 'success',
@@ -241,7 +282,7 @@ export function AttendancePage() {
             )}
           </div>
           <p className="text-sm text-[var(--color-text-secondary)]">
-            تسجيل حضور الطلاب يدويًا أو عبر ماسح الباركود USB
+            تسجيل حضور الطلاب يدويًا، عبر ماسح الباركود USB، أو الكاميرا
           </p>
         </div>
 
@@ -259,6 +300,21 @@ export function AttendancePage() {
             <Barcode className="w-4 h-4" />
             <span>{isListening ? 'الماسح نشط' : 'الماسح متوقف'}</span>
           </div>
+
+          {/* Camera QR Button (Gate 2) */}
+          {canWrite && !isCancelled && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsCameraModalOpen(true)}
+              className="text-xs flex items-center gap-1.5"
+              data-testid="btn-open-camera-scanner"
+            >
+              <QrCode className="w-4 h-4" />
+              <span>ماسح الكاميرا</span>
+            </Button>
+          )}
 
           {/* Complete Session Primary CTA */}
           {canManageSessions && !isCompleted && !isCancelled && (
@@ -419,6 +475,7 @@ export function AttendancePage() {
             roster={rosterData.roster}
             disabled={isCancelled}
             canWrite={canWrite}
+            highlightedStudentId={highlightedStudentId}
             onUpdateStatus={handleUpdateStatus}
             onBulkMarkPresent={handleBulkMarkPresent}
           />
@@ -436,6 +493,13 @@ export function AttendancePage() {
           summary={rosterData.summary}
         />
       )}
+
+      {/* Camera QR Viewfinder Modal (Gate 2) */}
+      <CameraScannerModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onScan={handleScanCode}
+      />
     </div>
   );
 }

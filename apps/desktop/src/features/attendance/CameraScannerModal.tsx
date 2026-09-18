@@ -11,12 +11,18 @@ export interface CameraScannerModalProps {
 export function CameraScannerModal({
   isOpen,
   onClose,
+  onScan,
 }: CameraScannerModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [lastScannedCode, setLastScannedCode] = useState<string | null>(null);
+  const [flashSuccess, setFlashSuccess] = useState(false);
+  const lastScanTimeRef = useRef<number>(0);
+  const lastScannedCodeRef = useRef<string>('');
 
   useEffect(() => {
     let stream: MediaStream | null = null;
+    let scanInterval: any = null;
 
     async function startCamera() {
       if (!isOpen) return;
@@ -32,6 +38,38 @@ export function CameraScannerModal({
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
+
+        // Native BarcodeDetector loop
+        if (typeof window !== 'undefined' && 'BarcodeDetector' in window && onScan) {
+          try {
+            const detector = new (window as any).BarcodeDetector({
+              formats: ['qr_code', 'code_128', 'code_39', 'ean_13'],
+            });
+
+            scanInterval = setInterval(async () => {
+              if (videoRef.current && videoRef.current.readyState >= 2) {
+                try {
+                  const barcodes = await detector.detect(videoRef.current);
+                  if (barcodes && barcodes.length > 0) {
+                    const rawValue = barcodes[0].rawValue?.trim();
+                    const now = Date.now();
+                    if (
+                      rawValue &&
+                      (rawValue !== lastScannedCodeRef.current || now - lastScanTimeRef.current > 2500)
+                    ) {
+                      lastScannedCodeRef.current = rawValue;
+                      lastScanTimeRef.current = now;
+                      setLastScannedCode(rawValue);
+                      setFlashSuccess(true);
+                      setTimeout(() => setFlashSuccess(false), 800);
+                      onScan(rawValue);
+                    }
+                  }
+                } catch {}
+              }
+            }, 200);
+          } catch {}
+        }
       } catch (err: any) {
         setCameraError(
           err.name === 'NotAllowedError'
@@ -44,11 +82,14 @@ export function CameraScannerModal({
     startCamera();
 
     return () => {
+      if (scanInterval) {
+        clearInterval(scanInterval);
+      }
       if (stream) {
         stream.getTracks().forEach((t) => t.stop());
       }
     };
-  }, [isOpen]);
+  }, [isOpen, onScan]);
 
   return (
     <Modal
@@ -78,10 +119,29 @@ export function CameraScannerModal({
                 data-testid="camera-scanner-video"
               />
               {/* Viewfinder Target Frame */}
-              <div className="absolute inset-8 border-2 border-dashed border-[var(--color-brand-accent)] rounded-lg pointer-events-none animate-pulse" />
+              <div
+                className={`absolute inset-8 border-2 rounded-lg pointer-events-none transition-all duration-300 flex items-center justify-center ${
+                  flashSuccess
+                    ? 'border-emerald-400 bg-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.5)]'
+                    : 'border-dashed border-[var(--color-brand-accent)] animate-pulse'
+                }`}
+              >
+                {flashSuccess && (
+                  <span className="text-emerald-300 font-bold text-sm bg-black/60 px-3 py-1 rounded-full">
+                    تم المسح بنجاح ✓
+                  </span>
+                )}
+              </div>
             </>
           )}
         </div>
+
+        {lastScannedCode && (
+          <div className="flex items-center justify-center gap-2 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 py-1.5 px-3 rounded-lg border border-emerald-500/20">
+            <span>آخر رمز تم مسحه:</span>
+            <span dir="ltr" className="font-mono font-bold">{lastScannedCode}</span>
+          </div>
+        )}
 
         <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--color-border-subtle)]">
           <Button

@@ -18,6 +18,7 @@ export interface AttendanceRosterTableProps {
   roster: SessionRosterItemDto[];
   disabled?: boolean;
   canWrite?: boolean;
+  highlightedStudentId?: string | null;
   onUpdateStatus: (studentId: string, status: AttendanceStatus, arrivalTime?: string | null) => void;
   onBulkMarkPresent: (studentIds: string[]) => void;
   className?: string;
@@ -27,6 +28,7 @@ export function AttendanceRosterTable({
   roster,
   disabled = false,
   canWrite = true,
+  highlightedStudentId,
   onUpdateStatus,
   onBulkMarkPresent,
   className,
@@ -119,7 +121,11 @@ export function AttendanceRosterTable({
                   <TableRow
                     key={student.studentId}
                     data-testid={`roster-row-${student.studentCode}`}
-                    className="transition-colors hover:bg-black/[0.015] dark:hover:bg-white/[0.02]"
+                    className={`transition-all duration-300 ${
+                      highlightedStudentId === student.studentId
+                        ? 'bg-emerald-500/15 dark:bg-emerald-500/20 ring-2 ring-emerald-500/50'
+                        : 'hover:bg-black/[0.015] dark:hover:bg-white/[0.02]'
+                    }`}
                   >
                     {/* Photo / Avatar */}
                     <TableCell className="text-center py-2.5">
