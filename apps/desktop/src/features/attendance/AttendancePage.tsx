@@ -6,8 +6,6 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  QrCode,
-  MessageSquare,
   Users,
   AlertTriangle,
   Barcode,
@@ -27,8 +25,6 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { AttendanceSummaryStrip } from './AttendanceSummaryStrip.js';
 import { AttendanceRosterTable } from './AttendanceRosterTable.js';
 import { CompleteSessionModal } from './CompleteSessionModal.js';
-import { ParentFollowUpDrawer } from './ParentFollowUpDrawer.js';
-import { CameraScannerModal } from './CameraScannerModal.js';
 
 export function AttendancePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -41,10 +37,8 @@ export function AttendancePage() {
   const initialSessionId = searchParams.get('sessionId') || '';
   const [selectedSessionId, setSelectedSessionId] = useState<string>(initialSessionId);
 
-  // Modals & Drawers State
+  // Modals & Drawers State (Gate 1 Scope)
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
-  const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
-  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [scannerToast, setScannerToast] = useState<{ type: 'success' | 'warning' | 'error'; message: string } | null>(null);
 
   // Today's classes for the session switcher
@@ -82,11 +76,40 @@ export function AttendancePage() {
   const batchRecordMutation = useBatchRecordAttendance();
   const completeSessionMutation = useCompleteSession();
 
+  // Active session context derived from authoritative roster DTO and/or today slots
+  const currentSession = rosterData?.session;
   const activeSlot = useMemo(() => {
     return todaySlots.find((s: TodayClassSlotDto) => s.sessionId === selectedSessionId);
   }, [todaySlots, selectedSessionId]);
 
-  const currentSession = rosterData?.session;
+  const displayGroupName = currentSession?.groupName || rosterData?.groupName || activeSlot?.groupName;
+  const displayStartTime = currentSession?.effectiveStartTime || activeSlot?.effectiveStartTime;
+  const displayDuration = currentSession?.durationMinutes || activeSlot?.durationMinutes;
+  const displayStudentCount = rosterData?.summary?.totalStudents ?? activeSlot?.enrolledCount ?? rosterData?.roster?.length;
+  const hasActiveSession = Boolean(selectedSessionId && (currentSession || activeSlot || rosterData));
+
+  // Build session selector options: all today slots plus current session if not already in today slots
+  const selectorOptions = useMemo(() => {
+    const opts = todaySlots.map((slot: TodayClassSlotDto) => ({
+      value: slot.sessionId,
+      label: `${slot.groupName} (${slot.effectiveStartTime})`,
+    }));
+
+    if (
+      selectedSessionId &&
+      displayGroupName &&
+      displayStartTime &&
+      !opts.some((o) => o.value === selectedSessionId)
+    ) {
+      opts.unshift({
+        value: selectedSessionId,
+        label: `${displayGroupName} (${displayStartTime})`,
+      });
+    }
+
+    return opts;
+  }, [todaySlots, selectedSessionId, displayGroupName, displayStartTime]);
+
   const isCancelled = currentSession?.status === 'CANCELLED_BY_TEACHER' || activeSlot?.status === 'CANCELLED_BY_TEACHER';
   const isCompleted = currentSession?.status === 'COMPLETED' || activeSlot?.status === 'COMPLETED';
 
@@ -218,7 +241,7 @@ export function AttendancePage() {
             )}
           </div>
           <p className="text-sm text-[var(--color-text-secondary)]">
-            تسجيل حضور الطلاب يدويًا، عبر ماسح الباركود USB، أو الكاميرا، ومتابعة أولياء الأمور
+            تسجيل حضور الطلاب يدويًا أو عبر ماسح الباركود USB
           </p>
         </div>
 
@@ -236,34 +259,6 @@ export function AttendancePage() {
             <Barcode className="w-4 h-4" />
             <span>{isListening ? 'الماسح نشط' : 'الماسح متوقف'}</span>
           </div>
-
-          {/* Camera QR Button */}
-          {canWrite && !isCancelled && (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setIsCameraModalOpen(true)}
-              className="text-xs flex items-center gap-1.5"
-              data-testid="btn-open-camera-scanner"
-            >
-              <QrCode className="w-4 h-4" />
-              <span>ماسح الكاميرا</span>
-            </Button>
-          )}
-
-          {/* Parent Follow-Up Drawer Button */}
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setIsFollowUpOpen(true)}
-            className="text-xs flex items-center gap-1.5"
-            data-testid="btn-open-followup-drawer"
-          >
-            <MessageSquare className="w-4 h-4 text-[var(--color-brand-accent)]" />
-            <span>متابعة الغياب</span>
-          </Button>
 
           {/* Complete Session Primary CTA */}
           {canManageSessions && !isCompleted && !isCancelled && (
@@ -322,45 +317,58 @@ export function AttendancePage() {
             <span className="text-xs font-bold text-[var(--color-text-secondary)] shrink-0">
               الحصة المستهدفة:
             </span>
-            {todaySlots.length === 0 ? (
-              <span className="text-xs text-[var(--color-text-muted)]">
-                لا توجد حصص مجدولة لليوم في جدول المجموعات.
-              </span>
-            ) : (
+            {selectorOptions.length > 1 ? (
               <div className="w-72">
                 <Select
                   value={selectedSessionId}
                   onChange={(e) => handleSessionChange(e.target.value)}
-                  options={todaySlots.map((slot: TodayClassSlotDto) => ({
-                    value: slot.sessionId,
-                    label: `${slot.groupName} (${slot.effectiveStartTime})`,
-                  }))}
+                  options={selectorOptions}
                   data-testid="session-selector"
                 />
               </div>
+            ) : displayGroupName ? (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--color-brand-primary)]/5 dark:bg-[#5CE1E6]/5 border border-[var(--color-brand-primary)]/15 dark:border-[#5CE1E6]/20">
+                <span className="text-sm font-semibold text-[var(--color-text-primary)]" data-testid="session-context-group-name">
+                  {displayGroupName}
+                </span>
+              </div>
+            ) : isRosterLoading && selectedSessionId ? (
+              <span className="text-xs text-[var(--color-text-secondary)]" data-testid="session-context-loading">
+                جاري تحميل بيانات الحصة...
+              </span>
+            ) : (
+              <span className="text-xs text-[var(--color-text-muted)]" data-testid="no-sessions-message">
+                لا توجد حصص مجدولة لليوم في جدول المجموعات.
+              </span>
             )}
           </div>
 
           {/* Active Session Badges */}
-          {activeSlot && (
+          {hasActiveSession && (
             <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-secondary)]">
-              <div className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-[var(--color-brand-primary)] dark:text-[#5CE1E6]" />
-                <span className="font-semibold text-[var(--color-text-primary)]" dir="ltr">
-                  {activeSlot.effectiveStartTime}
-                </span>
-                <span>({activeSlot.durationMinutes} دقيقة)</span>
-              </div>
-              <span>•</span>
-              <div className="flex items-center gap-1">
-                <Users className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
-                <span>
+              {displayStartTime && (
+                <div className="flex items-center gap-1" data-testid="session-time-badge">
+                  <Clock className="w-3.5 h-3.5 text-[var(--color-brand-primary)] dark:text-[#5CE1E6]" />
                   <span className="font-semibold text-[var(--color-text-primary)]" dir="ltr">
-                    {activeSlot.enrolledCount}
-                  </span>{' '}
-                  طالب مقيد
-                </span>
-              </div>
+                    {displayStartTime}
+                  </span>
+                  {displayDuration ? <span>({displayDuration} دقيقة)</span> : null}
+                </div>
+              )}
+              {typeof displayStudentCount === 'number' && (
+                <>
+                  <span>•</span>
+                  <div className="flex items-center gap-1" data-testid="session-students-badge">
+                    <Users className="w-3.5 h-3.5 text-[var(--color-text-muted)]" />
+                    <span>
+                      <span className="font-semibold text-[var(--color-text-primary)]" dir="ltr">
+                        {displayStudentCount}
+                      </span>{' '}
+                      طالب مقيد
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -428,20 +436,6 @@ export function AttendancePage() {
           summary={rosterData.summary}
         />
       )}
-
-      {/* Camera QR Viewfinder Modal */}
-      <CameraScannerModal
-        isOpen={isCameraModalOpen}
-        onClose={() => setIsCameraModalOpen(false)}
-        onScan={handleScanCode}
-      />
-
-      {/* Parent Follow-Up Drawer */}
-      <ParentFollowUpDrawer
-        isOpen={isFollowUpOpen}
-        onClose={() => setIsFollowUpOpen(false)}
-        sessionDate={currentSession?.effectiveDate || new Date().toISOString().slice(0, 10)}
-      />
     </div>
   );
 }

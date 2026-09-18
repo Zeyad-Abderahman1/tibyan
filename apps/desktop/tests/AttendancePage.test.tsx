@@ -6,8 +6,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AttendanceSummaryStrip } from '../src/features/attendance/AttendanceSummaryStrip.js';
 import { AttendanceRosterTable } from '../src/features/attendance/AttendanceRosterTable.js';
 import { AttendancePage } from '../src/features/attendance/AttendancePage.js';
+import { attendanceKeys } from '../src/hooks/useAttendance.js';
 import { useAuthStore } from '../src/features/auth/auth.state.js';
-import type { SessionRosterItemDto } from '@tibyan/contracts';
+import type { SessionRosterItemDto, SessionAttendanceRosterDto } from '@tibyan/contracts';
 
 describe('AttendancePage, Roster & Summary Suite', () => {
   let queryClient: QueryClient;
@@ -59,6 +60,38 @@ describe('AttendancePage, Roster & Summary Suite', () => {
     attendanceRecord: null, // unmarked
   };
 
+  const mockRosterPayload: SessionAttendanceRosterDto = {
+    session: {
+      id: 'session-1',
+      groupId: 'group-1',
+      groupName: 'مجموعة الأوائل - أولى ثانوي',
+      scheduleId: 'sched-1',
+      occurrenceKey: 'sched-1_2026-09-18',
+      scheduledDate: '2026-09-18',
+      scheduledStartTime: '14:00',
+      effectiveDate: '2026-09-18',
+      effectiveStartTime: '14:00',
+      durationMinutes: 90,
+      status: 'SCHEDULED',
+      cancellationReason: null,
+      rescheduleReason: null,
+      notes: null,
+      rescheduledAt: null,
+      createdAt: '2026-09-01T00:00:00Z',
+      updatedAt: '2026-09-01T00:00:00Z',
+    },
+    groupName: 'مجموعة الأوائل - أولى ثانوي',
+    roster: [mockRosterItem1, mockRosterItem2, mockRosterItem3],
+    summary: {
+      totalStudents: 3,
+      present: 1,
+      late: 1,
+      absent: 0,
+      excused: 0,
+      unmarked: 1,
+    },
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     useAuthStore.setState({
@@ -79,40 +112,14 @@ describe('AttendancePage, Roster & Summary Suite', () => {
       },
     });
 
+    queryClient.setQueryData(attendanceKeys.roster('session-1'), mockRosterPayload);
+
     (global as any).window = (global as any).window || {};
     (global as any).window.tibyan = {
       attendance: {
         getRoster: vi.fn().mockResolvedValue({
           success: true,
-          data: {
-            session: {
-              id: 'session-1',
-              groupId: 'group-1',
-              scheduleId: 'sched-1',
-              occurrenceKey: 'sched-1_2026-09-18',
-              scheduledDate: '2026-09-18',
-              scheduledStartTime: '14:00',
-              effectiveDate: '2026-09-18',
-              effectiveStartTime: '14:00',
-              durationMinutes: 90,
-              status: 'SCHEDULED',
-              cancellationReason: null,
-              notes: null,
-              rescheduledAt: null,
-              createdAt: '2026-09-01T00:00:00Z',
-              updatedAt: '2026-09-01T00:00:00Z',
-            },
-            groupName: 'مجموعة الأوائل - أولى ثانوي',
-            roster: [mockRosterItem1, mockRosterItem2, mockRosterItem3],
-            summary: {
-              totalStudents: 3,
-              present: 1,
-              late: 1,
-              absent: 0,
-              excused: 0,
-              unmarked: 1,
-            },
-          },
+          data: mockRosterPayload,
         }),
         record: vi.fn().mockResolvedValue({ success: true, data: {} }),
         batchRecord: vi.fn().mockResolvedValue({ success: true, data: [] }),
@@ -209,7 +216,7 @@ describe('AttendancePage, Roster & Summary Suite', () => {
     expect(html).toContain('تحديد الكل كـ حاضر');
   });
 
-  it('renders AttendancePage with header and action buttons', () => {
+  it('renders Gate 1 allowed actions and does not expose Camera Gate 2 or Parent Follow-Up Gate 3', () => {
     const html = renderToStaticMarkup(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={['/attendance?sessionId=session-1']}>
@@ -221,7 +228,105 @@ describe('AttendancePage, Roster & Summary Suite', () => {
     expect(html).toContain('تسجيل الحضور');
     expect(html).toContain('الماسح نشط');
     expect(html).toContain('إنهاء الحصة');
-    expect(html).toContain('متابعة الغياب');
     expect(html).toContain('data-testid="page-attendance"');
+
+    // Future gate controls MUST NOT be exposed in Gate 1
+    expect(html).not.toContain('btn-open-camera-scanner');
+    expect(html).not.toContain('ماسح الكاميرا');
+    expect(html).not.toContain('btn-open-followup-drawer');
+    expect(html).not.toContain('متابعة الغياب');
+  });
+
+  it('explicit valid sessionId + roster renders active session context and never renders no-session message', () => {
+    // Simulate dashboard having zero classes today, while an explicit session is loaded
+    (global as any).window.tibyan.dashboard.getToday = vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        currentDate: '2026-09-18',
+        weekdayArabic: 'الجمعة',
+        classes: [],
+        totalStudentsExpectedToday: 0,
+        activeGroupsCount: 0,
+        totalEnrolledStudents: 0,
+        needsAttention: [],
+      },
+    });
+
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/attendance?sessionId=session-1']}>
+          <AttendancePage />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    // Must never show the contradictory no-session banner when session is loaded
+    expect(html).not.toContain('لا توجد حصص مجدولة لليوم في جدول المجموعات.');
+    expect(html).toContain('مجموعة الأوائل - أولى ثانوي');
+    expect(html).toContain('14:00');
+    expect(html).toContain('90 دقيقة');
+    expect(html).toContain('3'); // 3 students
+  });
+
+  it('renders no-session message only when there is truly no available session', () => {
+    (global as any).window.tibyan.dashboard.getToday = vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        currentDate: '2026-09-18',
+        weekdayArabic: 'الجمعة',
+        classes: [],
+        totalStudentsExpectedToday: 0,
+        activeGroupsCount: 0,
+        totalEnrolledStudents: 0,
+        needsAttention: [],
+      },
+    });
+
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/attendance']}>
+          <AttendancePage />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(html).toContain('لا توجد حصص مجدولة لليوم في جدول المجموعات.');
+  });
+
+  it('session context remains correct after query refresh', () => {
+    // Initial state with active session
+    queryClient.setQueryData(attendanceKeys.roster('session-1'), mockRosterPayload);
+
+    let html = renderToStaticMarkup(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/attendance?sessionId=session-1']}>
+          <AttendancePage />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    expect(html).toContain('مجموعة الأوائل - أولى ثانوي');
+
+    // Simulate query refresh / data update with new counts
+    const updatedPayload: SessionAttendanceRosterDto = {
+      ...mockRosterPayload,
+      summary: {
+        ...mockRosterPayload.summary,
+        present: 2,
+        unmarked: 0,
+      },
+    };
+    queryClient.setQueryData(attendanceKeys.roster('session-1'), updatedPayload);
+
+    html = renderToStaticMarkup(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/attendance?sessionId=session-1']}>
+          <AttendancePage />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    expect(html).toContain('مجموعة الأوائل - أولى ثانوي');
+    expect(html).toContain('14:00');
+    expect(html).not.toContain('لا توجد حصص مجدولة لليوم في جدول المجموعات.');
   });
 });
