@@ -410,11 +410,47 @@
       "commit": "6e61eac",
       "type": "FIX",
       "message": "fix(attendance): harden Task 18 validation, projections, and media safety"
+    },
+    {
+      "task": "DYNAMIC_UI",
+      "commit": "65b405e",
+      "type": "DOCS",
+      "message": "docs(ui): define Tibyan dynamic island redesign"
+    },
+    {
+      "task": "DYNAMIC_UI",
+      "commit": "f5d55e1",
+      "type": "FEAT",
+      "message": "feat(design-system): add dynamic island surface, motion, and shadow tokens"
+    },
+    {
+      "task": "DYNAMIC_UI",
+      "commit": "4a8e6a9",
+      "type": "FEAT",
+      "message": "feat(desktop): implement dynamic island navigation with gliding capsule indicator"
+    },
+    {
+      "task": "DYNAMIC_UI",
+      "commit": "70dcb4f",
+      "type": "FEAT",
+      "message": "feat(desktop): implement dynamic island context bar and system controls cluster"
+    },
+    {
+      "task": "DYNAMIC_UI",
+      "commit": "c185caf",
+      "type": "FEAT",
+      "message": "feat(desktop): integrate dynamic island shell and open workspace stage"
+    },
+    {
+      "task": "DYNAMIC_UI",
+      "commit": "512e22f",
+      "type": "REFACTOR",
+      "message": "refactor(desktop): modernize page surfaces and data layouts for dynamic shell"
     }
   ],
   "testBaseline": {
-    "totalTestFiles": 24,
-    "totalTests": 545,
+    "totalTestFiles": 26,
+    "totalTests": 553,
     "e2eSmokeTests": 1,
     "packages": {
       "@tibyan/contracts": {
@@ -431,11 +467,11 @@
       },
       "@tibyan/design-system": {
         "testFiles": 1,
-        "testsPassed": 29
+        "testsPassed": 31
       },
       "@tibyan/desktop": {
-        "testFiles": 10,
-        "testsPassed": 210
+        "testFiles": 12,
+        "testsPassed": 216
       }
     },
     "typecheckErrors": 0,
