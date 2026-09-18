@@ -14,10 +14,10 @@
     "phaseName": "Foundation & Desktop Core",
     "totalTasks": 17
   },
-  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
   "nextTask": {
-    "taskNumber": 15,
-    "taskName": "Real-Data Today Dashboard UI",
+    "taskNumber": 16,
+    "taskName": "Settings, Academic-Year Switcher, Assistant Management & Backup Tab",
     "isStarted": false
   },
   "taskStatus": {
@@ -35,8 +35,8 @@
     "12": "COMPLETE",
     "13": "COMPLETE",
     "14": "COMPLETE",
-    "15": "NOT_STARTED",
-    "16": "PENDING",
+    "15": "COMPLETE",
+    "16": "NOT_STARTED",
     "17": "PENDING"
   },
   "stack": {
@@ -378,11 +378,17 @@
       "sha": "3a05971",
       "type": "hardening",
       "message": "fix(desktop): harden group lifecycle permissions and cache coherence"
+    },
+    {
+      "task": 15,
+      "sha": "c9d7ec1",
+      "type": "base",
+      "message": "feat(desktop): build and harden real-data Today Dashboard UI"
     }
   ],
   "testBaseline": {
-    "totalTestFiles": 20,
-    "totalTests": 439,
+    "totalTestFiles": 21,
+    "totalTests": 463,
     "packages": {
       "@tibyan/contracts": {
         "testFiles": 1,
@@ -401,8 +407,8 @@
         "testsPassed": 29
       },
       "@tibyan/desktop": {
-        "testFiles": 7,
-        "testsPassed": 147
+        "testFiles": 8,
+        "testsPassed": 171
       }
     },
     "typecheckErrors": 0,
@@ -412,11 +418,6 @@
     "workingTreeClean": true
   },
   "remainingTasks": [
-    {
-      "task": 15,
-      "title": "Real-Data Today Dashboard UI",
-      "scope": "TodayPage, ClassScheduleCard, NeedsAttentionCard, useDashboard hook"
-    },
     {
       "task": 16,
       "title": "Settings, Academic-Year Switcher, Assistant Management & Backup Tab",

@@ -5,10 +5,10 @@
 > **Target Audience:** Incoming Autonomous AI Engineering Agents  
 > **Approved Architecture Version:** `v2.1` (Final Alignment)  
 > **Current Project Phase:** Phase 1 — Foundation & Desktop Core  
-> **Tasks Completed:** Tasks 1 through 13 inclusive (Original commit: `a88be7f`, Hardening commit: `34169ba`)  
-> **Immediate Next Task:** **Task 14 — Group Management UI, Enrollment Picker & Reschedule Modal**  
-> **Task 14 Status:** **NOT STARTED** (Zero Task 14 code has been implemented)  
-> **Regression Test Baseline:** 19 test files, 415 passing tests across 5 packages  
+> **Tasks Completed:** Tasks 1 through 15 inclusive (Task 14 code: `5b0c0ad`, hardening: `3a05971`, Task 15 code: `c9d7ec1`)  
+> **Immediate Next Task:** **Task 16 — Settings, Academic-Year Switcher, Assistant Management & Backup Tab**  
+> **Task 16 Status:** **NOT STARTED** (Zero Task 16 code has been implemented)  
+> **Regression Test Baseline:** 21 test files, 463 passing tests across 5 packages  
 > **Official Logo SHA-256:** `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`  
 
 ---
@@ -21,9 +21,10 @@ Welcome, agent. This document is the **single canonical, durable, and authoritat
 1. **Inspect Actual Source Before Changing Architecture:** Do not trust memory or assume conventions. Before modifying any behavior, inspect the actual source code, migration files, and active tests.
 2. **Current Source Code Trumps Stale Walkthroughs:** If an older plan document or early design sketch contradicts the current production TypeScript files or latest database migrations in `packages/`, the **current production code and migration journals are authoritative**. Report any discrepancies before proposing architectural changes.
 3. **Architecture is v2.1:** All development conforms strictly to the revised v2.1 architectural alignments detailed in [TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md](file:///F:/tebyan/TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md).
-4. **Tasks 1 through 13 are COMPLETE:** All foundation, dual-database, domain core services (auth, student, group, session, backup, dashboard), design system, Electron shell/wizard, PIN login screen, and student management UI are built, fully tested, and hardened up to commit `34169ba` (Original: `a88be7f`).
-5. **Task 14 Has NOT Started:** Do not assume Task 14 is underway. Task 14 is the Group Management UI, Enrollment Picker & Reschedule Modal.
+4. **Tasks 1 through 15 are COMPLETE:** All foundation, dual-database, domain core services (auth, student, group, session, backup, dashboard), design system, Electron shell/wizard, PIN login screen, student management UI, group management UI, and real-data Today Dashboard UI are built, fully tested, and hardened up to commit `c9d7ec1`.
+5. **Task 16 Has NOT Started:** Do not assume Task 16 is underway. Task 16 is Settings, Academic-Year Switcher, Assistant Management & Backup Tab.
 6. **One Task at a Time:** Always follow the strict workflow: understand requirements, inspect target files, formulate an implementation plan, obtain user approval, execute, verify against regression tests, and halt for review. Never batch multiple tasks.
+7. **Explicit Planning Approval Required Before Execution:** Do not treat creation of an implementation plan as approval to execute it. Stop after planning and wait for an explicit user message approving execution before modifying production code.
 
 ---
 
@@ -420,7 +421,7 @@ The onboarding flow was implemented in Task 11 (`a6c0d04`, hardened in `145e0d3`
 
 ---
 
-## 18. Completed Task Ledger (Tasks 1–13)
+## 18. Completed Task Ledger (Tasks 1–15)
 
 All commits have been extracted directly from the live Git log:
 
@@ -440,6 +441,7 @@ All commits have been extracted directly from the live Git log:
 | **Task 12** | 4-Digit PIN Auth Screen & Session Store | COMPLETE | `f79c8a3` | — | UserCard, LoginScreen with account-scoped cooldown and absolute deadline derivation, safe LoginUserDto projection, RootLayout splash/retry boot, cross-user cache isolation, immediate PIN wipe. |
 | **Task 13** | Student Management UI | COMPLETE | `a88be7f` | `34169ba` | StudentsPage directory with search/filters, StudentCreateModal with independent dimensions and phone validation, StudentProfilePage, StudentNotesView with distinct tag badges, opaque photo token selection, custom `tibyan-media://` protocol. |
 | **Task 14** | Group Management UI, Enrollment Picker & Reschedule Modal | COMPLETE | `5b0c0ad` | `3a05971` | Real groups directory, multi-slot schedule editor with duplicate check, student enrollment modal with fee overrides, single-session reschedule modal, permission boundaries and dashboard cache coherence hardening. |
+| **Task 15** | Real-Data Today Dashboard UI | COMPLETE | `c9d7ec1` | — | Real-data Today Dashboard connecting to `getToday()`, compact quick stats strip, ClassScheduleCard with historical rescheduled callout, NeedsAttentionCard with STUDENTS_READ permission isolation, dead TodayPlaceholder removal, student mutation cache coherence, zero session materialization calls. |
 
 ---
 
@@ -447,55 +449,56 @@ All commits have been extracted directly from the live Git log:
 
 The repository has been empirically verified with zero failures across all packages:
 
-- **Vitest Unit & Integration Tests (20 files, 439 tests):**
+- **Vitest Unit & Integration Tests (21 files, 463 tests):**
   - `@tibyan/contracts`: 1 test file, **42 passed**
   - `@tibyan/db`: 1 test file, **25 passed**
   - `@tibyan/core`: 10 test files, **196 passed**
   - `@tibyan/design-system`: 1 test file, **29 passed**
-  - `@tibyan/desktop`: 7 test files, **147 passed**
-  - **Monorepo Total:** **439 tests passed (0 failed)**
+  - `@tibyan/desktop`: 8 test files, **171 passed**
+  - **Monorepo Total:** **463 tests passed (0 failed)**
 - **TypeScript Typecheck (`pnpm -r typecheck`):** **0 errors** across all 5 workspace projects.
 - **Production Desktop Build (`pnpm --filter @tibyan/desktop build`):** **0 errors**, full Vite and Electron bundles built.
 - **Database Schema Drift (`pnpm --filter @tibyan/db db:generate`):** **Zero schema drift** ("No schema changes, nothing to migrate 😴").
 - **Official Logo Integrity:** SHA-256 is exactly `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`.
 - **Lint Scripts:** Package-level lint scripts are currently unconfigured in `package.json` (as expected).
-- **Working Tree:** Clean at Task 14 hardening commit `3a05971`.
+- **Working Tree:** Clean at Task 15 code commit `c9d7ec1`.
 
 ---
 
-## 20. Remaining Phase 1 Tasks (Tasks 15–17)
+## 20. Remaining Phase 1 Tasks (Tasks 16–17)
 
 | Task # | Task Name | Status | Primary Responsibilities |
 |---|---|---|---|
-| **Task 15** | Real-Data Today Dashboard UI | **NEXT** | Today's scheduled/rescheduled classes using live SQLite data, quick stats, `NEEDS_FOLLOW_UP` attention card. |
-| **Task 16** | Settings, Academic Year Switcher & Backup Tab | PENDING | Academic year manager (create/switch), user & assistant account management, manual backup trigger & status view. |
+| **Task 16** | Settings, Academic Year Switcher & Backup Tab | **NEXT** | Academic year manager (create/switch), user & assistant account management, manual backup trigger & status view. |
 | **Task 17** | Windows Packaging, Playwright Smoke Tests & Hardening | PENDING | End-to-end smoke tests against packaged NSIS binary, ASAR native binary verification, release hardening. |
 
 ---
 
-## 21. Task 15 Starting Context
+## 21. Task 16 Starting Context
 
-Task 15 is the **immediate next task** to execute.
+Task 16 is the **immediate next task** to execute.
 
 > [!IMPORTANT]
-> **Task 15 is NOT STARTED.** Zero Task 15 code has been written. Await explicit user approval of the Task 15 plan before writing any Task 15 code.
+> **Task 16 is NOT STARTED.** Zero Task 16 code has been written. Await explicit user approval of the Task 16 plan before writing any Task 16 code.
 
 ### 21.1 Task Objective
-Build the Real-Data Today Dashboard UI:
-1. **Today Dashboard View (`TodayPage.tsx`):** Teacher's primary daily command center displaying today's scheduled and rescheduled classes.
-2. **Class Schedule Card (`ClassScheduleCard.tsx`):** Real-time class session cards sorted by `effectiveStartTime` with occurrence badges (rescheduled, cancelled, active).
-3. **Needs Attention Card (`NeedsAttentionCard.tsx`):** Direct action alerts derived exclusively from `NEEDS_FOLLOW_UP` student notes.
-4. **Dashboard Hook (`useDashboard.ts`):** TanStack Query hook interfacing with `window.tibyan.dashboard.getTodaySummary()`.
-5. **Unit & Component Tests (`TodayPage.test.tsx`):** Vitest test suite covering dashboard metrics, schedule rendering, and follow-up flags.
+Build the Settings Screen, Academic-Year Switcher, Assistant Management & Backup Tab:
+1. **Settings View (`SettingsPage.tsx`):** Tabbed administrative interface replacing `SettingsPlaceholder`.
+2. **Academic Year Manager (`AcademicYearManager.tsx`):** List all academic years, create new academic year with atomic on-disk SQLite creation, switch active academic year safely.
+3. **Assistant Management Tab (`UserManagementTab.tsx`):** List assistants, create assistant with 4-digit PIN and role/permissions, toggle status (ACTIVE/INACTIVE), reset assistant PIN, update granular permissions (`STUDENTS_READ`, `STUDENTS_WRITE`, `GROUPS_READ`, `GROUPS_WRITE`, etc.).
+4. **Backup Management Tab (`BackupSettingsTab.tsx`):** Inspect current backup engine status, list backup archive records, trigger on-demand snapshot backup.
+5. **Theme & System Preferences:** Toggle Light / Dark / System theme preference using existing design tokens.
+6. **Unit & Component Tests (`SettingsPage.test.tsx`):** Comprehensive Vitest suite covering permissions, tab navigation, academic year creation/switching, assistant management, and backup triggering.
 
 ### 21.2 Available IPC Integration Surface:
-- `window.tibyan.dashboard`: `getTodaySummary(date?)`
+- `window.tibyan.system`: `getSettings()`, `getSetupState()`, `updateTheme()`, `listAcademicYears()`, `createAcademicYear()`, `switchAcademicYear()`
+- `window.tibyan.auth`: `createUser()`, `updatePermissions()`, `changeUserStatus()`, `resetPin()`
+- `window.tibyan.backup`: `getStatus()`, `trigger()`, `listRecords()`
 
-### 21.3 Key Invariants for Task 15:
-- **Strictly Read-Only:** Dashboard queries perform zero mutations and trigger zero session materializations.
-- **Rescheduled Session Visuals:** Clear visual distinction for sessions whose effective date/time differs from scheduled date/time.
-- **Strict Layer Isolation:** Renderer interacts exclusively via typed IPC methods.
-- **Do NOT Start Task 16:** Complete Task 15 in isolation and await user review before proceeding.
+### 21.3 Key Invariants for Task 16:
+- **Owner-Only Security Boundaries:** Switching academic years, creating users, and triggering manual backups require `OWNER` role or `SETTINGS_WRITE` permission where specified by Core.
+- **Atomic Year Switching:** Switching active academic year unmounts the previous academic SQLite database and mounts the new one safely without tearing down system database connections.
+- **Do NOT Start Task 17:** Complete Task 16 in isolation and await explicit user review before proceeding.
 
 ---
 
