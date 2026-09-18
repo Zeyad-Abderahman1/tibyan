@@ -36,6 +36,13 @@
       "when": 1789747815359,
       "tag": "0004_cold_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1789759456150,
+      "tag": "0005_rainy_silvermane",
+      "breakpoints": true
     }
   ]
 }

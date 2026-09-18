@@ -95,6 +95,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0002_glamorous_sunspot',
       '0003_neat_krista_starr',
       '0004_cold_bullseye',
+      '0005_rainy_silvermane',
     ]);
 
     expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers']);
@@ -104,6 +105,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0002_glamorous_sunspot',
       '0003_neat_krista_starr',
       '0004_cold_bullseye',
+      '0005_rainy_silvermane',
     ]);
 
     sysRaw.close();
@@ -132,6 +134,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0002_glamorous_sunspot',
       '0003_neat_krista_starr',
       '0004_cold_bullseye',
+      '0005_rainy_silvermane',
     ]);
 
     sysRaw.close();
@@ -971,8 +974,8 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     // 3. Run the normal migrator
     const appliedDuringUpgrade = migrateAcademicDatabase(rawDb);
 
-    // 4. Verify 0002, 0003, and 0004 are applied
-    expect(appliedDuringUpgrade).toEqual(['0002_glamorous_sunspot', '0003_neat_krista_starr', '0004_cold_bullseye']);
+    // 4. Verify 0002, 0003, 0004, and 0005 are applied
+    expect(appliedDuringUpgrade).toEqual(['0002_glamorous_sunspot', '0003_neat_krista_starr', '0004_cold_bullseye', '0005_rainy_silvermane']);
     const colsAfter = rawDb.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
     expect(colsAfter.map((c) => c.name)).toContain('cancellation_reason');
 
@@ -1003,6 +1006,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0002_glamorous_sunspot',
       '0003_neat_krista_starr',
       '0004_cold_bullseye',
+      '0005_rainy_silvermane',
     ]);
     const migrationRecords = rawDb
       .prepare("SELECT COUNT(*) as count FROM __tibyan_migrations WHERE id = '0002_glamorous_sunspot'")
@@ -1273,6 +1277,99 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
 
     // 6. Valid entries succeed
     expect(() => insertRaw('PRESENT', null)).not.toThrow();
+  });
+
+  it('Migration 0005 creates attendance_follow_ups with foreign key, unique constraint, and status CHECK', () => {
+    const acadConn = openAcademicDatabase('2026-2027', { filePath: ':memory:' });
+    migrateAcademicDatabase(acadConn.raw);
+
+    const studentRepo = new StudentRepository(acadConn.db);
+    const groupRepo = new GroupRepository(acadConn.db);
+    const sessionRepo = new SessionRepository(acadConn.db);
+
+    const student = studentRepo.create({
+      id: 'std-fu-1',
+      studentCode: 'STU-FU-1',
+      fullName: 'طالب المتابعة',
+      qrToken: 'qr-fu-1',
+      barcodeValue: 'bar-fu-1',
+      educationSystem: 'GENERAL',
+      gradeLevel: 'SEC_1',
+      languageTrack: 'ARABIC',
+      guardianPhone: '01011111111',
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const group = groupRepo.create({
+      id: 'grp-fu-1',
+      name: 'مجموعة المتابعة',
+      educationSystem: 'GENERAL',
+      gradeLevel: 'SEC_1',
+      languageTrack: 'ARABIC',
+      defaultPaymentType: 'PER_SESSION',
+      defaultPaymentAmount: 50,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const session = sessionRepo.create({
+      id: 'sess-fu-1',
+      groupId: group.id,
+      scheduleId: null,
+      occurrenceKey: 'grp-fu-1_2026-10-05_16:00',
+      scheduledDate: '2026-10-05',
+      scheduledStartTime: '16:00',
+      effectiveDate: '2026-10-05',
+      effectiveStartTime: '16:00',
+      durationMinutes: 90,
+      status: 'SCHEDULED',
+      rescheduleReason: null,
+      rescheduledAt: null,
+      cancellationReason: null,
+      notes: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    // Create an attendance record
+    const recordId = crypto.randomUUID();
+    acadConn.raw.prepare(`
+      INSERT INTO attendance_records (id, session_id, student_id, status, arrival_time, recorded_at, updated_at)
+      VALUES (?, ?, ?, 'ABSENT', NULL, ?, ?)
+    `).run(recordId, session.id, student.id, new Date().toISOString(), new Date().toISOString());
+
+    // 1. Valid follow up insert succeeds
+    const followUpId = crypto.randomUUID();
+    acadConn.raw.prepare(`
+      INSERT INTO attendance_follow_ups (id, attendance_record_id, contact_status, note, contacted_at, contacted_by_user_id, created_at, updated_at)
+      VALUES (?, ?, 'UNCONTACTED', NULL, NULL, NULL, ?, ?)
+    `).run(followUpId, recordId, new Date().toISOString(), new Date().toISOString());
+
+    // 2. Duplicate follow up for the same attendance_record_id fails unique constraint
+    expect(() => {
+      acadConn.raw.prepare(`
+        INSERT INTO attendance_follow_ups (id, attendance_record_id, contact_status, note, contacted_at, contacted_by_user_id, created_at, updated_at)
+        VALUES (?, ?, 'CONTACTED', 'تم الاتصال', ?, ?, ?, ?)
+      `).run(crypto.randomUUID(), recordId, new Date().toISOString(), crypto.randomUUID(), new Date().toISOString(), new Date().toISOString());
+    }).toThrow(/UNIQUE constraint failed/i);
+
+    // 3. Invalid contact_status fails CHECK constraint
+    expect(() => {
+      acadConn.raw.prepare(`
+        INSERT INTO attendance_follow_ups (id, attendance_record_id, contact_status, created_at, updated_at)
+        VALUES (?, ?, 'INVALID_STATUS', ?, ?)
+      `).run(crypto.randomUUID(), crypto.randomUUID(), new Date().toISOString(), new Date().toISOString());
+    }).toThrow(/CHECK constraint failed/i);
+
+    // 4. Non-existent attendance_record_id fails FOREIGN KEY constraint
+    expect(() => {
+      acadConn.raw.prepare(`
+        INSERT INTO attendance_follow_ups (id, attendance_record_id, contact_status, created_at, updated_at)
+        VALUES (?, ?, 'UNCONTACTED', ?, ?)
+      `).run(crypto.randomUUID(), 'non-existent-record-id', new Date().toISOString(), new Date().toISOString());
+    }).toThrow(/FOREIGN KEY constraint failed/i);
   });
 });
 

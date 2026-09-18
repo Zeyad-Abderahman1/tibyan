@@ -63,10 +63,17 @@ export interface SetupStateDto {
   activeAcademicYearName: string | null;
 }
 
-export const EGYPT_PHONE_REGEX = /^01[0125]\d{8}$/;
+import { EGYPTIAN_PHONE_REGEX, normalizeEgyptianPhone } from '../common/regex.js';
 
 export const OpenWhatsAppInputSchema = z.object({
-  phone: z.string().trim().regex(EGYPT_PHONE_REGEX, 'Invalid Egyptian phone number (e.g. 01012345678)'),
+  phone: z
+    .string()
+    .trim()
+    .regex(
+      EGYPTIAN_PHONE_REGEX,
+      'Invalid Egyptian mobile number. Must be 11 digits starting with 010, 011, 012, or 015 (e.g. 01012345678 or +201012345678)'
+    )
+    .transform((val) => normalizeEgyptianPhone(val)),
   message: z.string().min(1, 'Message cannot be empty').max(2000, 'Message too long'),
 });
 export type OpenWhatsAppInput = z.infer<typeof OpenWhatsAppInputSchema>;

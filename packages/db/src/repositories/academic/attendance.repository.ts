@@ -1,14 +1,15 @@
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { type AcademicDrizzle, getAcademicDatabase } from '../../connection.js';
 import {
   attendanceRecords,
+  attendanceFollowUps,
   sessions,
   students,
   groups,
   type AttendanceRecordRow,
   type NewAttendanceRecordRow,
 } from '../../schema/academic.schema.js';
-import { AttendanceStatus } from '@tibyan/contracts';
+import { AttendanceStatus, FollowUpContactStatus } from '@tibyan/contracts';
 
 export interface AttendanceDetailRow {
   id: string;
@@ -25,6 +26,10 @@ export interface AttendanceDetailRow {
   recordedByUserId: string | null;
   recordedAt: string;
   updatedAt: string;
+  contactStatus: FollowUpContactStatus;
+  contactNote: string | null;
+  contactedAt: string | null;
+  contactedByUserId: string | null;
 }
 
 export class AttendanceRepository {
@@ -116,11 +121,16 @@ export class AttendanceRepository {
         recordedByUserId: attendanceRecords.recordedByUserId,
         recordedAt: attendanceRecords.recordedAt,
         updatedAt: attendanceRecords.updatedAt,
+        contactStatus: sql<FollowUpContactStatus>`COALESCE(${attendanceFollowUps.contactStatus}, 'UNCONTACTED')`,
+        contactNote: attendanceFollowUps.note,
+        contactedAt: attendanceFollowUps.contactedAt,
+        contactedByUserId: attendanceFollowUps.contactedByUserId,
       })
       .from(attendanceRecords)
       .innerJoin(sessions, eq(attendanceRecords.sessionId, sessions.id))
       .innerJoin(students, eq(attendanceRecords.studentId, students.id))
       .innerJoin(groups, eq(sessions.groupId, groups.id))
+      .leftJoin(attendanceFollowUps, eq(attendanceRecords.id, attendanceFollowUps.attendanceRecordId))
       .where(eq(sessions.effectiveDate, date))
       .all();
 

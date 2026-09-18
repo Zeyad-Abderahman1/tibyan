@@ -36,6 +36,10 @@ import {
   BatchRecordAttendanceInputSchema,
   CompleteSessionInputSchema,
   EndOfDayFollowUpDtoSchema,
+  FollowUpContactStatusSchema,
+  AttendanceFollowUpDtoSchema,
+  UpdateFollowUpStatusInputSchema,
+  OpenWhatsAppInputSchema,
   IPC_CHANNELS,
 } from '../src/index.js';
 
@@ -814,7 +818,73 @@ describe('Contracts — Attendance Enums & DTOs', () => {
     expect(IPC_CHANNELS.ATTENDANCE_RECORD).toBe('attendance:record');
     expect(IPC_CHANNELS.ATTENDANCE_BATCH_RECORD).toBe('attendance:batchRecord');
     expect(IPC_CHANNELS.ATTENDANCE_GET_END_OF_DAY).toBe('attendance:getEndOfDay');
+    expect(IPC_CHANNELS.ATTENDANCE_UPDATE_FOLLOW_UP_STATUS).toBe('attendance:updateFollowUpStatus');
     expect(IPC_CHANNELS.SESSIONS_COMPLETE).toBe('sessions:complete');
+    expect(IPC_CHANNELS.SYSTEM_OPEN_WHATSAPP).toBe('system:openWhatsApp');
+  });
+
+  it('validates FollowUpContactStatusSchema', () => {
+    expect(FollowUpContactStatusSchema.parse('UNCONTACTED')).toBe('UNCONTACTED');
+    expect(FollowUpContactStatusSchema.parse('CONTACTED')).toBe('CONTACTED');
+    expect(FollowUpContactStatusSchema.parse('UNREACHABLE')).toBe('UNREACHABLE');
+    expect(() => FollowUpContactStatusSchema.parse('UNKNOWN')).toThrow();
+    expect(() => FollowUpContactStatusSchema.parse('')).toThrow();
+  });
+
+  it('validates AttendanceFollowUpDtoSchema and UpdateFollowUpStatusInputSchema', () => {
+    const input = UpdateFollowUpStatusInputSchema.parse({
+      attendanceRecordId: VALID_UUID,
+      contactStatus: 'CONTACTED',
+      note: 'تم التواصل مع ولي الأمر وأكد حضور الطالب غداً',
+    });
+    expect(input.contactStatus).toBe('CONTACTED');
+    expect(input.note).toContain('تم التواصل');
+
+    const dto = AttendanceFollowUpDtoSchema.parse({
+      id: VALID_UUID,
+      attendanceRecordId: VALID_UUID,
+      contactStatus: 'CONTACTED',
+      note: 'تم التواصل',
+      contactedAt: new Date().toISOString(),
+      contactedByUserId: VALID_UUID,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    expect(dto.contactStatus).toBe('CONTACTED');
+  });
+
+  it('validates OpenWhatsAppInputSchema strictly with Egyptian phone normalization and length limits', () => {
+    // Local 11-digit format
+    const parsedLocal = OpenWhatsAppInputSchema.parse({
+      phone: '01012345678',
+      message: 'رسالة تجريبية',
+    });
+    expect(parsedLocal.phone).toBe('01012345678');
+
+    // International +20 format normalized
+    const parsedIntl = OpenWhatsAppInputSchema.parse({
+      phone: '+201123456789',
+      message: 'رسالة تجريبية',
+    });
+    expect(parsedIntl.phone).toBe('01123456789');
+
+    // Invalid network prefix 019
+    expect(() => OpenWhatsAppInputSchema.parse({
+      phone: '01912345678',
+      message: 'رسالة',
+    })).toThrow();
+
+    // Malformed letters
+    expect(() => OpenWhatsAppInputSchema.parse({
+      phone: '0101234567a',
+      message: 'رسالة',
+    })).toThrow();
+
+    // Empty message
+    expect(() => OpenWhatsAppInputSchema.parse({
+      phone: '01012345678',
+      message: '',
+    })).toThrow();
   });
 });
 

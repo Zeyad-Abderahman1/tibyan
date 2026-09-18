@@ -45,6 +45,7 @@ export const IPC_CHANNELS = {
   ATTENDANCE_RECORD: 'attendance:record',
   ATTENDANCE_BATCH_RECORD: 'attendance:batchRecord',
   ATTENDANCE_GET_END_OF_DAY: 'attendance:getEndOfDay',
+  ATTENDANCE_UPDATE_FOLLOW_UP_STATUS: 'attendance:updateFollowUpStatus',
 
   // Dashboard
   DASHBOARD_GET_TODAY: 'dashboard:getToday',

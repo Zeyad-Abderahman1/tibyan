@@ -310,6 +310,25 @@ export const ACADEMIC_MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS \`idx_attendance_student\` ON \`attendance_records\` (\`student_id\`);
     `,
   },
+  {
+    id: '0005_rainy_silvermane',
+    sql: `
+      CREATE TABLE IF NOT EXISTS \`attendance_follow_ups\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`attendance_record_id\` text NOT NULL,
+        \`contact_status\` text DEFAULT 'UNCONTACTED' NOT NULL,
+        \`note\` text,
+        \`contacted_at\` text,
+        \`contacted_by_user_id\` text,
+        \`created_at\` text NOT NULL,
+        \`updated_at\` text NOT NULL,
+        FOREIGN KEY (\`attendance_record_id\`) REFERENCES \`attendance_records\`(\`id\`) ON UPDATE no action ON DELETE restrict,
+        CONSTRAINT "chk_contact_status" CHECK("contact_status" IN ('UNCONTACTED', 'CONTACTED', 'UNREACHABLE'))
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS \`idx_attendance_follow_up_record\` ON \`attendance_follow_ups\` (\`attendance_record_id\`);
+      CREATE INDEX IF NOT EXISTS \`idx_attendance_follow_up_status\` ON \`attendance_follow_ups\` (\`contact_status\`);
+    `,
+  },
 ];
 
 function initMigrationTrackingTable(db: Database.Database): void {

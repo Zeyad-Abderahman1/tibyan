@@ -20,6 +20,7 @@ import {
   Weekday,
   ActorType,
   AttendanceStatus,
+  FollowUpContactStatus,
 } from '@tibyan/contracts';
 
 export const students = sqliteTable(
@@ -218,6 +219,30 @@ export const attendanceRecords = sqliteTable(
   })
 );
 
+export const attendanceFollowUps = sqliteTable(
+  'attendance_follow_ups',
+  {
+    id: text('id').primaryKey(),
+    attendanceRecordId: text('attendance_record_id')
+      .notNull()
+      .references(() => attendanceRecords.id, { onDelete: 'restrict' }),
+    contactStatus: text('contact_status').$type<FollowUpContactStatus>().notNull().default('UNCONTACTED'),
+    note: text('note'),
+    contactedAt: text('contacted_at'), // ISO datetime
+    contactedByUserId: text('contacted_by_user_id'), // Deliberately decoupled from system DB: NO FK
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    chkContactStatus: check(
+      'chk_contact_status',
+      sql`"contact_status" IN ('UNCONTACTED', 'CONTACTED', 'UNREACHABLE')`
+    ),
+    idxAttendanceFollowUpRecord: uniqueIndex('idx_attendance_follow_up_record').on(t.attendanceRecordId),
+    idxAttendanceFollowUpStatus: index('idx_attendance_follow_up_status').on(t.contactStatus),
+  })
+);
+
 export const academicAuditLog = sqliteTable(
   'academic_audit_log',
   {
@@ -257,5 +282,7 @@ export type SessionRow = typeof sessions.$inferSelect;
 export type NewSessionRow = typeof sessions.$inferInsert;
 export type AttendanceRecordRow = typeof attendanceRecords.$inferSelect;
 export type NewAttendanceRecordRow = typeof attendanceRecords.$inferInsert;
+export type AttendanceFollowUpRow = typeof attendanceFollowUps.$inferSelect;
+export type NewAttendanceFollowUpRow = typeof attendanceFollowUps.$inferInsert;
 export type AcademicAuditLogRow = typeof academicAuditLog.$inferSelect;
 export type NewAcademicAuditLogRow = typeof academicAuditLog.$inferInsert;

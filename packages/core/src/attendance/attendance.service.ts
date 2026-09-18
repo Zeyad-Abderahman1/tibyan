@@ -8,9 +8,12 @@ import {
   type CompleteSessionInput,
   type EndOfDayFollowUpDto,
   type EndOfDayFollowUpItemDto,
+  type AttendanceFollowUpDto,
+  type UpdateFollowUpStatusInput,
   type SessionDto,
   RecordAttendanceInputSchema,
   BatchRecordAttendanceInputSchema,
+  UpdateFollowUpStatusInputSchema,
   CalendarDateSchema,
   type PermissionCode,
 } from '@tibyan/contracts';
@@ -18,12 +21,14 @@ import {
   type AcademicDrizzle,
   getAcademicDatabase,
   AttendanceRepository,
+  AttendanceFollowUpRepository,
   SessionRepository,
   GroupRepository,
   EnrollmentRepository,
   StudentRepository,
   AcademicAuditRepository,
   type AttendanceRecordRow,
+  type AttendanceFollowUpRow,
 } from '@tibyan/db';
 import { requirePermission } from '../auth/permissions.js';
 import type { AuthenticatedUser } from '../students/student.service.js';
@@ -41,6 +46,7 @@ export type AttendanceErrorCode =
   | 'INVALID_ARRIVAL_TIME'
   | 'INVALID_PHOTO_PATH'
   | 'PERMISSION_DENIED'
+  | 'ATTENDANCE_RECORD_NOT_FOUND'
   | 'INVALID_INPUT';
 
 export class AttendanceError extends Error {
@@ -57,10 +63,12 @@ export class AttendanceService {
   public readonly enrollmentRepo: EnrollmentRepository;
   public readonly studentRepo: StudentRepository;
   public readonly auditRepo: AcademicAuditRepository;
+  public readonly followUpRepo: AttendanceFollowUpRepository;
   public readonly sessionService: SessionService;
 
   constructor(private db?: AcademicDrizzle) {
     this.attendanceRepo = new AttendanceRepository(this.db);
+    this.followUpRepo = new AttendanceFollowUpRepository(this.db);
     this.sessionRepo = new SessionRepository(this.db);
     this.groupRepo = new GroupRepository(this.db);
     this.enrollmentRepo = new EnrollmentRepository(this.db);
@@ -457,6 +465,7 @@ export class AttendanceService {
       if (d.status === 'ABSENT') {
         totalAbsent++;
         followUps.push({
+          attendanceRecordId: d.id,
           studentId: d.studentId,
           studentName: d.studentName,
           guardianPhone: d.guardianPhone,
@@ -466,11 +475,16 @@ export class AttendanceService {
           sessionDate: d.sessionDate,
           sessionStartTime: d.sessionStartTime,
           whatsappMessage: `السلام عليكم ورحمة الله وبركاته، ولي أمر الطالب/ة ${d.studentName}. نود إحاطتكم بعلم أن الطالب/ة غاب/ت عن حضور حصة اليوم (${d.sessionDate}) لمجموعة ${d.groupName}. يرجى المتابعة لتعويض ما فاته.`,
+          contactStatus: d.contactStatus,
+          contactedAt: d.contactedAt,
+          contactedByUserId: d.contactedByUserId,
+          contactNote: d.contactNote,
         });
       } else if (d.status === 'LATE') {
         totalLate++;
         const timeInfo = d.arrivalTime ? ` (حضر في تمام الساعة ${d.arrivalTime})` : '';
         followUps.push({
+          attendanceRecordId: d.id,
           studentId: d.studentId,
           studentName: d.studentName,
           guardianPhone: d.guardianPhone,
@@ -480,6 +494,10 @@ export class AttendanceService {
           sessionDate: d.sessionDate,
           sessionStartTime: d.sessionStartTime,
           whatsappMessage: `السلام عليكم ورحمة الله وبركاته، ولي أمر الطالب/ة ${d.studentName}. نود إحاطتكم بعلم أن الطالب/ة تأخر/ت عن موعد بدء الحصة لمجموعة ${d.groupName} اليوم (${d.sessionDate})${timeInfo}. نرجو الحرص على الحضور في الموعد المحدد.`,
+          contactStatus: d.contactStatus,
+          contactedAt: d.contactedAt,
+          contactedByUserId: d.contactedByUserId,
+          contactNote: d.contactNote,
         });
       }
     }
@@ -490,6 +508,93 @@ export class AttendanceService {
       totalAbsent,
       totalLate,
       followUps,
+    };
+  }
+
+  /**
+   * Authoritatively updates parent follow-up contact status and notes for an absent/late student.
+   * Atomically records audit trail in academic_audit_log.
+   */
+  async updateFollowUpStatus(
+    input: UpdateFollowUpStatusInput,
+    actor: AnyActor
+  ): Promise<AttendanceFollowUpDto> {
+    this.checkPermission(actor, 'ATTENDANCE_WRITE');
+
+    const validated = UpdateFollowUpStatusInputSchema.parse(input);
+
+    const record = this.attendanceRepo.findById(validated.attendanceRecordId);
+    if (!record) {
+      throw new AttendanceError(
+        'ATTENDANCE_RECORD_NOT_FOUND',
+        `Attendance record not found: ${validated.attendanceRecordId}`
+      );
+    }
+
+    const nowIso = new Date().toISOString();
+    const isSystem = isSystemActor(actor);
+    const actorUserId = isSystem ? null : (actor as AuthenticatedUser).userId;
+
+    const saved = this.client.transaction((tx) => {
+      const followUpRepoTx = new AttendanceFollowUpRepository(tx as any);
+      const auditRepoTx = new AcademicAuditRepository(tx as any);
+
+      const existing = followUpRepoTx.findByAttendanceRecordId(validated.attendanceRecordId);
+      const followUpId = existing ? existing.id : crypto.randomUUID();
+
+      const contactedAt =
+        validated.contactStatus === 'UNCONTACTED'
+          ? null
+          : (existing?.contactedAt ?? nowIso);
+      const contactedByUserId =
+        validated.contactStatus === 'UNCONTACTED'
+          ? null
+          : (existing?.contactedByUserId ?? actorUserId);
+
+      const upserted = followUpRepoTx.upsert({
+        id: followUpId,
+        attendanceRecordId: validated.attendanceRecordId,
+        contactStatus: validated.contactStatus,
+        note: validated.note ?? null,
+        contactedAt,
+        contactedByUserId,
+        createdAt: existing ? existing.createdAt : nowIso,
+        updatedAt: nowIso,
+      });
+
+      auditRepoTx.insert({
+        id: crypto.randomUUID(),
+        actorType: isSystem ? 'SYSTEM' : 'USER',
+        actorUserId,
+        actorNameSnapshot: actor.fullName,
+        action: 'FOLLOW_UP_STATUS_UPDATED',
+        entityType: 'ATTENDANCE_FOLLOW_UP',
+        entityId: upserted.id,
+        beforeJson: existing ? JSON.stringify(this.toAttendanceFollowUpDto(existing)) : null,
+        afterJson: JSON.stringify(this.toAttendanceFollowUpDto(upserted)),
+        metadataJson: JSON.stringify({
+          attendanceRecordId: validated.attendanceRecordId,
+          contactStatus: validated.contactStatus,
+        }),
+        createdAt: nowIso,
+      });
+
+      return upserted;
+    });
+
+    return this.toAttendanceFollowUpDto(saved);
+  }
+
+  private toAttendanceFollowUpDto(row: AttendanceFollowUpRow): AttendanceFollowUpDto {
+    return {
+      id: row.id,
+      attendanceRecordId: row.attendanceRecordId,
+      contactStatus: row.contactStatus,
+      note: row.note,
+      contactedAt: row.contactedAt,
+      contactedByUserId: row.contactedByUserId,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
     };
   }
 

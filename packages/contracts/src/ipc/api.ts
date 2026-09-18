@@ -46,6 +46,8 @@ import {
   BatchRecordAttendanceInput,
   CompleteSessionInput,
   EndOfDayFollowUpDto,
+  AttendanceFollowUpDto,
+  UpdateFollowUpStatusInput,
 } from '../models/attendance.dto.js';
 import { TodayDashboardDto } from '../models/dashboard.dto.js';
 import {
@@ -110,6 +112,7 @@ export interface TibyanApi {
     record(input: RecordAttendanceInput): Promise<IpcResult<AttendanceRecordDto>>;
     batchRecord(input: BatchRecordAttendanceInput): Promise<IpcResult<AttendanceRecordDto[]>>;
     getEndOfDay(date: string): Promise<IpcResult<EndOfDayFollowUpDto>>;
+    updateFollowUpStatus(input: UpdateFollowUpStatusInput): Promise<IpcResult<AttendanceFollowUpDto>>;
   };
   dashboard: {
     getToday(): Promise<IpcResult<TodayDashboardDto>>;

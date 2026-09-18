@@ -737,5 +737,105 @@ describe('Task 18: AttendanceService & Session Attendance Core', () => {
       expect(attendanceList).toHaveLength(0);
     });
   });
+
+  describe('updateFollowUpStatus', () => {
+    it('rejects unauthorized actor lacking ATTENDANCE_WRITE', async () => {
+      const { session, student1 } = createTestFixture();
+      const rec = await attendanceService.recordAttendance(
+        { sessionId: session.id, studentId: student1.id, status: 'ABSENT' },
+        ownerActor
+      );
+
+      const unauthorizedActor: AuthenticatedUser = {
+        userId: crypto.randomUUID(),
+        fullName: 'مساعد غير مصرح',
+        role: 'ASSISTANT',
+        permissions: ['GROUPS_READ'],
+      };
+
+      await expect(
+        attendanceService.updateFollowUpStatus(
+          { attendanceRecordId: rec.id, contactStatus: 'CONTACTED' },
+          unauthorizedActor
+        )
+      ).rejects.toThrow(AttendanceError);
+    });
+
+    it('rejects non-existent attendanceRecordId', async () => {
+      await expect(
+        attendanceService.updateFollowUpStatus(
+          { attendanceRecordId: crypto.randomUUID(), contactStatus: 'CONTACTED' },
+          ownerActor
+        )
+      ).rejects.toThrow(/Attendance record not found/i);
+    });
+
+    it('updates follow up status and note with atomic audit log, and reflects in getEndOfDayFollowUp', async () => {
+      const { session, student1 } = createTestFixture();
+      const rec = await attendanceService.recordAttendance(
+        { sessionId: session.id, studentId: student1.id, status: 'ABSENT' },
+        ownerActor
+      );
+
+      // Initially getEndOfDayFollowUp shows UNCONTACTED
+      const initialFollowUp = await attendanceService.getEndOfDayFollowUp('2026-10-01', ownerActor);
+      const itemBefore = initialFollowUp.followUps.find((f) => f.attendanceRecordId === rec.id)!;
+      expect(itemBefore.contactStatus).toBe('UNCONTACTED');
+      expect(itemBefore.contactedAt).toBeNull();
+
+      // Mutate to CONTACTED
+      const updated = await attendanceService.updateFollowUpStatus(
+        {
+          attendanceRecordId: rec.id,
+          contactStatus: 'CONTACTED',
+          note: 'تم الاتصال بالأم وأفادت بمرض الطالب',
+        },
+        assistantActor
+      );
+
+      expect(updated.contactStatus).toBe('CONTACTED');
+      expect(updated.note).toBe('تم الاتصال بالأم وأفادت بمرض الطالب');
+      expect(updated.contactedAt).toBeDefined();
+      expect(updated.contactedByUserId).toBe(assistantActor.userId);
+
+      // Verify audit log
+      const auditEntries = auditRepo.findByEntity('ATTENDANCE_FOLLOW_UP', updated.id);
+      expect(auditEntries.length).toBeGreaterThanOrEqual(1);
+      expect(auditEntries[0]!.action).toBe('FOLLOW_UP_STATUS_UPDATED');
+      expect(auditEntries[0]!.afterJson).toContain('CONTACTED');
+
+      // Verify subsequent getEndOfDayFollowUp shows updated status and note
+      const followUpAfter = await attendanceService.getEndOfDayFollowUp('2026-10-01', ownerActor);
+      const itemAfter = followUpAfter.followUps.find((f) => f.attendanceRecordId === rec.id)!;
+      expect(itemAfter.contactStatus).toBe('CONTACTED');
+      expect(itemAfter.contactNote).toBe('تم الاتصال بالأم وأفادت بمرض الطالب');
+      expect(itemAfter.contactedAt).toBe(updated.contactedAt);
+      expect(itemAfter.contactedByUserId).toBe(assistantActor.userId);
+    });
+
+    it('rolls back follow up update if audit log fails', async () => {
+      const { session, student1 } = createTestFixture();
+      const rec = await attendanceService.recordAttendance(
+        { sessionId: session.id, studentId: student1.id, status: 'ABSENT' },
+        ownerActor
+      );
+
+      vi.spyOn(AcademicAuditRepository.prototype, 'insert').mockImplementationOnce(() => {
+        throw new Error('SIMULATED_AUDIT_FAILURE');
+      });
+
+      await expect(
+        attendanceService.updateFollowUpStatus(
+          { attendanceRecordId: rec.id, contactStatus: 'CONTACTED' },
+          ownerActor
+        )
+      ).rejects.toThrow('SIMULATED_AUDIT_FAILURE');
+
+      // Verify no follow-up was persisted
+      const followUpAfter = await attendanceService.getEndOfDayFollowUp('2026-10-01', ownerActor);
+      const item = followUpAfter.followUps.find((f) => f.attendanceRecordId === rec.id)!;
+      expect(item.contactStatus).toBe('UNCONTACTED');
+    });
+  });
 });
 

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AttendanceStatusSchema } from '../enums/attendance.js';
+import { AttendanceStatusSchema, FollowUpContactStatusSchema } from '../enums/attendance.js';
 import { SessionDtoSchema } from './session.dto.js';
 import { TIME_HHMM_REGEX } from '../common/regex.js';
 
@@ -123,6 +123,7 @@ export const CompleteSessionInputSchema = z.object({
 export type CompleteSessionInput = z.infer<typeof CompleteSessionInputSchema>;
 
 export const EndOfDayFollowUpItemDtoSchema = z.object({
+  attendanceRecordId: z.string().uuid().optional(),
   studentId: z.string().uuid(),
   studentName: z.string().min(1),
   guardianPhone: z.string().min(1),
@@ -132,6 +133,10 @@ export const EndOfDayFollowUpItemDtoSchema = z.object({
   sessionDate: z.string(),
   sessionStartTime: z.string(),
   whatsappMessage: z.string(),
+  contactStatus: FollowUpContactStatusSchema.default('UNCONTACTED'),
+  contactedAt: z.string().nullable().optional().default(null),
+  contactedByUserId: z.string().nullable().optional().default(null),
+  contactNote: z.string().nullable().optional().default(null),
 });
 export type EndOfDayFollowUpItemDto = z.infer<typeof EndOfDayFollowUpItemDtoSchema>;
 
@@ -143,3 +148,22 @@ export const EndOfDayFollowUpDtoSchema = z.object({
   followUps: z.array(EndOfDayFollowUpItemDtoSchema),
 });
 export type EndOfDayFollowUpDto = z.infer<typeof EndOfDayFollowUpDtoSchema>;
+
+export const AttendanceFollowUpDtoSchema = z.object({
+  id: z.string().uuid(),
+  attendanceRecordId: z.string().uuid(),
+  contactStatus: FollowUpContactStatusSchema,
+  note: z.string().nullable(),
+  contactedAt: z.string().nullable(),
+  contactedByUserId: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type AttendanceFollowUpDto = z.infer<typeof AttendanceFollowUpDtoSchema>;
+
+export const UpdateFollowUpStatusInputSchema = z.object({
+  attendanceRecordId: z.string().uuid(),
+  contactStatus: FollowUpContactStatusSchema,
+  note: z.string().max(1000).nullish(),
+});
+export type UpdateFollowUpStatusInput = z.infer<typeof UpdateFollowUpStatusInputSchema>;

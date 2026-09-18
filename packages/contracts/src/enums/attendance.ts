@@ -8,3 +8,11 @@ export const AttendanceStatusSchema = z.enum([
 ]);
 
 export type AttendanceStatus = z.infer<typeof AttendanceStatusSchema>;
+
+export const FollowUpContactStatusSchema = z.enum([
+  'UNCONTACTED',
+  'CONTACTED',
+  'UNREACHABLE',
+]);
+
+export type FollowUpContactStatus = z.infer<typeof FollowUpContactStatusSchema>;
