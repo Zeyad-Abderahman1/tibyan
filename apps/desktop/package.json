@@ -9,8 +9,10 @@
     "build": "tsc --noEmit && vite build",
     "build:electron": "vite build",
     "build:win": "vite build && electron-builder --win",
+    "pack": "vite build && electron-builder --win --dir",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {

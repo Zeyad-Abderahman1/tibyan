@@ -13,3 +13,6 @@ coverage/
 .vite/
 *.node
 binaries/
+test-results/
+playwright-report/
+.native-cache/

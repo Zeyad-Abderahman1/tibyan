@@ -109,6 +109,7 @@ export function Topbar() {
           aria-label={theme === 'dark' ? 'التبديل إلى الوضع الفاتح' : 'التبديل إلى الوضع الداكن'}
           title={theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}
           className="p-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+          data-testid="topbar-theme-toggle-btn"
         >
           {theme === 'dark' ? (
             <Sun className="w-4 h-4 text-[var(--color-brand-accent)]" aria-hidden="true" />

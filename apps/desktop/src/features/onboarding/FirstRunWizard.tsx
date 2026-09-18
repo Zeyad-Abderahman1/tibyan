@@ -54,7 +54,9 @@ export function FirstRunWizard({ setupState, onComplete }: FirstRunWizardProps) 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    setStep(determineInitialStep());
+    if (step === 'welcome') {
+      setStep(determineInitialStep());
+    }
   }, [setupState?.hasOwner, setupState?.hasActiveAcademicYear]);
 
   // Handler: Bootstrap Owner & Immediately Login

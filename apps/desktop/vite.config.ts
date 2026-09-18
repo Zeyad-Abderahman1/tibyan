@@ -8,13 +8,32 @@ export default defineConfig({
     electron([
       {
         entry: 'electron/main.ts',
+        vite: {
+          build: {
+            rollupOptions: {
+              external: ['better-sqlite3'],
+            },
+          },
+        },
       },
       {
         entry: 'electron/preload.ts',
         onstart(options) {
           options.reload();
         },
+        vite: {
+          build: {
+            lib: {
+              entry: 'electron/preload.ts',
+              formats: ['cjs'],
+              fileName: () => 'preload.cjs',
+            },
+          },
+        },
       },
     ]),
   ],
+  test: {
+    include: ['tests/**/*.test.{ts,tsx}'],
+  },
 });

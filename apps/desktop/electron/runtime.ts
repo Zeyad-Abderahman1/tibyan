@@ -47,7 +47,7 @@ export interface RuntimeOptions {
  * Resolves canonical application data paths adhering to the Tibyan storage specification.
  */
 export function resolveRuntimePaths(customAppDataDir?: string, inMemory: boolean = false): RuntimePaths {
-  const baseDir = customAppDataDir ?? (app?.getPath ? app.getPath('userData') : path.resolve('./app-data'));
+  const baseDir = customAppDataDir ?? process.env.TIBYAN_APP_DATA_DIR ?? (app?.getPath ? app.getPath('userData') : path.resolve('./app-data'));
   const appDataDir = path.resolve(baseDir);
   const systemDbDir = path.join(appDataDir, 'data', 'system');
   const systemDbPath = inMemory ? ':memory:' : path.join(systemDbDir, 'tibyan-system.sqlite');

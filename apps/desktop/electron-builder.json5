@@ -15,5 +15,6 @@
   "win": {
     "target": "nsis"
   },
-  "npmRebuild": true
+  "npmRebuild": true,
+  "afterPack": "scripts/after-pack.cjs"
 }

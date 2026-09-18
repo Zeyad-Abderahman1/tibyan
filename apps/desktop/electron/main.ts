@@ -1,4 +1,5 @@
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { app, BrowserWindow, protocol } from 'electron';
 import {
@@ -26,6 +27,8 @@ protocol.registerSchemesAsPrivileged([
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+(globalThis as any).__filename = __filename;
+(globalThis as any).__dirname = __dirname;
 
 // Single instance lock enforcement
 const gotTheLock = app.requestSingleInstanceLock();
@@ -37,7 +40,9 @@ let mainWindow: BrowserWindow | null = null;
 export const runtime = new Runtime();
 
 async function createWindow(): Promise<BrowserWindow> {
-  const preloadPath = path.join(__dirname, 'preload.js');
+  const preloadPath = fs.existsSync(path.join(__dirname, 'preload.cjs'))
+    ? path.join(__dirname, 'preload.cjs')
+    : path.join(__dirname, 'preload.js');
 
   mainWindow = new BrowserWindow({
     width: 1280,
