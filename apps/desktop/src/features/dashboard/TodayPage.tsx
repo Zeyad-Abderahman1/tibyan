@@ -96,7 +96,7 @@ export function TodayPage() {
         data-testid="dashboard-quick-stats"
       >
         {/* Stat 1: Today's Classes */}
-        <Card variant="default" className="p-4 flex items-center gap-3.5">
+        <Card variant="default" className="p-4 flex items-center gap-3.5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
           <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-bg-surface-subtle)] border border-[var(--color-border-subtle)] flex items-center justify-center shrink-0">
             <Clock className="w-5 h-5 text-[var(--color-brand-primary)]" />
           </div>
@@ -115,7 +115,7 @@ export function TodayPage() {
         </Card>
 
         {/* Stat 2: Expected Students Today */}
-        <Card variant="default" className="p-4 flex items-center gap-3.5">
+        <Card variant="default" className="p-4 flex items-center gap-3.5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
           <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-bg-surface-subtle)] border border-[var(--color-border-subtle)] flex items-center justify-center shrink-0">
             <Users className="w-5 h-5 text-[var(--color-brand-accent)]" />
           </div>
@@ -134,7 +134,7 @@ export function TodayPage() {
         </Card>
 
         {/* Stat 3: Active Groups */}
-        <Card variant="default" className="p-4 flex items-center gap-3.5">
+        <Card variant="default" className="p-4 flex items-center gap-3.5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
           <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-bg-surface-subtle)] border border-[var(--color-border-subtle)] flex items-center justify-center shrink-0">
             <BookOpen className="w-5 h-5 text-[#0B3D3D] dark:text-[#5CE1E6]" />
           </div>
@@ -153,7 +153,7 @@ export function TodayPage() {
         </Card>
 
         {/* Stat 4: Total Enrolled Students */}
-        <Card variant="default" className="p-4 flex items-center gap-3.5">
+        <Card variant="default" className="p-4 flex items-center gap-3.5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
           <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-bg-surface-subtle)] border border-[var(--color-border-subtle)] flex items-center justify-center shrink-0">
             <CheckCircle2 className="w-5 h-5 text-[var(--color-status-success)]" />
           </div>
