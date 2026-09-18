@@ -38,6 +38,13 @@ export const IPC_CHANNELS = {
   SESSIONS_LIST_BY_RANGE: 'sessions:listByRange',
   SESSIONS_RESCHEDULE: 'sessions:reschedule',
   SESSIONS_CANCEL: 'sessions:cancel',
+  SESSIONS_COMPLETE: 'sessions:complete',
+
+  // Attendance
+  ATTENDANCE_GET_ROSTER: 'attendance:getRoster',
+  ATTENDANCE_RECORD: 'attendance:record',
+  ATTENDANCE_BATCH_RECORD: 'attendance:batchRecord',
+  ATTENDANCE_GET_END_OF_DAY: 'attendance:getEndOfDay',
 
   // Dashboard
   DASHBOARD_GET_TODAY: 'dashboard:getToday',

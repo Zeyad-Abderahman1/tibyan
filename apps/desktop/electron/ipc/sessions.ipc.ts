@@ -5,6 +5,7 @@ import {
   ListSessionsByDateRangeSchema,
   RescheduleSessionSchema,
   CancelSessionSchema,
+  CompleteSessionInputSchema,
 } from '@tibyan/contracts';
 import type { Runtime } from '../runtime.js';
 import { safeIpcCall } from './errors.js';
@@ -63,6 +64,19 @@ export function registerSessionsIpcHandlers(runtime: Runtime, mainWindow: Browse
       return runtime.sessionService!.cancelSession(validated, actor);
     });
   });
+
+  // 4. Complete session (protected: requires SESSIONS_MANAGE on MAIN actor)
+  ipcMain.handle(IPC_CHANNELS.SESSIONS_COMPLETE, async (event, payload) => {
+    if (!validateIpcSender(event, mainWindow)) {
+      throw new Error('UNAUTHORIZED_IPC_SENDER');
+    }
+    return safeIpcCall(async () => {
+      const actor = runtime.requireAuthenticatedActor();
+      runtime.requireActiveAcademicYear();
+      const validated = CompleteSessionInputSchema.parse(payload);
+      return runtime.sessionService!.completeSession(validated, actor);
+    });
+  });
 }
 
 export function unregisterSessionsIpcHandlers(): void {
@@ -70,4 +84,5 @@ export function unregisterSessionsIpcHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.SESSIONS_LIST_BY_RANGE);
   ipcMain.removeHandler(IPC_CHANNELS.SESSIONS_RESCHEDULE);
   ipcMain.removeHandler(IPC_CHANNELS.SESSIONS_CANCEL);
+  ipcMain.removeHandler(IPC_CHANNELS.SESSIONS_COMPLETE);
 }

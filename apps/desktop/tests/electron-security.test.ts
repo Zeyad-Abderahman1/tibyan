@@ -207,9 +207,10 @@ describe('Task 10 — Preload Bridge Surface & Isolation Verification', () => {
     expect((tibyanApi as any).process).toBeUndefined();
   });
 
-  it('exposes exactly the 7 canonical domains in TibyanApi', () => {
+  it('exposes exactly the canonical domains in TibyanApi', () => {
     const exposedDomains = Object.keys(tibyanApi).sort();
     expect(exposedDomains).toEqual([
+      'attendance',
       'auth',
       'backup',
       'dashboard',

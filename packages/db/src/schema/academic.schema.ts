@@ -19,6 +19,7 @@ import {
   SessionStatus,
   Weekday,
   ActorType,
+  AttendanceStatus,
 } from '@tibyan/contracts';
 
 export const students = sqliteTable(
@@ -180,6 +181,33 @@ export const sessions = sqliteTable(
   })
 );
 
+export const attendanceRecords = sqliteTable(
+  'attendance_records',
+  {
+    id: text('id').primaryKey(),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => sessions.id, { onDelete: 'restrict' }),
+    studentId: text('student_id')
+      .notNull()
+      .references(() => students.id, { onDelete: 'restrict' }),
+    status: text('status').$type<AttendanceStatus>().notNull(),
+    arrivalTime: text('arrival_time'), // 'HH:mm'
+    notes: text('notes'),
+    recordedByUserId: text('recorded_by_user_id'), // Deliberately decoupled from system DB: NO FK
+    recordedAt: text('recorded_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    idxAttendanceSessionStudent: uniqueIndex('idx_attendance_session_student').on(
+      t.sessionId,
+      t.studentId
+    ),
+    idxAttendanceSession: index('idx_attendance_session').on(t.sessionId),
+    idxAttendanceStudent: index('idx_attendance_student').on(t.studentId),
+  })
+);
+
 export const academicAuditLog = sqliteTable(
   'academic_audit_log',
   {
@@ -217,5 +245,7 @@ export type GroupScheduleRow = typeof groupSchedules.$inferSelect;
 export type NewGroupScheduleRow = typeof groupSchedules.$inferInsert;
 export type SessionRow = typeof sessions.$inferSelect;
 export type NewSessionRow = typeof sessions.$inferInsert;
+export type AttendanceRecordRow = typeof attendanceRecords.$inferSelect;
+export type NewAttendanceRecordRow = typeof attendanceRecords.$inferInsert;
 export type AcademicAuditLogRow = typeof academicAuditLog.$inferSelect;
 export type NewAcademicAuditLogRow = typeof academicAuditLog.$inferInsert;

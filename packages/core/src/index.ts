@@ -11,4 +11,5 @@ export * from './groups/enrollment.service.js';
 export * from './groups/session.service.js';
 export * from './backup/backup.service.js';
 export * from './dashboard/dashboard.service.js';
+export * from './attendance/index.js';
 

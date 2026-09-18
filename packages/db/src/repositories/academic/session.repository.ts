@@ -5,6 +5,7 @@ import {
   type SessionRow,
   type NewSessionRow,
 } from '../../schema/academic.schema.js';
+import { SessionStatus } from '@tibyan/contracts';
 
 export class SessionRepository {
   constructor(private db?: AcademicDrizzle) {}
@@ -120,5 +121,20 @@ export class SessionRepository {
       .where(and(...conditions))
       .run();
     return result.changes;
+  }
+
+  updateStatus(
+    id: string,
+    status: SessionStatus,
+    notes?: string | null
+  ): SessionRow | null {
+    const updates: Partial<Omit<SessionRow, 'id' | 'occurrenceKey' | 'createdAt'>> = {
+      status,
+      updatedAt: new Date().toISOString(),
+    };
+    if (notes !== undefined) {
+      updates.notes = notes;
+    }
+    return this.update(id, updates);
   }
 }

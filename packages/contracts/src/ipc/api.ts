@@ -39,6 +39,14 @@ import {
   ListSessionsByDateRangeInput,
   MaterializeSessionsResultDto,
 } from '../models/session.dto.js';
+import {
+  AttendanceRecordDto,
+  SessionAttendanceRosterDto,
+  RecordAttendanceInput,
+  BatchRecordAttendanceInput,
+  CompleteSessionInput,
+  EndOfDayFollowUpDto,
+} from '../models/attendance.dto.js';
 import { TodayDashboardDto } from '../models/dashboard.dto.js';
 import {
   BackupHistoryItemDto,
@@ -95,6 +103,13 @@ export interface TibyanApi {
     listByRange(input: ListSessionsByDateRangeInput): Promise<IpcResult<SessionDto[]>>;
     reschedule(input: RescheduleSessionInput): Promise<IpcResult<SessionDto>>;
     cancel(input: CancelSessionInput): Promise<IpcResult<SessionDto>>;
+    complete(input: CompleteSessionInput): Promise<IpcResult<SessionDto>>;
+  };
+  attendance: {
+    getRoster(sessionId: string): Promise<IpcResult<SessionAttendanceRosterDto>>;
+    record(input: RecordAttendanceInput): Promise<IpcResult<AttendanceRecordDto>>;
+    batchRecord(input: BatchRecordAttendanceInput): Promise<IpcResult<AttendanceRecordDto[]>>;
+    getEndOfDay(date: string): Promise<IpcResult<EndOfDayFollowUpDto>>;
   };
   dashboard: {
     getToday(): Promise<IpcResult<TodayDashboardDto>>;

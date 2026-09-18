@@ -258,6 +258,27 @@ export const ACADEMIC_MIGRATIONS: Migration[] = [
       ALTER TABLE \`sessions\` ADD \`cancellation_reason\` text;
     `,
   },
+  {
+    id: '0003_neat_krista_starr',
+    sql: `
+      CREATE TABLE IF NOT EXISTS \`attendance_records\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`session_id\` text NOT NULL,
+        \`student_id\` text NOT NULL,
+        \`status\` text NOT NULL,
+        \`arrival_time\` text,
+        \`notes\` text,
+        \`recorded_by_user_id\` text,
+        \`recorded_at\` text NOT NULL,
+        \`updated_at\` text NOT NULL,
+        FOREIGN KEY (\`session_id\`) REFERENCES \`sessions\`(\`id\`) ON UPDATE no action ON DELETE restrict,
+        FOREIGN KEY (\`student_id\`) REFERENCES \`students\`(\`id\`) ON UPDATE no action ON DELETE restrict
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS \`idx_attendance_session_student\` ON \`attendance_records\` (\`session_id\`,\`student_id\`);
+      CREATE INDEX IF NOT EXISTS \`idx_attendance_session\` ON \`attendance_records\` (\`session_id\`);
+      CREATE INDEX IF NOT EXISTS \`idx_attendance_student\` ON \`attendance_records\` (\`student_id\`);
+    `,
+  },
 ];
 
 function initMigrationTrackingTable(db: Database.Database): void {

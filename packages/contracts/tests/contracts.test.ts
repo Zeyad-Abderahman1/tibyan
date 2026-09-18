@@ -28,6 +28,14 @@ import {
   ManagedUserSchema,
   type LoginUserDto,
   type ManagedUserDto,
+  AttendanceStatusSchema,
+  AttendanceRecordDtoSchema,
+  SessionRosterItemDtoSchema,
+  SessionAttendanceRosterDtoSchema,
+  RecordAttendanceInputSchema,
+  BatchRecordAttendanceInputSchema,
+  CompleteSessionInputSchema,
+  EndOfDayFollowUpDtoSchema,
   IPC_CHANNELS,
 } from '../src/index.js';
 
@@ -556,6 +564,166 @@ describe('Contracts — ManagedUserSchema & Channels', () => {
 
   it('verifies AUTH_LIST_MANAGEMENT_USERS channel is present in IPC_CHANNELS', () => {
     expect(IPC_CHANNELS.AUTH_LIST_MANAGEMENT_USERS).toBe('auth:listManagementUsers');
+  });
+});
+
+describe('Contracts — Attendance Enums & DTOs', () => {
+  it('validates AttendanceStatusSchema values', () => {
+    const validStatuses = ['PRESENT', 'ABSENT', 'LATE', 'EXCUSED'] as const;
+    validStatuses.forEach((status) => {
+      expect(AttendanceStatusSchema.parse(status)).toBe(status);
+    });
+    expect(() => AttendanceStatusSchema.parse('UNKNOWN')).toThrow();
+    expect(() => AttendanceStatusSchema.parse('present')).toThrow();
+  });
+
+  it('validates AttendanceRecordDtoSchema', () => {
+    const record = AttendanceRecordDtoSchema.parse({
+      id: VALID_UUID,
+      sessionId: VALID_UUID,
+      studentId: VALID_UUID,
+      status: 'PRESENT',
+      arrivalTime: '14:30',
+      notes: 'حضر في الموعد',
+      recordedByUserId: VALID_UUID,
+      recordedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    expect(record.status).toBe('PRESENT');
+    expect(record.arrivalTime).toBe('14:30');
+  });
+
+  it('validates RecordAttendanceInputSchema and time formats', () => {
+    const valid = RecordAttendanceInputSchema.parse({
+      sessionId: VALID_UUID,
+      studentId: VALID_UUID,
+      status: 'LATE',
+      arrivalTime: '09:05',
+    });
+    expect(valid.status).toBe('LATE');
+
+    // Invalid time
+    expect(() =>
+      RecordAttendanceInputSchema.parse({
+        sessionId: VALID_UUID,
+        studentId: VALID_UUID,
+        status: 'LATE',
+        arrivalTime: '25:00',
+      })
+    ).toThrow();
+  });
+
+  it('validates BatchRecordAttendanceInputSchema requires at least 1 record', () => {
+    expect(() =>
+      BatchRecordAttendanceInputSchema.parse({
+        sessionId: VALID_UUID,
+        records: [],
+      })
+    ).toThrow();
+
+    const batch = BatchRecordAttendanceInputSchema.parse({
+      sessionId: VALID_UUID,
+      records: [
+        { studentId: VALID_UUID, status: 'PRESENT' },
+        { studentId: VALID_UUID, status: 'ABSENT', notes: 'لم يحضر' },
+      ],
+    });
+    expect(batch.records.length).toBe(2);
+  });
+
+  it('validates SessionRosterItemDtoSchema', () => {
+    const item = SessionRosterItemDtoSchema.parse({
+      studentId: VALID_UUID,
+      studentName: 'محمد أحمد',
+      guardianPhone: '01012345678',
+      enrollmentId: VALID_UUID,
+      paymentType: 'MONTHLY',
+      paymentAmount: 400,
+      attendanceRecord: null,
+    });
+    expect(item.studentName).toBe('محمد أحمد');
+    expect(item.attendanceRecord).toBeNull();
+  });
+
+  it('validates SessionAttendanceRosterDtoSchema', () => {
+    const roster = SessionAttendanceRosterDtoSchema.parse({
+      session: {
+        id: VALID_UUID,
+        groupId: VALID_UUID,
+        groupName: 'مجموعة 1ث لغات',
+        occurrenceKey: `${VALID_UUID}_2026-10-01_16:00`,
+        scheduledDate: '2026-10-01',
+        scheduledStartTime: '16:00',
+        effectiveDate: '2026-10-01',
+        effectiveStartTime: '16:00',
+        durationMinutes: 90,
+        status: 'SCHEDULED',
+        rescheduleReason: null,
+        notes: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      groupName: 'مجموعة 1ث لغات',
+      roster: [
+        {
+          studentId: VALID_UUID,
+          studentName: 'محمد أحمد',
+          guardianPhone: '01012345678',
+          enrollmentId: VALID_UUID,
+          paymentType: 'MONTHLY',
+          paymentAmount: 400,
+          attendanceRecord: null,
+        },
+      ],
+      summary: {
+        totalStudents: 1,
+        present: 0,
+        absent: 0,
+        late: 0,
+        excused: 0,
+        unmarked: 1,
+      },
+    });
+    expect(roster.summary.unmarked).toBe(1);
+  });
+
+  it('validates CompleteSessionInputSchema', () => {
+    const input = CompleteSessionInputSchema.parse({
+      sessionId: VALID_UUID,
+      notes: 'تم إنهاء الحصة بنجاح وشرح درس المصفوفات',
+    });
+    expect(input.sessionId).toBe(VALID_UUID);
+  });
+
+  it('validates EndOfDayFollowUpDtoSchema', () => {
+    const followUp = EndOfDayFollowUpDtoSchema.parse({
+      date: '2026-10-01',
+      totalSessions: 3,
+      totalAbsent: 2,
+      totalLate: 1,
+      followUps: [
+        {
+          studentId: VALID_UUID,
+          studentName: 'أحمد محمود',
+          guardianPhone: '01012345678',
+          sessionId: VALID_UUID,
+          groupName: 'مجموعة 2ث',
+          status: 'ABSENT',
+          sessionDate: '2026-10-01',
+          sessionStartTime: '16:00',
+          whatsappMessage: 'نحيطكم علماً بغياب الطالب أحمد محمود عن حصة الرياضيات',
+        },
+      ],
+    });
+    expect(followUp.followUps.length).toBe(1);
+  });
+
+  it('verifies attendance and session complete IPC channels are registered in IPC_CHANNELS', () => {
+    expect(IPC_CHANNELS.ATTENDANCE_GET_ROSTER).toBe('attendance:getRoster');
+    expect(IPC_CHANNELS.ATTENDANCE_RECORD).toBe('attendance:record');
+    expect(IPC_CHANNELS.ATTENDANCE_BATCH_RECORD).toBe('attendance:batchRecord');
+    expect(IPC_CHANNELS.ATTENDANCE_GET_END_OF_DAY).toBe('attendance:getEndOfDay');
+    expect(IPC_CHANNELS.SESSIONS_COMPLETE).toBe('sessions:complete');
   });
 });
 

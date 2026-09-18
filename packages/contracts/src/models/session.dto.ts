@@ -31,34 +31,36 @@ export const ListSessionsByDateRangeSchema = z.object({
 });
 export type ListSessionsByDateRangeInput = z.infer<typeof ListSessionsByDateRangeSchema>;
 
-export interface SessionDto {
-  id: string;
-  groupId: string;
-  groupName: string;
-  scheduleId: string | null;
-  educationSystem?: z.infer<typeof EducationSystemSchema>;
-  gradeLevel?: z.infer<typeof GradeLevelSchema>;
-  languageTrack?: z.infer<typeof LanguageTrackSchema>;
+export const SessionDtoSchema = z.object({
+  id: z.string().uuid(),
+  groupId: z.string().uuid(),
+  groupName: z.string(),
+  scheduleId: z.string().uuid().nullable().optional(),
+  educationSystem: EducationSystemSchema.optional(),
+  gradeLevel: GradeLevelSchema.optional(),
+  languageTrack: LanguageTrackSchema.optional(),
   
   // Immutable occurrence identity
-  occurrenceKey: string;
-  scheduledDate: string;       // YYYY-MM-DD
-  scheduledStartTime: string;  // HH:mm
+  occurrenceKey: z.string(),
+  scheduledDate: z.string(),       // YYYY-MM-DD
+  scheduledStartTime: z.string(),  // HH:mm
   
   // Mutable effective execution slot (used for Today Dashboard & scheduling views)
-  effectiveDate: string;       // YYYY-MM-DD
-  effectiveStartTime: string;  // HH:mm
-  durationMinutes: number;
+  effectiveDate: z.string(),       // YYYY-MM-DD
+  effectiveStartTime: z.string(),  // HH:mm
+  durationMinutes: z.number(),
   
-  status: z.infer<typeof SessionStatusSchema>;
-  rescheduleReason: string | null;
-  rescheduledAt: string | null;
-  cancellationReason: string | null;
-  notes: string | null;
-  studentCount?: number;
-  createdAt: string;
-  updatedAt: string;
-}
+  status: SessionStatusSchema,
+  rescheduleReason: z.string().nullable(),
+  rescheduledAt: z.string().nullable().optional(),
+  cancellationReason: z.string().nullable().optional(),
+  notes: z.string().nullable(),
+  studentCount: z.number().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export type SessionDto = z.infer<typeof SessionDtoSchema>;
 
 export interface MaterializeSessionsResultDto {
   startDate: string;

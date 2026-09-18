@@ -8,4 +8,5 @@ export * from './academic/student.repository.js';
 export * from './academic/group.repository.js';
 export * from './academic/enrollment.repository.js';
 export * from './academic/session.repository.js';
+export * from './academic/attendance.repository.js';
 export * from './academic/academic-audit.repository.js';

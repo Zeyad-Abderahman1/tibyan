@@ -3,9 +3,11 @@ import {
   type SessionDto,
   type RescheduleSessionInput,
   type CancelSessionInput,
+  type CompleteSessionInput,
   type ListSessionsByDateRangeInput,
   RescheduleSessionSchema,
   CancelSessionSchema,
+  CompleteSessionInputSchema,
   ListSessionsByDateRangeSchema,
   type PermissionCode,
 } from '@tibyan/contracts';
@@ -29,6 +31,7 @@ export type SessionErrorCode =
   | 'SESSION_NOT_FOUND'
   | 'SESSION_NOT_RESCHEDULABLE'
   | 'SESSION_NOT_CANCELLABLE'
+  | 'SESSION_NOT_COMPLETABLE'
   | 'PERMISSION_DENIED'
   | 'INVALID_INPUT';
 
@@ -413,6 +416,67 @@ export class SessionService {
         afterJson: JSON.stringify(this.toSessionDto(updatedRow)),
         metadataJson: JSON.stringify({
           cancellationReason: validated.reason,
+        }),
+        createdAt: nowIso,
+      });
+
+      return updatedRow;
+    });
+
+    return this.toSessionDto(updated);
+  }
+
+  /**
+   * Completes a session (setting status = COMPLETED).
+   * Updates notes if provided.
+   * Atomically writes academic audit entry.
+   */
+  async completeSession(input: CompleteSessionInput, actor: AnyActor): Promise<SessionDto> {
+    const validated = this.parseSchema(CompleteSessionInputSchema, input);
+    this.checkPermission(actor, 'SESSIONS_MANAGE');
+
+    const existing = this.sessionRepo.findById(validated.sessionId);
+    if (!existing) {
+      throw new SessionError('SESSION_NOT_FOUND', `Session not found: ${validated.sessionId}`);
+    }
+
+    if (existing.status === 'CANCELLED_BY_TEACHER') {
+      throw new SessionError('SESSION_NOT_COMPLETABLE', 'Cannot complete a cancelled session');
+    }
+
+    if (existing.status === 'COMPLETED') {
+      return this.toSessionDto(existing);
+    }
+
+    const nowIso = new Date().toISOString();
+
+    const updated = this.client.transaction((tx) => {
+      const sessionRepoTx = new SessionRepository(tx as any);
+      const auditRepoTx = new AcademicAuditRepository(tx as any);
+
+      const updates: any = {
+        status: 'COMPLETED',
+        updatedAt: nowIso,
+      };
+      if (validated.notes !== undefined) {
+        updates.notes = validated.notes;
+      }
+
+      const updatedRow = sessionRepoTx.update(existing.id, updates)!;
+
+      const isSystem = isSystemActor(actor);
+      auditRepoTx.insert({
+        id: crypto.randomUUID(),
+        actorType: isSystem ? 'SYSTEM' : 'USER',
+        actorUserId: isSystem ? null : (actor as AuthenticatedUser).userId,
+        actorNameSnapshot: actor.fullName,
+        action: 'SESSION_COMPLETED',
+        entityType: 'SESSION',
+        entityId: existing.id,
+        beforeJson: JSON.stringify(this.toSessionDto(existing)),
+        afterJson: JSON.stringify(this.toSessionDto(updatedRow)),
+        metadataJson: JSON.stringify({
+          notes: validated.notes ?? null,
         }),
         createdAt: nowIso,
       });

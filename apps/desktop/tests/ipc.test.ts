@@ -130,6 +130,11 @@ describe('Task 10 — Typed IPC Bridge & Main Session Authority', () => {
     expect(ipcHandlers.has(IPC_CHANNELS.DASHBOARD_GET_TODAY)).toBe(true);
     expect(ipcHandlers.has(IPC_CHANNELS.BACKUP_TRIGGER)).toBe(true);
     expect(ipcHandlers.has(IPC_CHANNELS.SYSTEM_GET_INFO)).toBe(true);
+    expect(ipcHandlers.has(IPC_CHANNELS.SESSIONS_COMPLETE)).toBe(true);
+    expect(ipcHandlers.has(IPC_CHANNELS.ATTENDANCE_GET_ROSTER)).toBe(true);
+    expect(ipcHandlers.has(IPC_CHANNELS.ATTENDANCE_RECORD)).toBe(true);
+    expect(ipcHandlers.has(IPC_CHANNELS.ATTENDANCE_BATCH_RECORD)).toBe(true);
+    expect(ipcHandlers.has(IPC_CHANNELS.ATTENDANCE_GET_END_OF_DAY)).toBe(true);
   });
 
   it('bootstraps owner account on fresh install via auth:bootstrapOwner', async () => {
@@ -1354,6 +1359,200 @@ describe('Task 10 — Typed IPC Bridge & Main Session Authority', () => {
       for (const rec of listRes.data) {
         expect(rec.backupPath).toBeUndefined();
       }
+    });
+  });
+
+  describe('Attendance & Session Complete IPC Handlers', () => {
+    let ownerUserId: string;
+    let studentId1: string;
+    let studentId2: string;
+    let groupId: string;
+    let sessionId: string;
+
+    beforeEach(async () => {
+      // 1. Bootstrap Owner & Login
+      const ownerRes = await invoke(IPC_CHANNELS.AUTH_BOOTSTRAP_OWNER, {
+        fullName: 'الأستاذ أحمد الشريف',
+        username: 'owner-attendance',
+        pin: '1234',
+      });
+      ownerUserId = ownerRes.data.id;
+
+      await invoke(IPC_CHANNELS.AUTH_LOGIN_PIN, {
+        userId: ownerUserId,
+        pin: '1234',
+      });
+
+      // 2. Create academic year & mount
+      await invoke(IPC_CHANNELS.SYSTEM_CREATE_ACADEMIC_YEAR, {
+        name: '2026-2027',
+      });
+
+      // 3. Create students
+      const std1 = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'محمود عبد الله',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'SEC_2',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01012345678',
+      });
+      studentId1 = std1.data.id;
+
+      const std2 = await invoke(IPC_CHANNELS.STUDENTS_CREATE, {
+        fullName: 'ياسين محمد',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'SEC_2',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01123456789',
+      });
+      studentId2 = std2.data.id;
+
+      // 4. Create group
+      const grp = await invoke(IPC_CHANNELS.GROUPS_CREATE, {
+        name: 'مجموعة 2ث لغات',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'SEC_2',
+        languageTrack: 'ARABIC',
+        defaultPaymentType: 'MONTHLY',
+        defaultPaymentAmount: 350,
+      });
+      groupId = grp.data.id;
+
+      // 5. Enroll students
+      await invoke(IPC_CHANNELS.ENROLLMENTS_ENROLL, {
+        groupId,
+        studentId: studentId1,
+      });
+      await invoke(IPC_CHANNELS.ENROLLMENTS_ENROLL, {
+        groupId,
+        studentId: studentId2,
+        paymentTypeOverride: 'PER_SESSION',
+        paymentAmountOverride: 80,
+      });
+
+      // 6. Create a session in runtime
+      const now = new Date().toISOString();
+      const sess = runtime.sessionService!.sessionRepo.create({
+        id: crypto.randomUUID(),
+        groupId,
+        scheduleId: null,
+        occurrenceKey: `${groupId}_2026-10-05_15:00`,
+        scheduledDate: '2026-10-05',
+        scheduledStartTime: '15:00',
+        effectiveDate: '2026-10-05',
+        effectiveStartTime: '15:00',
+        durationMinutes: 90,
+        status: 'SCHEDULED',
+        rescheduleReason: null,
+        rescheduledAt: null,
+        cancellationReason: null,
+        notes: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      sessionId = sess.id;
+    });
+
+    it('retrieves session roster with student details and summary counts via attendance:getRoster', async () => {
+      const res = await invoke(IPC_CHANNELS.ATTENDANCE_GET_ROSTER, sessionId);
+      expect(res.success).toBe(true);
+      expect(res.data.session.id).toBe(sessionId);
+      expect(res.data.groupName).toBe('مجموعة 2ث لغات');
+      expect(res.data.roster).toHaveLength(2);
+      expect(res.data.summary.totalStudents).toBe(2);
+      expect(res.data.summary.unmarked).toBe(2);
+      expect(res.data.summary.present).toBe(0);
+    });
+
+    it('records attendance and updates status without duplicate rows via attendance:record', async () => {
+      // 1. Record student1 as PRESENT
+      const rec1 = await invoke(IPC_CHANNELS.ATTENDANCE_RECORD, {
+        sessionId,
+        studentId: studentId1,
+        status: 'PRESENT',
+        arrivalTime: '15:00',
+        notes: 'حضور في الموعد',
+      });
+      expect(rec1.success).toBe(true);
+      expect(rec1.data.status).toBe('PRESENT');
+      expect(rec1.data.arrivalTime).toBe('15:00');
+
+      // 2. Check roster reflects 1 present and 1 unmarked
+      const roster1 = await invoke(IPC_CHANNELS.ATTENDANCE_GET_ROSTER, sessionId);
+      expect(roster1.data.summary.present).toBe(1);
+      expect(roster1.data.summary.unmarked).toBe(1);
+
+      // 3. Update student1 to LATE
+      const rec2 = await invoke(IPC_CHANNELS.ATTENDANCE_RECORD, {
+        sessionId,
+        studentId: studentId1,
+        status: 'LATE',
+        arrivalTime: '15:20',
+        notes: 'تأخر 20 دقيقة',
+      });
+      expect(rec2.success).toBe(true);
+      expect(rec2.data.status).toBe('LATE');
+
+      // 4. Roster summary reflects 1 late and 1 unmarked
+      const roster2 = await invoke(IPC_CHANNELS.ATTENDANCE_GET_ROSTER, sessionId);
+      expect(roster2.data.summary.late).toBe(1);
+      expect(roster2.data.summary.present).toBe(0);
+      expect(roster2.data.summary.unmarked).toBe(1);
+    });
+
+    it('batch records attendance for multiple students via attendance:batchRecord', async () => {
+      const batchRes = await invoke(IPC_CHANNELS.ATTENDANCE_BATCH_RECORD, {
+        sessionId,
+        records: [
+          { studentId: studentId1, status: 'PRESENT', arrivalTime: '15:02' },
+          { studentId: studentId2, status: 'ABSENT', notes: 'غياب بدون إخطار' },
+        ],
+      });
+      expect(batchRes.success).toBe(true);
+      expect(batchRes.data).toHaveLength(2);
+
+      const roster = await invoke(IPC_CHANNELS.ATTENDANCE_GET_ROSTER, sessionId);
+      expect(roster.data.summary.present).toBe(1);
+      expect(roster.data.summary.absent).toBe(1);
+      expect(roster.data.summary.unmarked).toBe(0);
+    });
+
+    it('completes session via sessions:complete and marks it COMPLETED', async () => {
+      const completeRes = await invoke(IPC_CHANNELS.SESSIONS_COMPLETE, {
+        sessionId,
+        notes: 'تم إنهاء الحصة وتسليم الواجب',
+      });
+      expect(completeRes.success).toBe(true);
+      expect(completeRes.data.status).toBe('COMPLETED');
+      expect(completeRes.data.notes).toBe('تم إنهاء الحصة وتسليم الواجب');
+    });
+
+    it('compiles End-of-Day follow-up drafts via attendance:getEndOfDay', async () => {
+      // Record student1 as LATE, student2 as ABSENT
+      await invoke(IPC_CHANNELS.ATTENDANCE_RECORD, {
+        sessionId,
+        studentId: studentId1,
+        status: 'LATE',
+        arrivalTime: '15:15',
+      });
+      await invoke(IPC_CHANNELS.ATTENDANCE_RECORD, {
+        sessionId,
+        studentId: studentId2,
+        status: 'ABSENT',
+      });
+
+      const eodRes = await invoke(IPC_CHANNELS.ATTENDANCE_GET_END_OF_DAY, '2026-10-05');
+      expect(eodRes.success).toBe(true);
+      expect(eodRes.data.totalSessions).toBe(1);
+      expect(eodRes.data.totalAbsent).toBe(1);
+      expect(eodRes.data.totalLate).toBe(1);
+      expect(eodRes.data.followUps).toHaveLength(2);
+
+      const absentMsg = eodRes.data.followUps.find((f: any) => f.studentId === studentId2);
+      expect(absentMsg.whatsappMessage).toContain('غاب/ت عن حضور حصة الرياضيات');
+
+      const lateMsg = eodRes.data.followUps.find((f: any) => f.studentId === studentId1);
+      expect(lateMsg.whatsappMessage).toContain('15:15');
     });
   });
 });

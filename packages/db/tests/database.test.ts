@@ -26,6 +26,7 @@ import {
   EnrollmentRepository,
   SessionRepository,
   AcademicAuditRepository,
+  AttendanceRepository,
 } from '../src/repositories/index.js';
 import { students, groupEnrollments } from '../src/schema/index.js';
 
@@ -88,10 +89,20 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     expect(appliedSys).toEqual(['0000_initial_schema', '0001_audit_triggers']);
 
     const appliedAcad = migrateAcademicDatabase(acadRaw);
-    expect(appliedAcad).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_glamorous_sunspot']);
+    expect(appliedAcad).toEqual([
+      '0000_initial_schema',
+      '0001_audit_triggers',
+      '0002_glamorous_sunspot',
+      '0003_neat_krista_starr',
+    ]);
 
     expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers']);
-    expect(getAppliedMigrations(acadRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_glamorous_sunspot']);
+    expect(getAppliedMigrations(acadRaw)).toEqual([
+      '0000_initial_schema',
+      '0001_audit_triggers',
+      '0002_glamorous_sunspot',
+      '0003_neat_krista_starr',
+    ]);
 
     sysRaw.close();
     acadRaw.close();
@@ -113,7 +124,12 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     expect(secondAcad).toEqual([]);
 
     expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers']);
-    expect(getAppliedMigrations(acadRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_glamorous_sunspot']);
+    expect(getAppliedMigrations(acadRaw)).toEqual([
+      '0000_initial_schema',
+      '0001_audit_triggers',
+      '0002_glamorous_sunspot',
+      '0003_neat_krista_starr',
+    ]);
 
     sysRaw.close();
     acadRaw.close();
@@ -952,8 +968,8 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     // 3. Run the normal migrator
     const appliedDuringUpgrade = migrateAcademicDatabase(rawDb);
 
-    // 4. Verify 0002 adds cancellation_reason
-    expect(appliedDuringUpgrade).toEqual(['0002_glamorous_sunspot']);
+    // 4. Verify 0002 and 0003 are applied
+    expect(appliedDuringUpgrade).toEqual(['0002_glamorous_sunspot', '0003_neat_krista_starr']);
     const colsAfter = rawDb.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
     expect(colsAfter.map((c) => c.name)).toContain('cancellation_reason');
 
@@ -977,11 +993,12 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     // 6. Verify cancellation_reason is NULL for the pre-existing row
     expect(upgradedRow.cancellation_reason).toBeNull();
 
-    // 7. Verify 0002 is recorded exactly once in migration history
+    // 7. Verify migrations are recorded exactly once in migration history
     expect(getAppliedMigrations(rawDb)).toEqual([
       '0000_initial_schema',
       '0001_audit_triggers',
       '0002_glamorous_sunspot',
+      '0003_neat_krista_starr',
     ]);
     const migrationRecords = rawDb
       .prepare("SELECT COUNT(*) as count FROM __tibyan_migrations WHERE id = '0002_glamorous_sunspot'")
@@ -996,6 +1013,180 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     expect(reloadedAfterSecondMigrate).toEqual(upgradedRow);
 
     rawDb.close();
+  });
+
+  it('Migration 0003 creates attendance_records table with foreign keys and unique constraint', () => {
+    const acadConn = openAcademicDatabase('2026-2027', { filePath: ':memory:' });
+    migrateAcademicDatabase(acadConn.raw);
+
+    // Verify table exists
+    const tables = acadConn.raw
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='attendance_records'")
+      .all() as Array<{ name: string }>;
+    expect(tables.length).toBe(1);
+
+    // Verify column definitions
+    const cols = acadConn.raw.prepare("PRAGMA table_info(attendance_records)").all() as Array<{ name: string }>;
+    const colNames = cols.map((c) => c.name);
+    expect(colNames).toContain('id');
+    expect(colNames).toContain('session_id');
+    expect(colNames).toContain('student_id');
+    expect(colNames).toContain('status');
+    expect(colNames).toContain('arrival_time');
+    expect(colNames).toContain('notes');
+    expect(colNames).toContain('recorded_by_user_id');
+    expect(colNames).toContain('recorded_at');
+    expect(colNames).toContain('updated_at');
+
+    // Verify unique index on (session_id, student_id)
+    const indices = acadConn.raw.prepare("PRAGMA index_list(attendance_records)").all() as Array<{ name: string; unique: number }>;
+    const uniqueIdx = indices.find((idx) => idx.name === 'idx_attendance_session_student');
+    expect(uniqueIdx).toBeDefined();
+    expect(uniqueIdx?.unique).toBe(1);
+  });
+
+  it('AttendanceRepository upsert, batchUpsert, query, and SessionRepository.updateStatus work cleanly', () => {
+    const acadConn = openAcademicDatabase('2026-2027', { filePath: ':memory:' });
+    migrateAcademicDatabase(acadConn.raw);
+
+    const studentRepo = new StudentRepository(acadConn.db);
+    const groupRepo = new GroupRepository(acadConn.db);
+    const sessionRepo = new SessionRepository(acadConn.db);
+    const attendanceRepo = new AttendanceRepository(acadConn.db);
+
+    const student1 = studentRepo.create({
+      id: 'std-1',
+      studentCode: 'STU-001',
+      fullName: 'علي حسن',
+      qrToken: 'qr-std-1',
+      barcodeValue: 'bar-std-1',
+      educationSystem: 'GENERAL',
+      gradeLevel: 'SEC_1',
+      languageTrack: 'ARABIC',
+      guardianPhone: '01011111111',
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const student2 = studentRepo.create({
+      id: 'std-2',
+      studentCode: 'STU-002',
+      fullName: 'سارة أحمد',
+      qrToken: 'qr-std-2',
+      barcodeValue: 'bar-std-2',
+      educationSystem: 'GENERAL',
+      gradeLevel: 'SEC_1',
+      languageTrack: 'ARABIC',
+      guardianPhone: '01022222222',
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const group = groupRepo.create({
+      id: 'grp-1',
+      name: 'مجموعة 1ث - السبت',
+      educationSystem: 'GENERAL',
+      gradeLevel: 'SEC_1',
+      languageTrack: 'ARABIC',
+      defaultPaymentType: 'MONTHLY',
+      defaultPaymentAmount: 350,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const session = sessionRepo.create({
+      id: 'sess-1',
+      groupId: group.id,
+      scheduleId: null,
+      occurrenceKey: 'grp-1_2026-10-03_16:00',
+      scheduledDate: '2026-10-03',
+      scheduledStartTime: '16:00',
+      effectiveDate: '2026-10-03',
+      effectiveStartTime: '16:00',
+      durationMinutes: 90,
+      status: 'SCHEDULED',
+      rescheduleReason: null,
+      rescheduledAt: null,
+      cancellationReason: null,
+      notes: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    // 1. Upsert attendance for student1 (PRESENT)
+    const rec1 = attendanceRepo.upsert({
+      id: 'att-1',
+      sessionId: session.id,
+      studentId: student1.id,
+      status: 'PRESENT',
+      arrivalTime: '16:05',
+      notes: 'حضر في الموعد',
+      recordedByUserId: 'usr-teacher',
+      recordedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    expect(rec1.status).toBe('PRESENT');
+    expect(rec1.arrivalTime).toBe('16:05');
+
+    // 2. Upsert again for student1 (update status to LATE) — must not duplicate
+    const updatedRec1 = attendanceRepo.upsert({
+      id: 'att-1-alt',
+      sessionId: session.id,
+      studentId: student1.id,
+      status: 'LATE',
+      arrivalTime: '16:25',
+      notes: 'تأخر 25 دقيقة',
+      recordedByUserId: 'usr-teacher',
+      recordedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    expect(updatedRec1.status).toBe('LATE');
+    expect(updatedRec1.notes).toBe('تأخر 25 دقيقة');
+
+    const allSessionRecords = attendanceRepo.listBySessionId(session.id);
+    expect(allSessionRecords.length).toBe(1);
+
+    // 3. Batch upsert for student2
+    attendanceRepo.batchUpsert([
+      {
+        id: 'att-2',
+        sessionId: session.id,
+        studentId: student2.id,
+        status: 'ABSENT',
+        arrivalTime: null,
+        notes: 'غياب بدون عذر',
+        recordedByUserId: 'usr-teacher',
+        recordedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
+
+    // 4. Count by status
+    const summary = attendanceRepo.countByStatusForSession(session.id);
+    expect(summary.total).toBe(2);
+    expect(summary.present).toBe(0);
+    expect(summary.late).toBe(1);
+    expect(summary.absent).toBe(1);
+    expect(summary.excused).toBe(0);
+
+    // 5. listByDateWithDetails
+    const details = attendanceRepo.listByDateWithDetails('2026-10-03');
+    expect(details.length).toBe(2);
+    const absentDetail = details.find((d) => d.studentId === student2.id);
+    expect(absentDetail).toBeDefined();
+    expect(absentDetail?.studentName).toBe('سارة أحمد');
+    expect(absentDetail?.guardianPhone).toBe('01022222222');
+    expect(absentDetail?.groupName).toBe('مجموعة 1ث - السبت');
+    expect(absentDetail?.status).toBe('ABSENT');
+
+    // 6. SessionRepository.updateStatus
+    const completedSession = sessionRepo.updateStatus(session.id, 'COMPLETED', 'تم الانتهاء بنجاح');
+    expect(completedSession?.status).toBe('COMPLETED');
+    expect(completedSession?.notes).toBe('تم الانتهاء بنجاح');
   });
 });
 

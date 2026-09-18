@@ -31,8 +31,14 @@ import {
   type SessionDto,
   type RescheduleSessionInput,
   type CancelSessionInput,
+  type CompleteSessionInput,
   type ListSessionsByDateRangeInput,
   type MaterializeSessionsResultDto,
+  type AttendanceRecordDto,
+  type SessionAttendanceRosterDto,
+  type RecordAttendanceInput,
+  type BatchRecordAttendanceInput,
+  type EndOfDayFollowUpDto,
   type TodayDashboardDto,
   type BackupHistoryItemDto,
   type BackupStatusDto,
@@ -153,6 +159,24 @@ export const tibyanApi: TibyanApi = {
     },
     cancel(input: CancelSessionInput): Promise<IpcResult<SessionDto>> {
       return ipcRenderer.invoke(IPC_CHANNELS.SESSIONS_CANCEL, input);
+    },
+    complete(input: CompleteSessionInput): Promise<IpcResult<SessionDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SESSIONS_COMPLETE, input);
+    },
+  },
+
+  attendance: {
+    getRoster(sessionId: string): Promise<IpcResult<SessionAttendanceRosterDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ATTENDANCE_GET_ROSTER, sessionId);
+    },
+    record(input: RecordAttendanceInput): Promise<IpcResult<AttendanceRecordDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ATTENDANCE_RECORD, input);
+    },
+    batchRecord(input: BatchRecordAttendanceInput): Promise<IpcResult<AttendanceRecordDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ATTENDANCE_BATCH_RECORD, input);
+    },
+    getEndOfDay(date: string): Promise<IpcResult<EndOfDayFollowUpDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ATTENDANCE_GET_END_OF_DAY, date);
     },
   },
 
