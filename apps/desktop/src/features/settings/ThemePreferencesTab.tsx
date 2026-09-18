@@ -82,8 +82,8 @@ export function ThemePreferencesTab() {
               variant={isSelected ? 'outlined' : 'default'}
               className={`p-5 cursor-pointer transition-all relative border-2 ${
                 isSelected
-                  ? 'border-[var(--color-brand-primary)] bg-[var(--color-bg-surface)] ring-2 ring-[var(--color-brand-primary)]/10'
-                  : 'border-[var(--color-border-subtle)] hover:border-[var(--color-border-default)]'
+                  ? 'border-[var(--color-brand-primary)] dark:border-[var(--color-brand-accent)] bg-[var(--color-bg-surface)] ring-2 ring-[var(--color-brand-primary)]/10 dark:ring-[var(--color-brand-accent)]/20'
+                  : 'border-[var(--color-border-subtle)] hover:border-[var(--color-border-strong)]'
               }`}
               onClick={() => handleSelectTheme(opt.id)}
               data-testid={`theme-card-${opt.id}`}
@@ -92,7 +92,7 @@ export function ThemePreferencesTab() {
                 <div
                   className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                     isSelected
-                      ? 'bg-[var(--color-brand-primary)] text-white'
+                      ? 'bg-[var(--color-brand-primary)] dark:bg-[var(--color-brand-teal)] text-white'
                       : 'bg-[var(--color-bg-app)] text-[var(--color-text-secondary)]'
                   }`}
                 >
@@ -100,7 +100,7 @@ export function ThemePreferencesTab() {
                 </div>
                 {isSelected && (
                   <span
-                    className="w-5 h-5 rounded-full bg-[var(--color-brand-primary)] text-white flex items-center justify-center text-xs"
+                    className="w-5 h-5 rounded-full bg-[var(--color-brand-primary)] dark:bg-[var(--color-brand-accent)] text-white dark:text-[#0A1417] flex items-center justify-center text-xs"
                     aria-label="المظهر المفعل"
                     data-testid={`theme-selected-${opt.id}`}
                   >
@@ -125,7 +125,7 @@ export function ThemePreferencesTab() {
       <div className="flex items-center justify-between p-4 bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] rounded-lg">
         <div className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
           <span className="font-medium text-[var(--color-text-primary)]">المظهر النشط حالياً:</span>
-          <span className="font-bold text-[var(--color-brand-primary)]">
+          <span className="font-bold text-[var(--color-brand-primary)] dark:text-[var(--color-brand-accent)]">
             {activeTheme === 'light'
               ? 'المظهر الفاتح'
               : activeTheme === 'dark'

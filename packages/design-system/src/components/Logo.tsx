@@ -39,7 +39,7 @@ export const Logo = forwardRef<HTMLImageElement, LogoProps>(
         src={src}
         alt={alt}
         className={cn(
-          'select-none shrink-0',
+          'select-none shrink-0 rounded-lg bg-white p-1 border border-[var(--color-border-subtle)] shadow-xs dark:bg-white dark:border-[var(--color-border-strong)] dark:shadow-md',
           size !== 'custom' && sizeStyles[size],
           className
         )}

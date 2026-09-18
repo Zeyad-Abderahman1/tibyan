@@ -163,4 +163,15 @@ describe('Task 11: Desktop App Shell & RTL Navigation Suite', () => {
     );
     expect(darkHtml).toContain('data-theme="dark"');
   });
+
+  it('verifies Topbar theme toggle button and action controls exist with accessible labels', () => {
+    const html = renderToStaticMarkup(
+      <Providers>
+        <Topbar />
+      </Providers>
+    );
+
+    expect(html).toContain('data-testid="topbar-theme-toggle-btn"');
+    expect(html).toContain('الوضع الداكن');
+  });
 });

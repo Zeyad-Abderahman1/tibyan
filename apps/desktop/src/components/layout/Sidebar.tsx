@@ -26,7 +26,7 @@ export function Sidebar() {
       <div className="flex items-center gap-3 px-6 py-5 border-b border-[var(--color-border-subtle)]">
         <Logo size="sm" alt="تِبيان" className="shrink-0" />
         <div className="flex flex-col">
-          <span className="text-lg font-bold text-[var(--color-brand-primary)] leading-tight tracking-tight">
+          <span className="text-lg font-bold text-[var(--color-brand-primary)] dark:text-[var(--color-text-primary)] leading-tight tracking-tight">
             تِبيان
           </span>
           <span className="text-xs text-[var(--color-text-muted)] font-medium">

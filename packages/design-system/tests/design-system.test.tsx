@@ -25,6 +25,7 @@ import {
   PinPad,
   Logo,
   ThemeProvider,
+  useTheme,
   DirectionProvider,
   IsolatedLtr,
   DirectionIsolation,
@@ -119,6 +120,26 @@ describe('Task 9: Tibyan Design System Verification Suite', () => {
       </ThemeProvider>
     );
     expect(html).toContain('System Theme');
+  });
+
+  // 4b. ThemeProvider provides resolvedTheme and toggleTheme behavior.
+  it('4b. ThemeProvider provides resolvedTheme and toggleTheme behavior', () => {
+    let contextVal: any = null;
+    function Consumer() {
+      contextVal = useTheme();
+      return <span>{contextVal.resolvedTheme}</span>;
+    }
+
+    const html = renderToStaticMarkup(
+      <ThemeProvider defaultTheme="system">
+        <Consumer />
+      </ThemeProvider>
+    );
+    expect(html).toContain('light');
+    expect(contextVal).toBeDefined();
+    expect(contextVal.theme).toBe('system');
+    expect(contextVal.resolvedTheme).toBe('light');
+    expect(typeof contextVal.toggleTheme).toBe('function');
   });
 
   // 5. DirectionProvider sets RTL correctly.
@@ -298,6 +319,12 @@ describe('Task 9: Tibyan Design System Verification Suite', () => {
 
     const primaryHtml = renderToStaticMarkup(<Badge variant="primary">أساسي</Badge>);
     expect(primaryHtml).toContain('text-[var(--color-brand-primary)]');
+    expect(primaryHtml).toContain('dark:text-[#5EEAD4]');
+    expect(primaryHtml).toContain('dark:bg-[rgba(31,110,104,0.3)]');
+
+    const neutralHtml = renderToStaticMarkup(<Badge variant="neutral">مساعد</Badge>);
+    expect(neutralHtml).toContain('dark:text-slate-200');
+    expect(neutralHtml).toContain('dark:bg-slate-800/70');
   });
 
   // 15. Table uses semantic table structure.
@@ -421,6 +448,9 @@ describe('Task 9: Tibyan Design System Verification Suite', () => {
     const logoHtml = renderToStaticMarkup(<Logo className="custom-logo-test" />);
     expect(logoHtml).toContain('custom-logo-test');
     expect(logoHtml).toContain('object-fit:contain');
+    expect(logoHtml).toContain('rounded-lg');
+    expect(logoHtml).toContain('bg-white');
+    expect(logoHtml).toContain('dark:border-[var(--color-border-strong)]');
   });
 
   // 23. Card and Select components render properly.

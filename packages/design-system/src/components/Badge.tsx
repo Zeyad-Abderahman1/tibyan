@@ -20,32 +20,39 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 const variantStyles: Record<BadgeVariant, { container: string; dot: string }> = {
   neutral: {
-    container: 'bg-[var(--color-bg-surface-subtle)] text-[var(--color-text-secondary)] border-[var(--color-border-subtle)]',
-    dot: 'bg-[var(--color-text-muted)]',
+    container:
+      'bg-[var(--color-bg-surface-subtle)] text-[var(--color-text-secondary)] border-[var(--color-border-subtle)] dark:bg-slate-800/70 dark:text-slate-200 dark:border-slate-700/80',
+    dot: 'bg-[var(--color-text-muted)] dark:bg-slate-300',
   },
   primary: {
-    container: 'bg-[var(--color-bg-surface-subtle)] text-[var(--color-brand-primary)] border-[rgba(11,61,61,0.2)]',
-    dot: 'bg-[var(--color-brand-primary)]',
+    container:
+      'bg-[var(--color-bg-surface-subtle)] text-[var(--color-brand-primary)] border-[rgba(11,61,61,0.2)] dark:bg-[rgba(31,110,104,0.3)] dark:text-[#5EEAD4] dark:border-[rgba(45,212,191,0.35)]',
+    dot: 'bg-[var(--color-brand-primary)] dark:bg-[#5EEAD4]',
   },
   accent: {
-    container: 'bg-[var(--color-brand-accent-subtle)] text-[#997316] dark:text-[#E6C35C] border-[rgba(197,155,39,0.3)]',
-    dot: 'bg-[var(--color-brand-accent)]',
+    container:
+      'bg-[var(--color-brand-accent-subtle)] text-[#997316] dark:text-[#E6C35C] border-[rgba(197,155,39,0.3)] dark:bg-[rgba(197,155,39,0.2)] dark:border-[rgba(197,155,39,0.4)]',
+    dot: 'bg-[var(--color-brand-accent)] dark:bg-[#E6C35C]',
   },
   success: {
-    container: 'bg-[var(--color-status-success-bg)] text-[var(--color-status-success)] border-[var(--color-status-success-border)]',
-    dot: 'bg-[var(--color-status-success)]',
+    container:
+      'bg-[var(--color-status-success-bg)] text-[var(--color-status-success)] border-[var(--color-status-success-border)] dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60',
+    dot: 'bg-[var(--color-status-success)] dark:bg-emerald-400',
   },
   warning: {
-    container: 'bg-[var(--color-status-warning-bg)] text-[var(--color-status-warning)] border-[var(--color-status-warning-border)]',
-    dot: 'bg-[var(--color-status-warning)]',
+    container:
+      'bg-[var(--color-status-warning-bg)] text-[var(--color-status-warning)] border-[var(--color-status-warning-border)] dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60',
+    dot: 'bg-[var(--color-status-warning)] dark:bg-amber-400',
   },
   danger: {
-    container: 'bg-[var(--color-status-danger-bg)] text-[var(--color-status-danger)] border-[var(--color-status-danger-border)]',
-    dot: 'bg-[var(--color-status-danger)]',
+    container:
+      'bg-[var(--color-status-danger-bg)] text-[var(--color-status-danger)] border-[var(--color-status-danger-border)] dark:bg-red-950/40 dark:text-red-300 dark:border-red-800/60',
+    dot: 'bg-[var(--color-status-danger)] dark:bg-red-400',
   },
   info: {
-    container: 'bg-[var(--color-status-info-bg)] text-[var(--color-status-info)] border-[var(--color-status-info-border)]',
-    dot: 'bg-[var(--color-status-info)]',
+    container:
+      'bg-[var(--color-status-info-bg)] text-[var(--color-status-info)] border-[var(--color-status-info-border)] dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/60',
+    dot: 'bg-[var(--color-status-info)] dark:bg-sky-400',
   },
 };
 

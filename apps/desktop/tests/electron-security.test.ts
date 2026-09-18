@@ -255,4 +255,12 @@ describe('Task 10 — Preload Bridge Surface & Isolation Verification', () => {
       expect(canonicalKeys).toContain(key);
     }
   });
+
+  it('confirms main.ts hides/disables native Electron menu bar in production', () => {
+    const mainSource = fs.readFileSync(path.join(__dirname, '../electron/main.ts'), 'utf-8');
+    expect(mainSource).toContain('autoHideMenuBar: true');
+    expect(mainSource).toContain('mainWindow.setMenuBarVisibility(false)');
+    expect(mainSource).toContain('mainWindow.removeMenu()');
+    expect(mainSource).toContain('Menu.setApplicationMenu(null)');
+  });
 });

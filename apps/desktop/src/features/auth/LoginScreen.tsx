@@ -154,7 +154,7 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center space-y-2">
           <Logo size="lg" alt="تِبيان" className="mb-2" />
-          <h1 className="text-2xl font-bold text-[var(--color-brand-primary)]">
+          <h1 className="text-2xl font-bold text-[var(--color-brand-primary)] dark:text-[var(--color-text-primary)]">
             مساعد المدرس الذكي — تِبيان
           </h1>
           <p className="text-sm text-[var(--color-text-secondary)]">

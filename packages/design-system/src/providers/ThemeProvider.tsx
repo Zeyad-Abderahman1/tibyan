@@ -84,8 +84,8 @@ export function ThemeProvider({
 
   const toggleTheme = () => {
     setTheme((prev) => {
-      const next = prev === 'dark' ? 'light' : 'dark';
-      return next;
+      const currentResolved = prev === 'system' ? systemPreference : prev;
+      return currentResolved === 'dark' ? 'light' : 'dark';
     });
   };
 

@@ -230,7 +230,7 @@ export function FirstRunWizard({ setupState, onComplete }: FirstRunWizardProps) 
         {/* Brand Header */}
         <div className="flex flex-col items-center text-center space-y-2">
           <Logo size="lg" alt="تِبيان" className="mb-2" />
-          <h1 className="text-2xl font-bold text-[var(--color-brand-primary)]">
+          <h1 className="text-2xl font-bold text-[var(--color-brand-primary)] dark:text-[var(--color-text-primary)]">
             مساعد المدرس الذكي — تِبيان
           </h1>
           <p className="text-sm text-[var(--color-text-secondary)]">
@@ -243,7 +243,7 @@ export function FirstRunWizard({ setupState, onComplete }: FirstRunWizardProps) 
           {/* Step 1: Welcome Screen */}
           {step === 'welcome' && (
             <div className="p-6 space-y-6 text-center" data-testid="wizard-step-welcome">
-              <div className="w-12 h-12 rounded-full bg-[var(--color-brand-primary)]/10 text-[var(--color-brand-primary)] mx-auto flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-[var(--color-brand-primary)]/10 dark:bg-[var(--color-brand-accent)]/20 text-[var(--color-brand-primary)] dark:text-[var(--color-brand-accent)] mx-auto flex items-center justify-center">
                 <Sparkles className="w-6 h-6" />
               </div>
               <div className="space-y-2">

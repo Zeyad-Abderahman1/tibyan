@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { app, BrowserWindow, protocol } from 'electron';
+import { app, BrowserWindow, Menu, protocol } from 'electron';
 import {
   SECURE_WEB_PREFERENCES,
   configureWindowSecurity,
@@ -51,11 +51,16 @@ async function createWindow(): Promise<BrowserWindow> {
     minHeight: 700,
     title: 'تِبيان — نظام إدارة المعلم',
     backgroundColor: '#0B3D3D',
+    autoHideMenuBar: true,
     webPreferences: {
       ...SECURE_WEB_PREFERENCES,
       preload: preloadPath,
     },
   });
+
+  // Strip native Electron menu row in production (File / Edit / View / Window / Help)
+  mainWindow.setMenuBarVisibility(false);
+  mainWindow.removeMenu();
 
   // Apply hardened window & session security
   const devUrl = process.env.VITE_DEV_SERVER_URL;
@@ -102,6 +107,9 @@ app.on('before-quit', () => {
 // Bootstrap application when ready
 if (gotTheLock) {
   app.whenReady().then(async () => {
+    // Disable default native Electron application menu bar across production UI
+    Menu.setApplicationMenu(null);
+
     runtime.initialize();
 
     // Register media handler for safe, sandboxed student photo serving
