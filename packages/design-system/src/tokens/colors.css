@@ -63,6 +63,12 @@
   --color-status-info: #0284C7;
   --color-status-info-bg: #F0F9FF;
   --color-status-info-border: #BAE6FD;
+
+  /* Floating Island Tokens (Light) */
+  --color-bg-island: rgba(255, 255, 255, 0.92);
+  --color-bg-island-fallback: #FFFFFF;
+  --color-border-island: rgba(226, 232, 240, 0.9);
+  --shadow-island: 0 10px 30px -8px rgba(11, 61, 61, 0.08), 0 4px 12px -2px rgba(11, 61, 61, 0.04);
 }
 
 [data-theme="dark"] {
@@ -122,4 +128,10 @@
   --color-status-info: #38BDF8;
   --color-status-info-bg: rgba(56, 189, 248, 0.15);
   --color-status-info-border: rgba(56, 189, 248, 0.35);
+
+  /* Floating Island Tokens (Dark) */
+  --color-bg-island: rgba(15, 31, 36, 0.90);
+  --color-bg-island-fallback: #0F1F24;
+  --color-border-island: rgba(45, 212, 191, 0.20);
+  --shadow-island: 0 12px 40px -8px rgba(0, 0, 0, 0.6), 0 4px 16px -2px rgba(0, 0, 0, 0.4);
 }

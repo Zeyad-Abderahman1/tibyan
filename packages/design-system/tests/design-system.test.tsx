@@ -623,4 +623,18 @@ describe('Task 9: Tibyan Design System Verification Suite', () => {
     );
     expect(htmlNoEsc).toContain('role="dialog"');
   });
+
+  // 30. Exports dynamic island motion, surface, and shadow tokens.
+  it('30. exports dynamic island motion, surface, and shadow tokens', () => {
+    const colorsCssPath = path.join(rootDir, 'src/tokens/colors.css');
+    const layoutCssPath = path.join(rootDir, 'src/tokens/layout.css');
+    const colorsContent = fs.readFileSync(colorsCssPath, 'utf8');
+    const layoutContent = fs.readFileSync(layoutCssPath, 'utf8');
+
+    expect(colorsContent).toContain('--color-bg-island');
+    expect(colorsContent).toContain('--color-bg-island-fallback');
+    expect(colorsContent).toContain('--shadow-island');
+    expect(layoutContent).toContain('--ease-spring');
+    expect(layoutContent).toContain('prefers-reduced-motion');
+  });
 });
