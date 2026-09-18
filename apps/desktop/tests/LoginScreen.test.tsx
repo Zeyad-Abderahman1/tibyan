@@ -519,4 +519,43 @@ describe('Task 12: 4-Digit PIN Authentication & Session Store Suite', () => {
       }
     });
   });
+
+  // 8. Visual Rescue: Premium Horizontal Authentication Stage & Copy Hierarchy
+  describe('Visual Rescue: Desktop Auth Stage Layout & Hierarchy', () => {
+    it('renders horizontal two-column desktop authentication stage with identity panel and pin workspace', () => {
+      const html = renderToStaticMarkup(
+        <QueryClientProvider client={queryClient}>
+          <LoginScreen initialUsers={[mockOwnerUser, mockAssistantUser]} />
+        </QueryClientProvider>
+      );
+
+      // Auth Stage container
+      expect(html).toContain('data-testid="auth-stage"');
+
+      // Right Column: Identity Panel
+      expect(html).toContain('data-testid="identity-panel"');
+      expect(html).toContain('مرحباً بعودتك');
+      expect(html).toContain('الأستاذ أحمد الشريف');
+      expect(html).toContain('@teacher');
+
+      // Left Column: PIN Workspace
+      expect(html).toContain('data-testid="pin-workspace"');
+      expect(html).toContain('أدخل رمز PIN للمتابعة');
+      expect(html).toContain('data-testid="pin-pad-container"');
+
+      // Integrated Local-first security statement
+      expect(html).toContain('يعمل تِبيان محلياً على جهازك');
+    });
+
+    it('renders ambient background depth layers', () => {
+      const html = renderToStaticMarkup(
+        <QueryClientProvider client={queryClient}>
+          <LoginScreen initialUsers={[mockOwnerUser]} />
+        </QueryClientProvider>
+      );
+
+      expect(html).toContain('data-testid="login-ambient-bg"');
+    });
+  });
 });
+

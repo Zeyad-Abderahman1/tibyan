@@ -112,7 +112,7 @@ export function PinPad({
       {/* 4-Digit Display Indicator — Strictly LTR regardless of app direction */}
       <div
         dir="ltr"
-        className="flex items-center justify-center gap-3 my-4"
+        className="flex items-center justify-center gap-3 my-3"
         aria-label="خانة رمز PIN"
       >
         {[0, 1, 2, 3].map((index) => {
@@ -124,24 +124,27 @@ export function PinPad({
             <div
               key={index}
               className={cn(
-                'w-12 h-14 rounded-[var(--radius-md)] flex items-center justify-center text-xl font-bold transition-all',
-                'border bg-[var(--color-bg-surface)] text-[var(--color-text-primary)]',
+                'w-11 h-12 sm:w-12 sm:h-13 rounded-2xl flex items-center justify-center text-xl font-bold transition-all duration-200 select-none border',
                 isCurrent &&
-                  'border-[var(--color-brand-primary)] ring-2 ring-[var(--color-focus-ring)] shadow-xs',
-                isFilled && !isCurrent && 'border-[var(--color-border-strong)]',
-                !isFilled && !isCurrent && 'border-[var(--color-border-subtle)] bg-[var(--color-bg-surface-subtle)]',
-                error && 'border-[var(--color-status-danger)] ring-[rgba(220,38,38,0.2)]',
+                  'border-[var(--color-brand-primary)] dark:border-[#5CE1E6] ring-2 ring-[var(--color-brand-primary)]/20 dark:ring-[#5CE1E6]/25 bg-[var(--color-bg-surface)] dark:bg-[#0B1E1D] shadow-xs',
+                isFilled && !isCurrent &&
+                  'border-[var(--color-brand-primary)]/50 dark:border-[#5CE1E6]/50 bg-[var(--color-bg-surface)] dark:bg-[#0D2423] text-[var(--color-text-primary)] shadow-xs',
+                !isFilled && !isCurrent &&
+                  'border-[var(--color-border-subtle)] dark:border-[#1E4D4A]/30 bg-[var(--color-bg-surface-subtle)]/60 dark:bg-[#071716]/40 text-[var(--color-text-muted)]',
+                error && 'border-[var(--color-status-danger)] ring-2 ring-[rgba(220,38,38,0.2)]',
                 disabled && 'opacity-50 cursor-not-allowed'
               )}
             >
               {isFilled ? (
                 masked ? (
-                  <span className="w-3.5 h-3.5 rounded-full bg-[var(--color-brand-primary)]" />
+                  <span className="w-3.5 h-3.5 rounded-full bg-[var(--color-brand-primary)] dark:bg-[#5CE1E6] shadow-sm transition-transform duration-150" />
                 ) : (
                   <span>{digitChar}</span>
                 )
+              ) : isCurrent ? (
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-primary)]/40 dark:bg-[#5CE1E6]/40 animate-pulse" />
               ) : (
-                <span className="text-transparent">·</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-border-strong)]/40 dark:bg-[#2A5C59]/40" />
               )}
             </div>
           );
@@ -155,8 +158,8 @@ export function PinPad({
         </p>
       )}
 
-      {/* Keypad Grid (3x4) */}
-      <div className="grid grid-cols-3 gap-2.5 w-full">
+      {/* Keypad Grid (3x4) — LTR numeric spatial ordering matching telephone/PIN standard */}
+      <div dir="ltr" className="grid grid-cols-3 gap-2.5 sm:gap-3 w-full max-w-[270px] mx-auto">
         {digits.map((d) => (
           <button
             key={d}
@@ -164,65 +167,71 @@ export function PinPad({
             disabled={disabled}
             onClick={() => handleDigit(String(d))}
             className={cn(
-              'h-12 rounded-[var(--radius-md)] text-lg font-semibold transition-colors',
-              'bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-subtle)] shadow-xs',
-              'hover:bg-[var(--color-bg-surface-subtle)] active:bg-[var(--color-border-subtle)]',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]',
-              'disabled:opacity-40 disabled:cursor-not-allowed'
+              'h-12 sm:h-13 rounded-2xl text-xl font-semibold transition-all duration-150',
+              'bg-[var(--color-bg-surface)] dark:bg-[#0D2423]/80 text-[var(--color-text-primary)] dark:text-teal-50',
+              'border border-[var(--color-border-subtle)] dark:border-[#1E4D4A]/40 shadow-xs',
+              'hover:bg-[var(--color-bg-surface-subtle)] dark:hover:bg-[#163D3A] dark:hover:border-[#2E7A75]/60 hover:shadow-sm',
+              'active:scale-95 motion-reduce:active:scale-100 motion-reduce:transition-none',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] dark:focus-visible:ring-[#5CE1E6]',
+              'disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100'
             )}
           >
             {d}
           </button>
         ))}
 
-        {/* Clear Button */}
-        <button
-          type="button"
-          disabled={disabled || sanitizedValue.length === 0}
-          onClick={handleClear}
-          aria-label="مسح الكل"
-          className={cn(
-            'h-12 rounded-[var(--radius-md)] flex items-center justify-center text-sm font-medium transition-colors',
-            'bg-[var(--color-bg-surface-subtle)] text-[var(--color-text-secondary)] border border-transparent',
-            'hover:bg-[var(--color-border-subtle)] hover:text-[var(--color-text-primary)] active:opacity-80',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]',
-            'disabled:opacity-30 disabled:cursor-not-allowed'
-          )}
-        >
-          <RotateCcw size={18} aria-hidden="true" />
-        </button>
-
-        {/* 0 Button */}
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={() => handleDigit('0')}
-          className={cn(
-            'h-12 rounded-[var(--radius-md)] text-lg font-semibold transition-colors',
-            'bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-subtle)] shadow-xs',
-            'hover:bg-[var(--color-bg-surface-subtle)] active:bg-[var(--color-border-subtle)]',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]',
-            'disabled:opacity-40 disabled:cursor-not-allowed'
-          )}
-        >
-          0
-        </button>
-
-        {/* Backspace Button */}
+        {/* Backspace Button (Left / ⌫) */}
         <button
           type="button"
           disabled={disabled || sanitizedValue.length === 0}
           onClick={handleBackspace}
           aria-label="حذف رقم"
           className={cn(
-            'h-12 rounded-[var(--radius-md)] flex items-center justify-center text-sm font-medium transition-colors',
-            'bg-[var(--color-bg-surface-subtle)] text-[var(--color-text-secondary)] border border-transparent',
-            'hover:bg-[var(--color-border-subtle)] hover:text-[var(--color-text-primary)] active:opacity-80',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]',
-            'disabled:opacity-30 disabled:cursor-not-allowed'
+            'h-12 sm:h-13 rounded-2xl flex items-center justify-center text-sm font-medium transition-all duration-150',
+            'bg-[var(--color-bg-surface-subtle)]/80 dark:bg-[#0A1D1C]/60 text-[var(--color-text-secondary)] dark:text-[#8EABA8] border border-transparent',
+            'hover:bg-[var(--color-border-subtle)] dark:hover:bg-[#163D3A]/60 hover:text-[var(--color-text-primary)] dark:hover:text-white',
+            'active:scale-95 motion-reduce:active:scale-100 motion-reduce:transition-none',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] dark:focus-visible:ring-[#5CE1E6]',
+            'disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100'
           )}
         >
           <Delete size={18} aria-hidden="true" />
+        </button>
+
+        {/* 0 Button (Center) */}
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => handleDigit('0')}
+          className={cn(
+            'h-12 sm:h-13 rounded-2xl text-xl font-semibold transition-all duration-150',
+            'bg-[var(--color-bg-surface)] dark:bg-[#0D2423]/80 text-[var(--color-text-primary)] dark:text-teal-50',
+            'border border-[var(--color-border-subtle)] dark:border-[#1E4D4A]/40 shadow-xs',
+            'hover:bg-[var(--color-bg-surface-subtle)] dark:hover:bg-[#163D3A] dark:hover:border-[#2E7A75]/60 hover:shadow-sm',
+            'active:scale-95 motion-reduce:active:scale-100 motion-reduce:transition-none',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] dark:focus-visible:ring-[#5CE1E6]',
+            'disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100'
+          )}
+        >
+          0
+        </button>
+
+        {/* Clear Button (Right / ↻) */}
+        <button
+          type="button"
+          disabled={disabled || sanitizedValue.length === 0}
+          onClick={handleClear}
+          aria-label="مسح الكل"
+          className={cn(
+            'h-12 sm:h-13 rounded-2xl flex items-center justify-center text-sm font-medium transition-all duration-150',
+            'bg-[var(--color-bg-surface-subtle)]/80 dark:bg-[#0A1D1C]/60 text-[var(--color-text-secondary)] dark:text-[#8EABA8] border border-transparent',
+            'hover:bg-[var(--color-border-subtle)] dark:hover:bg-[#163D3A]/60 hover:text-[var(--color-text-primary)] dark:hover:text-white',
+            'active:scale-95 motion-reduce:active:scale-100 motion-reduce:transition-none',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] dark:focus-visible:ring-[#5CE1E6]',
+            'disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100'
+          )}
+        >
+          <RotateCcw size={18} aria-hidden="true" />
         </button>
       </div>
     </div>

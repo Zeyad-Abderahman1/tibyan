@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ShieldAlert, Users, Lock, Loader2 } from 'lucide-react';
-import { Logo, Card, CardHeader, CardTitle, Button, PinPad, Badge } from '@tibyan/design-system';
+import { ShieldAlert, Users, Lock, Loader2, ShieldCheck } from 'lucide-react';
+import { Logo, Button, PinPad, Badge } from '@tibyan/design-system';
 import type { UserSessionDto, LoginUserDto } from '@tibyan/contracts';
 import { UserCard } from './UserCard.js';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -144,96 +144,163 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
     [selectedUserId, submitting, cooldownDeadlines, login, onLoginSuccess]
   );
 
+  // Loading users state
+  if (loadingUsers) {
+    return (
+      <div
+        className="min-h-screen w-screen flex flex-col items-center justify-center p-6 bg-[var(--color-bg-app)] text-[var(--color-text-primary)] select-none relative"
+        dir="rtl"
+        data-testid="login-screen"
+      >
+        <div className="w-full max-w-md space-y-6 text-center">
+          <div className="flex flex-col items-center space-y-2">
+            <Logo size="md" alt="تِبيان" className="w-12 h-12 rounded-xl p-1.5" />
+            <h1 className="text-xl font-bold text-[var(--color-brand-primary)] dark:text-white">
+              مساعد المدرس الذكي — تِبيان
+            </h1>
+          </div>
+          <div
+            className="p-8 flex flex-col items-center justify-center space-y-3 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-md"
+            data-testid="login-loading"
+          >
+            <Loader2 className="w-8 h-8 text-[var(--color-brand-primary)] dark:text-[#5CE1E6] animate-spin" />
+            <span className="text-sm text-[var(--color-text-secondary)]">جاري تحميل الحسابات...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Zero users state
+  if (users.length === 0) {
+    return (
+      <div
+        className="min-h-screen w-screen flex flex-col items-center justify-center p-6 bg-[var(--color-bg-app)] text-[var(--color-text-primary)] select-none relative"
+        dir="rtl"
+        data-testid="login-screen"
+      >
+        <div
+          className="w-full max-w-md p-8 text-center space-y-4 rounded-3xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-xl"
+          data-testid="login-no-users"
+        >
+          <ShieldAlert className="w-10 h-10 text-[var(--color-status-warning)] mx-auto" />
+          <div className="space-y-1">
+            <h3 className="font-bold text-base">لا توجد حسابات مسجلة</h3>
+            <p className="text-xs text-[var(--color-text-secondary)]">
+              يرجى استكمال معالج التهيئة لإنشاء حساب المعلم المسؤول أولاً.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
-      className="min-h-screen w-screen flex flex-col items-center justify-center p-6 bg-[var(--color-bg-app)] text-[var(--color-text-primary)] select-none"
+      className="min-h-screen w-screen flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 bg-[var(--color-bg-app)] text-[var(--color-text-primary)] select-none relative overflow-hidden"
       dir="rtl"
       data-testid="login-screen"
     >
-      <div className="w-full max-w-md space-y-6">
-        {/* Brand Header */}
-        <div className="flex flex-col items-center text-center space-y-2">
-          <Logo size="lg" alt="تِبيان" className="mb-2" />
-          <h1 className="text-2xl font-bold text-[var(--color-brand-primary)] dark:text-[var(--color-text-primary)]">
-            مساعد المدرس الذكي — تِبيان
-          </h1>
-          <p className="text-sm text-[var(--color-text-secondary)]">
-            من التحضير إلى الامتحان، كل أدوات المدرس في مكان واحد
-          </p>
-        </div>
+      {/* Subtle CSS Ambient Depth Layer */}
+      <div
+        className="pointer-events-none absolute inset-0 overflow-hidden select-none"
+        aria-hidden="true"
+        data-testid="login-ambient-bg"
+      >
+        {/* Dark mode soft radial depth */}
+        <div className="absolute -top-[20%] left-1/2 -translate-x-1/2 w-[750px] h-[550px] rounded-full bg-[radial-gradient(circle_at_center,rgba(20,56,54,0.35)_0%,rgba(6,16,16,0)_70%)] dark:block hidden" />
+        {/* Light mode soft ambient glow */}
+        <div className="absolute -top-[20%] left-1/2 -translate-x-1/2 w-[750px] h-[550px] rounded-full bg-[radial-gradient(circle_at_center,rgba(14,148,136,0.07)_0%,rgba(240,249,248,0)_70%)] dark:hidden block" />
+        {/* Very subtle noise/dot texture */}
+        <div className="absolute inset-0 opacity-[0.015] dark:opacity-[0.025] [background-image:radial-gradient(#14b8a6_1px,transparent_1px)] [background-size:28px_28px]" />
+      </div>
 
-        {/* Main Card */}
-        <Card variant="elevated" className="border-[var(--color-border-subtle)] shadow-xl overflow-hidden">
-          {loadingUsers ? (
-            <div className="p-12 flex flex-col items-center justify-center space-y-3" data-testid="login-loading">
-              <Loader2 className="w-8 h-8 text-[var(--color-brand-primary)] animate-spin" />
-              <span className="text-sm text-[var(--color-text-secondary)]">جاري تحميل الحسابات...</span>
-            </div>
-          ) : users.length === 0 ? (
-            <div className="p-8 text-center space-y-4" data-testid="login-no-users">
-              <ShieldAlert className="w-10 h-10 text-[var(--color-status-warning)] mx-auto" />
-              <div className="space-y-1">
-                <h3 className="font-bold text-base">لا توجد حسابات مسجلة</h3>
-                <p className="text-xs text-[var(--color-text-secondary)]">
-                  يرجى استكمال معالج التهيئة لإنشاء حساب المعلم المسؤول أولاً.
-                </p>
-              </div>
-            </div>
-          ) : isSelectingUser ? (
-            /* Account Switcher View */
-            <div className="p-6 space-y-4" data-testid="account-picker-view">
-              <CardHeader className="px-0 pt-0 pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-[var(--color-brand-primary)]" />
-                    <CardTitle className="text-base font-bold">اختيار الحساب</CardTitle>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsSelectingUser(false)}
-                    className="text-xs text-[var(--color-text-secondary)]"
-                    data-testid="cancel-account-picker-btn"
-                  >
-                    رجوع
-                  </Button>
+      {/* Premium Horizontal Desktop Authentication Stage */}
+      <div
+        className="relative z-10 w-full max-w-[920px] bg-[var(--color-bg-surface)] dark:bg-[#0B1E1D]/90 backdrop-blur-xl border border-[var(--color-border-subtle)] dark:border-[#1E4D4A]/40 rounded-3xl shadow-xl dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6)] overflow-hidden"
+        data-testid="auth-stage"
+      >
+        <div className="flex flex-col md:flex-row items-stretch">
+          {/* 1. Identity & Branding Panel (RTL Right side) */}
+          <div
+            className="w-full md:w-[48%] p-6 sm:p-8 flex flex-col justify-between border-b md:border-b-0 md:border-l border-[var(--color-border-subtle)] dark:border-[#1A423F]/40 bg-[var(--color-bg-surface-subtle)]/40 dark:bg-[#081817]/40"
+            data-testid="identity-panel"
+          >
+            <div>
+              {/* Brand Header */}
+              <div className="flex items-center gap-3">
+                <Logo
+                  size="md"
+                  alt="تِبيان"
+                  className="w-11 h-11 rounded-xl p-1.5 shadow-sm border border-slate-200/60 dark:border-white/10"
+                />
+                <div className="flex flex-col">
+                  <span className="text-xl font-extrabold text-[var(--color-brand-primary)] dark:text-[#5CE1E6] tracking-tight leading-tight">
+                    تِبيان
+                  </span>
+                  <span className="text-xs text-[var(--color-text-secondary)] dark:text-[#95B5B2] font-medium leading-tight">
+                    مساعد المدرس الذكي — تِبيان
+                  </span>
                 </div>
-                <p className="text-xs text-[var(--color-text-secondary)]">
-                  اختر الحساب الذي ترغب بتسجيل الدخول إليه:
-                </p>
-              </CardHeader>
-
-              <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-0.5">
-                {users.map((u) => (
-                  <UserCard
-                    key={u.id}
-                    user={u}
-                    isSelected={u.id === selectedUserId}
-                    onSelect={() => handleSelectUser(u.id)}
-                  />
-                ))}
               </div>
-            </div>
-          ) : (
-            /* PIN Entry View */
-            <div className="p-6 space-y-5" data-testid="pin-entry-view">
-              {/* Active Selected User Display */}
-              {selectedUser && (
-                <div className="p-3 rounded-xl bg-[var(--color-bg-surface-subtle)] border border-[var(--color-border-subtle)] flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
+
+              {/* Greeting Headline */}
+              <div className="mt-6 sm:mt-7 space-y-1">
+                <h1 className="text-2xl sm:text-3xl font-bold text-[var(--color-text-primary)] dark:text-white tracking-tight">
+                  مرحباً بعودتك
+                </h1>
+                <p className="text-xs sm:text-sm text-[var(--color-text-secondary)] dark:text-[#8EABA8] leading-relaxed">
+                  من التحضير إلى الامتحان، كل أدواتك التعليمية في مكان واحد
+                </p>
+              </div>
+
+              {/* Account Identity Block / Picker */}
+              {isSelectingUser ? (
+                /* Account Selector View */
+                <div className="mt-5 space-y-3" data-testid="account-picker-view">
+                  <div className="flex items-center justify-between pb-1 border-b border-[var(--color-border-subtle)] dark:border-[#1E4D4A]/30">
+                    <div className="flex items-center gap-1.5 text-sm font-bold text-[var(--color-text-primary)] dark:text-white">
+                      <Users className="w-4 h-4 text-[var(--color-brand-primary)] dark:text-[#5CE1E6]" />
+                      <span>اختيار الحساب</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsSelectingUser(false)}
+                      className="text-xs text-[var(--color-text-secondary)] dark:text-[#8EABA8] hover:text-[var(--color-text-primary)] dark:hover:text-white"
+                      data-testid="cancel-account-picker-btn"
+                    >
+                      رجوع
+                    </Button>
+                  </div>
+                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-0.5">
+                    {users.map((u) => (
+                      <UserCard
+                        key={u.id}
+                        user={u}
+                        isSelected={u.id === selectedUserId}
+                        onSelect={() => handleSelectUser(u.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : selectedUser ? (
+                /* Selected User Card */
+                <div className="mt-5 p-4 rounded-2xl bg-[var(--color-bg-surface)] dark:bg-[#071716]/80 border border-[var(--color-border-subtle)] dark:border-[#1E4D4A]/40 shadow-xs">
+                  <div className="flex items-center gap-3.5 min-w-0">
                     <div
-                      className="w-10 h-10 rounded-full bg-[var(--color-brand-primary)] text-white flex items-center justify-center font-bold text-sm shrink-0"
+                      className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--color-brand-primary)] to-[var(--color-brand-primary-hover)] dark:from-[#175754] dark:to-[#0D3836] text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-xs border border-teal-400/20"
                       aria-hidden="true"
                     >
                       {selectedUser.fullName.trim().charAt(0) || 'م'}
                     </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-semibold text-sm text-[var(--color-text-primary)] truncate">
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="font-bold text-sm sm:text-base text-[var(--color-text-primary)] dark:text-white truncate">
                         {selectedUser.fullName}
                       </span>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-[var(--color-text-secondary)] truncate" dir="ltr">
+                        <span className="text-xs text-[var(--color-text-secondary)] dark:text-[#8EABA8] truncate num-isolate" dir="ltr">
                           @{selectedUser.username}
                         </span>
                         <Badge
@@ -256,37 +323,61 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
                         setIsSelectingUser(true);
                         setErrorMessage(null);
                       }}
-                      className="text-xs text-[var(--color-brand-primary)] hover:bg-[var(--color-brand-primary-subtle)]/50 shrink-0"
+                      className="mt-3 w-full justify-center text-xs text-[var(--color-brand-primary)] dark:text-[#5CE1E6] hover:bg-[var(--color-brand-primary-subtle)]/30 dark:hover:bg-[#5CE1E6]/10 py-1.5 rounded-xl transition-colors"
                       data-testid="switch-account-btn"
                     >
                       تبديل الحساب
                     </Button>
                   )}
                 </div>
-              )}
+              ) : null}
+            </div>
 
-              {/* Cooldown Lockout Banner */}
+            {/* Trust & Security Tagline at base of identity column */}
+            <div className="mt-6 pt-3 border-t border-[var(--color-border-subtle)]/60 dark:border-[#1E4D4A]/25 flex items-center gap-2 text-[11px] text-[var(--color-text-muted)] dark:text-[#6D8E8B]">
+              <ShieldCheck className="w-3.5 h-3.5 text-[var(--color-brand-primary)] dark:text-[#5CE1E6] shrink-0" />
+              <span>نظام محلي مشفر ومستقل بالكامل</span>
+            </div>
+          </div>
+
+          {/* 2. PIN Workspace (RTL Left side) */}
+          <div
+            className="w-full md:w-[52%] p-6 sm:p-8 flex flex-col items-center justify-center"
+            data-testid="pin-workspace"
+          >
+            <div className="w-full max-w-[300px] space-y-4" data-testid="pin-entry-view">
+              {/* Workspace Title & Instruction */}
+              <div className="text-center space-y-1">
+                <h2 className="text-base sm:text-lg font-bold text-[var(--color-text-primary)] dark:text-white">
+                  أدخل رمز PIN للمتابعة
+                </h2>
+                <p className="text-xs text-[var(--color-text-secondary)] dark:text-[#8EABA8]">
+                  رمز سري مكون من 4 أرقام لتأكيد الهوية
+                </p>
+              </div>
+
+              {/* Alerts: Cooldown or Error */}
               {isAccountLocked ? (
                 <div
-                  className="p-4 rounded-xl bg-[var(--color-status-danger-bg)] text-[var(--color-status-danger)] border border-[var(--color-status-danger-border)] space-y-2 text-center"
+                  className="p-3.5 rounded-2xl bg-[var(--color-status-danger-bg)] text-[var(--color-status-danger)] border border-[var(--color-status-danger-border)] space-y-1.5 text-center shadow-xs"
                   role="alert"
                   data-testid="cooldown-banner"
                 >
-                  <div className="flex items-center justify-center gap-2 font-bold text-sm">
-                    <Lock className="w-4 h-4" />
+                  <div className="flex items-center justify-center gap-1.5 font-bold text-xs">
+                    <Lock className="w-3.5 h-3.5" />
                     <span>الحساب مقفل مؤقتاً</span>
                   </div>
-                  <p className="text-xs leading-relaxed">
+                  <p className="text-[11px] leading-relaxed">
                     تم تجاوز الحد الأقصى للمحاولات الخاطئة (5 محاولات).
                   </p>
-                  <div className="flex items-center justify-center gap-2 pt-1 font-bold text-lg num-isolate">
+                  <div className="flex items-center justify-center gap-1.5 pt-0.5 font-bold text-base num-isolate">
                     <span>{remainingSeconds}</span>
                     <span className="text-xs font-normal">ثانية متبقية</span>
                   </div>
                 </div>
               ) : errorMessage ? (
                 <div
-                  className="p-3 rounded-lg bg-[var(--color-status-danger-bg)] text-[var(--color-status-danger)] text-xs border border-[var(--color-status-danger-border)] text-center"
+                  className="p-3 rounded-xl bg-[var(--color-status-danger-bg)] text-[var(--color-status-danger)] text-xs border border-[var(--color-status-danger-border)] text-center"
                   role="alert"
                   data-testid="login-error-msg"
                 >
@@ -294,16 +385,19 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
                 </div>
               ) : null}
 
-              {/* Submitting Spinner Overlay / Notice */}
+              {/* Submitting Spinner */}
               {submitting && (
-                <div className="flex items-center justify-center gap-2 text-xs text-[var(--color-brand-primary)] font-medium" data-testid="login-verifying">
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                <div
+                  className="flex items-center justify-center gap-2 text-xs text-[var(--color-brand-primary)] dark:text-[#5CE1E6] font-medium"
+                  data-testid="login-verifying"
+                >
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   <span>جاري التحقق من رمز PIN...</span>
                 </div>
               )}
 
-              {/* Design-System PinPad Primitive */}
-              <div className="flex justify-center pt-1" data-testid="pin-pad-container">
+              {/* PinPad Container */}
+              <div className="flex justify-center pt-0.5" data-testid="pin-pad-container">
                 <PinPad
                   value={pin}
                   onChange={(val) => {
@@ -317,14 +411,16 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
                 />
               </div>
             </div>
-          )}
-        </Card>
+          </div>
+        </div>
+      </div>
 
-        {/* Security / Offline Notice */}
-        <p className="text-center text-xs text-[var(--color-text-muted)]">
-          تِبيان نظام محلي مشفر يعمل على جهازك الشخصي بدون الحاجة للاتصال بالإنترنت
-        </p>
+      {/* Integrated Local-First Footer Statement */}
+      <div className="mt-5 flex items-center justify-center gap-2 text-xs text-[var(--color-text-muted)] dark:text-[#6D8E8B] select-none z-10">
+        <ShieldCheck className="w-3.5 h-3.5 text-[var(--color-brand-primary)] dark:text-[#5CE1E6] shrink-0" />
+        <span>يعمل تِبيان محلياً على جهازك • لا يحتاج اتصالاً بالإنترنت</span>
       </div>
     </div>
   );
 }
+

@@ -143,5 +143,64 @@ test.describe('Visual Rescue Verification Suite', () => {
       const tableLightPath = path.join(screenshotsDir, 'groups-1920x1080-table-light.png');
       await page.screenshot({ path: tableLightPath, fullPage: true });
     }
+
+    // 8. Visual Rescue: Login UI Capture
+    const logoutBtn = page.locator('[data-testid="topbar-logout-btn"]');
+    await expect(logoutBtn).toBeVisible({ timeout: 5000 });
+    await logoutBtn.click();
+
+    // Wait for Login Screen
+    const loginScreenEl = page.locator('[data-testid="login-screen"]');
+    await expect(loginScreenEl).toBeVisible({ timeout: 10000 });
+    const authStage = page.locator('[data-testid="auth-stage"]');
+    await expect(authStage).toBeVisible({ timeout: 5000 });
+
+    // Enter 2 digits to show active & filled PIN indicator slots
+    await page.keyboard.press('Digit1');
+    await page.keyboard.press('Digit2');
+    await page.waitForTimeout(300);
+
+    const repoScreenshotsDir = path.resolve(__dirname, '../../../screenshots');
+    if (!fs.existsSync(repoScreenshotsDir)) {
+      fs.mkdirSync(repoScreenshotsDir, { recursive: true });
+    }
+
+    // Login 1920x1080 Dark
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    });
+    await page.waitForTimeout(400);
+    const loginDark1920 = path.join(screenshotsDir, 'login-1920x1080-dark.png');
+    await page.screenshot({ path: loginDark1920, fullPage: true });
+    fs.copyFileSync(loginDark1920, path.join(repoScreenshotsDir, 'login-1920x1080-dark.png'));
+
+    // Login 1920x1080 Light
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-theme', 'light');
+    });
+    await page.waitForTimeout(400);
+    const loginLight1920 = path.join(screenshotsDir, 'login-1920x1080-light.png');
+    await page.screenshot({ path: loginLight1920, fullPage: true });
+    fs.copyFileSync(loginLight1920, path.join(repoScreenshotsDir, 'login-1920x1080-light.png'));
+
+    // Login 1366x768 Dark
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    });
+    await page.waitForTimeout(400);
+    const loginDark1366 = path.join(screenshotsDir, 'login-1366x768-dark.png');
+    await page.screenshot({ path: loginDark1366, fullPage: true });
+    fs.copyFileSync(loginDark1366, path.join(repoScreenshotsDir, 'login-1366x768-dark.png'));
+
+    // Login 1366x768 Light
+    await page.evaluate(() => {
+      document.documentElement.setAttribute('data-theme', 'light');
+    });
+    await page.waitForTimeout(400);
+    const loginLight1366 = path.join(screenshotsDir, 'login-1366x768-light.png');
+    await page.screenshot({ path: loginLight1366, fullPage: true });
+    fs.copyFileSync(loginLight1366, path.join(repoScreenshotsDir, 'login-1366x768-light.png'));
   });
 });
