@@ -140,8 +140,12 @@ test.describe('Attendance Visual Approval Gate 1', () => {
         guardianPhone: '01512345678',
       });
 
-      // Enroll students
-      const effectiveDate = new Date().toISOString().split('T')[0];
+      // Enroll students using local wall-clock date matching DefaultDateProvider
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const effectiveDate = `${year}-${month}-${day}`;
       await window.tibyan.enrollments.enroll({ groupId, studentId: s1.data!.id, effectiveDate });
       await window.tibyan.enrollments.enroll({ groupId, studentId: s2.data!.id, effectiveDate });
       await window.tibyan.enrollments.enroll({ groupId, studentId: s3.data!.id, effectiveDate });

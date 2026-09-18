@@ -121,14 +121,17 @@ export function configureSessionSecurity(
       return;
     }
 
-    // 5. Strictly allow camera/video only; deny microphone/audio
-    if (details?.mediaTypes && Array.isArray(details.mediaTypes)) {
-      const hasAudio = details.mediaTypes.includes('audio');
-      const hasVideo = details.mediaTypes.includes('video');
-      if (hasAudio || !hasVideo) {
-        callback(false);
-        return;
-      }
+    // 5. Strictly allow camera/video only; require explicit video-only mediaTypes array and deny microphone/audio
+    if (!details || !Array.isArray(details.mediaTypes) || details.mediaTypes.length === 0) {
+      callback(false);
+      return;
+    }
+
+    const hasAudio = details.mediaTypes.includes('audio');
+    const hasVideo = details.mediaTypes.includes('video');
+    if (hasAudio || !hasVideo) {
+      callback(false);
+      return;
     }
 
     callback(true);

@@ -6,11 +6,13 @@ import {
 } from '../src/hooks/useUsbScanner.js';
 
 describe('useUsbScanner timing and buffer logic', () => {
-  it('identifies scanner speed when interval is under 35ms', () => {
-    expect(isScannerSpeed(10, 35)).toBe(true);
-    expect(isScannerSpeed(25, 35)).toBe(true);
-    expect(isScannerSpeed(40, 35)).toBe(false);
-    expect(isScannerSpeed(100, 35)).toBe(false);
+  it('identifies scanner speed when interval is under threshold', () => {
+    expect(isScannerSpeed(10)).toBe(true);
+    expect(isScannerSpeed(25)).toBe(true);
+    expect(isScannerSpeed(40)).toBe(true);
+    expect(isScannerSpeed(50)).toBe(true);
+    expect(isScannerSpeed(70)).toBe(true);
+    expect(isScannerSpeed(100)).toBe(false);
   });
 
   it('parses valid barcode and student code buffers', () => {
@@ -19,6 +21,11 @@ describe('useUsbScanner timing and buffer logic', () => {
     expect(parseBarcodeBuffer('42')).toBe('42');
     expect(parseBarcodeBuffer('A')).toBe(null); // too short
     expect(parseBarcodeBuffer('')).toBe(null);
+  });
+
+  it('rejects arbitrary fast prose or text with spaces', () => {
+    expect(parseBarcodeBuffer('hello world')).toBe(null);
+    expect(parseBarcodeBuffer('fast human text here')).toBe(null);
   });
 
   it('extracts student code from JSON QR payload if present', () => {
@@ -52,54 +59,83 @@ describe('createUsbScannerListener — Hardware Wedge Security & Boundaries', ()
     };
   }
 
-  it('produces one scan for fast scanner-like sequence + Enter', () => {
+  it('accepts valid scanner sequence at 20ms interval', () => {
     const onScan = vi.fn();
-    const listener = createUsbScannerListener({ onScan, thresholdMs: 35 });
+    const listener = createUsbScannerListener({ onScan });
 
-    const keys = ['T', 'B', '-', '0', '4', '2'];
-    for (const k of keys) {
-      currentTime += 10; // 10ms velocity
+    for (const k of ['T', 'B', '-', '0', '2', '0']) {
+      currentTime += 20;
       listener.handleKeyDown(createMockEvent(k));
     }
-
-    currentTime += 10;
+    currentTime += 20;
     const enterEvent = createMockEvent('Enter');
     listener.handleKeyDown(enterEvent);
 
     expect(onScan).toHaveBeenCalledTimes(1);
-    expect(onScan).toHaveBeenCalledWith('TB-042');
+    expect(onScan).toHaveBeenCalledWith('TB-020');
     expect(enterEvent.preventDefault).toHaveBeenCalled();
   });
 
-  it('does not produce scan for normal human typing in an input field', () => {
+  it('accepts valid scanner sequence at 40ms interval', () => {
     const onScan = vi.fn();
-    const listener = createUsbScannerListener({ onScan, thresholdMs: 35, resetTimeoutMs: 60 });
-    const inputTarget = { tagName: 'INPUT' };
+    const listener = createUsbScannerListener({ onScan });
 
-    // Human typing at ~120ms intervals
-    const keys = ['T', 'B', '-', '0', '1'];
-    for (const k of keys) {
-      currentTime += 120;
-      listener.handleKeyDown(createMockEvent(k, { target: inputTarget }));
+    for (const k of ['T', 'B', '-', '0', '4', '0']) {
+      currentTime += 40;
+      listener.handleKeyDown(createMockEvent(k));
     }
-
-    currentTime += 120;
-    const enterEvent = createMockEvent('Enter', { target: inputTarget });
+    currentTime += 40;
+    const enterEvent = createMockEvent('Enter');
     listener.handleKeyDown(enterEvent);
 
-    expect(onScan).not.toHaveBeenCalled();
-    expect(enterEvent.preventDefault).not.toHaveBeenCalled();
+    expect(onScan).toHaveBeenCalledTimes(1);
+    expect(onScan).toHaveBeenCalledWith('TB-040');
+    expect(enterEvent.preventDefault).toHaveBeenCalled();
   });
 
-  it('does not produce scan when keystroke intervals exceed scanner threshold', () => {
+  it('accepts valid scanner sequence at 50ms interval', () => {
     const onScan = vi.fn();
-    const listener = createUsbScannerListener({ onScan, thresholdMs: 35, resetTimeoutMs: 100 });
+    const listener = createUsbScannerListener({ onScan });
 
-    // Typing at 50ms interval (exceeds 35ms threshold but within 100ms reset)
-    listener.handleKeyDown(createMockEvent('T'));
+    for (const k of ['T', 'B', '-', '0', '5', '0']) {
+      currentTime += 50;
+      listener.handleKeyDown(createMockEvent(k));
+    }
     currentTime += 50;
-    listener.handleKeyDown(createMockEvent('B'));
-    currentTime += 50;
+    const enterEvent = createMockEvent('Enter');
+    listener.handleKeyDown(enterEvent);
+
+    expect(onScan).toHaveBeenCalledTimes(1);
+    expect(onScan).toHaveBeenCalledWith('TB-050');
+    expect(enterEvent.preventDefault).toHaveBeenCalled();
+  });
+
+  it('accepts valid scanner sequence at 70ms interval', () => {
+    const onScan = vi.fn();
+    const listener = createUsbScannerListener({ onScan });
+
+    for (const k of ['T', 'B', '-', '0', '7', '0']) {
+      currentTime += 70;
+      listener.handleKeyDown(createMockEvent(k));
+    }
+    currentTime += 70;
+    const enterEvent = createMockEvent('Enter');
+    listener.handleKeyDown(enterEvent);
+
+    expect(onScan).toHaveBeenCalledTimes(1);
+    expect(onScan).toHaveBeenCalledWith('TB-070');
+    expect(enterEvent.preventDefault).toHaveBeenCalled();
+  });
+
+  it('rejects ordinary slow human typing at 150ms intervals', () => {
+    const onScan = vi.fn();
+    const listener = createUsbScannerListener({ onScan });
+
+    for (const k of ['T', 'B', '-', '0', '0', '1']) {
+      currentTime += 150;
+      listener.handleKeyDown(createMockEvent(k));
+    }
+    currentTime += 150;
     const enterEvent = createMockEvent('Enter');
     listener.handleKeyDown(enterEvent);
 
@@ -107,39 +143,95 @@ describe('createUsbScannerListener — Hardware Wedge Security & Boundaries', ()
     expect(enterEvent.preventDefault).not.toHaveBeenCalled();
   });
 
-  it('does not produce scan for pasted text followed by Enter', () => {
+  it('rejects sequence without Enter terminator', () => {
     const onScan = vi.fn();
     const listener = createUsbScannerListener({ onScan });
 
-    // On paste, keydown for characters does NOT occur; only Enter is pressed
-    const enterEvent = createMockEvent('Enter', { target: { tagName: 'INPUT' } });
-    listener.handleKeyDown(enterEvent);
-
-    expect(onScan).not.toHaveBeenCalled();
-    expect(enterEvent.preventDefault).not.toHaveBeenCalled();
-  });
-
-  it('does not produce scan when sequence lacks Enter terminator', () => {
-    const onScan = vi.fn();
-    const listener = createUsbScannerListener({ onScan });
-
-    // High velocity burst without Enter
     for (const k of ['T', 'B', '0', '1']) {
-      currentTime += 10;
+      currentTime += 20;
       listener.handleKeyDown(createMockEvent(k));
     }
 
     expect(onScan).not.toHaveBeenCalled();
   });
 
-  it('ignores key repeat events', () => {
+  it('does not produce scan for paste followed by Enter', () => {
     const onScan = vi.fn();
     const listener = createUsbScannerListener({ onScan });
 
-    // Repeated key
+    // On paste, characters do not come through keydown
+    const enterEvent = createMockEvent('Enter');
+    listener.handleKeyDown(enterEvent);
+
+    expect(onScan).not.toHaveBeenCalled();
+    expect(enterEvent.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('protects active input, textarea, and contenteditable controls', () => {
+    const onScan = vi.fn();
+    const listener = createUsbScannerListener({ onScan });
+
+    // Input element target
+    const inputTarget = { tagName: 'INPUT' };
+    for (const k of ['T', 'B', '1']) {
+      currentTime += 10;
+      listener.handleKeyDown(createMockEvent(k, { target: inputTarget }));
+    }
+    currentTime += 10;
+    const enterInput = createMockEvent('Enter', { target: inputTarget });
+    listener.handleKeyDown(enterInput);
+    expect(onScan).not.toHaveBeenCalled();
+    expect(enterInput.preventDefault).not.toHaveBeenCalled();
+
+    // Textarea element target
+    const textareaTarget = { tagName: 'TEXTAREA' };
+    for (const k of ['T', 'B', '2']) {
+      currentTime += 10;
+      listener.handleKeyDown(createMockEvent(k, { target: textareaTarget }));
+    }
+    currentTime += 10;
+    const enterTextarea = createMockEvent('Enter', { target: textareaTarget });
+    listener.handleKeyDown(enterTextarea);
+    expect(onScan).not.toHaveBeenCalled();
+    expect(enterTextarea.preventDefault).not.toHaveBeenCalled();
+
+    // Contenteditable target
+    const editableTarget = { tagName: 'DIV', isContentEditable: true };
+    for (const k of ['T', 'B', '3']) {
+      currentTime += 10;
+      listener.handleKeyDown(createMockEvent(k, { target: editableTarget }));
+    }
+    currentTime += 10;
+    const enterEditable = createMockEvent('Enter', { target: editableTarget });
+    listener.handleKeyDown(enterEditable);
+    expect(onScan).not.toHaveBeenCalled();
+    expect(enterEditable.preventDefault).not.toHaveBeenCalled();
+  });
+
+  it('rejects modifier-assisted keystrokes (Ctrl, Alt, Meta)', () => {
+    const onScan = vi.fn();
+    const listener = createUsbScannerListener({ onScan });
+
+    listener.handleKeyDown(createMockEvent('T', { ctrlKey: true }));
+    currentTime += 10;
+    listener.handleKeyDown(createMockEvent('B', { altKey: true }));
+    currentTime += 10;
+    listener.handleKeyDown(createMockEvent('0', { metaKey: true }));
+    currentTime += 10;
+    listener.handleKeyDown(createMockEvent('1'));
+    currentTime += 10;
+    listener.handleKeyDown(createMockEvent('Enter'));
+
+    expect(onScan).not.toHaveBeenCalled();
+  });
+
+  it('rejects key repeat events', () => {
+    const onScan = vi.fn();
+    const listener = createUsbScannerListener({ onScan });
+
     listener.handleKeyDown(createMockEvent('T', { repeat: true }));
     currentTime += 10;
-    listener.handleKeyDown(createMockEvent('T', { repeat: true }));
+    listener.handleKeyDown(createMockEvent('B', { repeat: true }));
     currentTime += 10;
     listener.handleKeyDown(createMockEvent('Enter'));
 
@@ -149,19 +241,17 @@ describe('createUsbScannerListener — Hardware Wedge Security & Boundaries', ()
   it('clears buffer on timeout so stale prefix does not merge into subsequent scan', () => {
     vi.useFakeTimers();
     const onScan = vi.fn();
-    const listener = createUsbScannerListener({ onScan, resetTimeoutMs: 60 });
+    const listener = createUsbScannerListener({ onScan, resetTimeoutMs: 120 });
 
-    // Partial prefix
     currentTime += 10;
     listener.handleKeyDown(createMockEvent('T'));
     currentTime += 10;
     listener.handleKeyDown(createMockEvent('B'));
 
-    // Stale pause: fast-forward timers past resetTimeoutMs * 2
-    vi.advanceTimersByTime(200);
+    // Stale pause past reset timeout
+    vi.advanceTimersByTime(300);
 
-    // New valid scan
-    currentTime += 200;
+    currentTime += 300;
     for (const k of ['9', '9']) {
       currentTime += 10;
       listener.handleKeyDown(createMockEvent(k));
@@ -180,7 +270,7 @@ describe('createUsbScannerListener — Hardware Wedge Security & Boundaries', ()
       ignoreDuplicatesWithinMs: 500,
     });
 
-    // Scan 1: TB-0001
+    // Scan 1: TB1
     for (const k of ['T', 'B', '1']) {
       currentTime += 10;
       listener.handleKeyDown(createMockEvent(k));
@@ -190,7 +280,7 @@ describe('createUsbScannerListener — Hardware Wedge Security & Boundaries', ()
     expect(onScan).toHaveBeenCalledTimes(1);
     expect(onScan).toHaveBeenLastCalledWith('TB1');
 
-    // Duplicate scan 100ms later: TB-0001
+    // Duplicate scan 100ms later: TB1
     currentTime += 100;
     for (const k of ['T', 'B', '1']) {
       currentTime += 10;
@@ -200,7 +290,7 @@ describe('createUsbScannerListener — Hardware Wedge Security & Boundaries', ()
     listener.handleKeyDown(createMockEvent('Enter'));
     expect(onScan).toHaveBeenCalledTimes(1); // Ignored as duplicate
 
-    // Different scan: TB-0002
+    // Different scan: TB2
     currentTime += 50;
     for (const k of ['T', 'B', '2']) {
       currentTime += 10;

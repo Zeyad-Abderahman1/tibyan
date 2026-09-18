@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { Modal, Button } from '@tibyan/design-system';
-import { CameraOff } from 'lucide-react';
+import { CameraOff, AlertTriangle } from 'lucide-react';
 
 export interface CameraScannerModalProps {
   isOpen: boolean;
@@ -20,12 +20,14 @@ export function CameraScannerModal({
   const lastScanTimeRef = useRef<number>(0);
   const lastScannedCodeRef = useRef<string>('');
 
+  const isBarcodeDetectorSupported = typeof window !== 'undefined' && 'BarcodeDetector' in window;
+
   useEffect(() => {
     let stream: MediaStream | null = null;
     let scanInterval: any = null;
 
     async function startCamera() {
-      if (!isOpen) return;
+      if (!isOpen || !isBarcodeDetectorSupported) return;
       try {
         setCameraError(null);
         if (!navigator?.mediaDevices?.getUserMedia) {
@@ -99,48 +101,65 @@ export function CameraScannerModal({
       size="md"
     >
       <div className="space-y-4 text-center" dir="rtl">
-        <p className="text-xs text-[var(--color-text-secondary)]">
-          وجّه كاميرا الجهاز نحو بطاقة الطالب لمسح رمز الـ QR أو الباركود تلقائيًا.
-        </p>
-
-        <div className="relative w-full aspect-video rounded-xl bg-black/90 overflow-hidden flex items-center justify-center border border-[var(--color-border-subtle)]">
-          {cameraError ? (
-            <div className="p-6 text-center space-y-2 text-[var(--color-status-danger)]">
-              <CameraOff className="w-8 h-8 mx-auto" />
-              <p className="text-xs font-semibold">{cameraError}</p>
-            </div>
-          ) : (
-            <>
-              <video
-                ref={videoRef}
-                className="w-full h-full object-cover"
-                playsInline
-                muted
-                data-testid="camera-scanner-video"
-              />
-              {/* Viewfinder Target Frame */}
-              <div
-                className={`absolute inset-8 border-2 rounded-lg pointer-events-none transition-all duration-300 flex items-center justify-center ${
-                  flashSuccess
-                    ? 'border-emerald-400 bg-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.5)]'
-                    : 'border-dashed border-[var(--color-brand-accent)] animate-pulse'
-                }`}
-              >
-                {flashSuccess && (
-                  <span className="text-emerald-300 font-bold text-sm bg-black/60 px-3 py-1 rounded-full">
-                    تم المسح بنجاح ✓
-                  </span>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        {lastScannedCode && (
-          <div className="flex items-center justify-center gap-2 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 py-1.5 px-3 rounded-lg border border-emerald-500/20">
-            <span>آخر رمز تم مسحه:</span>
-            <span dir="ltr" className="font-mono font-bold">{lastScannedCode}</span>
+        {!isBarcodeDetectorSupported ? (
+          <div
+            className="p-8 text-center space-y-3 rounded-xl bg-[var(--color-bg-surface-subtle)] border border-[var(--color-border-subtle)]"
+            data-testid="camera-decoder-unavailable"
+          >
+            <AlertTriangle className="w-10 h-10 mx-auto text-amber-500" />
+            <h4 className="text-sm font-bold text-[var(--color-text-primary)]">
+              محرك مسح الباركود عبر الكاميرا غير مفعل في النظام
+            </h4>
+            <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed max-w-md mx-auto">
+              محرك التعرف على الباركود المدمج (BarcodeDetector) غير متاح في بيئة سطح المكتب الحالية دون حزمة فك تشفير برمجية. يرجى استخدام ماسح الباركود الخارجي (USB) أو تسجيل الحضور يدويًا عبر الجدول.
+            </p>
           </div>
+        ) : (
+          <>
+            <p className="text-xs text-[var(--color-text-secondary)]">
+              وجّه كاميرا الجهاز نحو بطاقة الطالب لمسح رمز الـ QR أو الباركود تلقائيًا.
+            </p>
+
+            <div className="relative w-full aspect-video rounded-xl bg-black/90 overflow-hidden flex items-center justify-center border border-[var(--color-border-subtle)]">
+              {cameraError ? (
+                <div className="p-6 text-center space-y-2 text-[var(--color-status-danger)]">
+                  <CameraOff className="w-8 h-8 mx-auto" />
+                  <p className="text-xs font-semibold">{cameraError}</p>
+                </div>
+              ) : (
+                <>
+                  <video
+                    ref={videoRef}
+                    className="w-full h-full object-cover"
+                    playsInline
+                    muted
+                    data-testid="camera-scanner-video"
+                  />
+                  {/* Viewfinder Target Frame */}
+                  <div
+                    className={`absolute inset-8 border-2 rounded-lg pointer-events-none transition-all duration-300 flex items-center justify-center ${
+                      flashSuccess
+                        ? 'border-emerald-400 bg-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.5)]'
+                        : 'border-dashed border-[var(--color-brand-accent)] animate-pulse'
+                    }`}
+                  >
+                    {flashSuccess && (
+                      <span className="text-emerald-300 font-bold text-sm bg-black/60 px-3 py-1 rounded-full">
+                        تم المسح بنجاح ✓
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {lastScannedCode && (
+              <div className="flex items-center justify-center gap-2 text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 py-1.5 px-3 rounded-lg border border-emerald-500/20">
+                <span>آخر رمز تم مسحه:</span>
+                <span dir="ltr" className="font-mono font-bold">{lastScannedCode}</span>
+              </div>
+            )}
+          </>
         )}
 
         <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--color-border-subtle)]">

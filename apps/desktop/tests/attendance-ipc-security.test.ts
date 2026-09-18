@@ -37,7 +37,7 @@ describe('Attendance & System Security Scaffolding', () => {
       let mediaAllowed = false;
       handler({ id: 42 }, 'media', (res) => {
         mediaAllowed = res;
-      });
+      }, { mediaTypes: ['video'] });
       expect(mediaAllowed).toBe(true);
 
       let geoAllowed = true;
@@ -86,6 +86,28 @@ describe('Attendance & System Security Scaffolding', () => {
         bothAllowed = res;
       }, { mediaTypes: ['video', 'audio'] });
       expect(bothAllowed).toBe(false);
+
+      // Fail-closed checks:
+      // undefined details => denied
+      let undefinedDetailsAllowed = true;
+      handler({ id: 42 }, 'media', (res) => {
+        undefinedDetailsAllowed = res;
+      }, undefined);
+      expect(undefinedDetailsAllowed).toBe(false);
+
+      // undefined mediaTypes => denied
+      let undefinedMediaTypesAllowed = true;
+      handler({ id: 42 }, 'media', (res) => {
+        undefinedMediaTypesAllowed = res;
+      }, {});
+      expect(undefinedMediaTypesAllowed).toBe(false);
+
+      // empty mediaTypes => denied
+      let emptyMediaTypesAllowed = true;
+      handler({ id: 42 }, 'media', (res) => {
+        emptyMediaTypesAllowed = res;
+      }, { mediaTypes: [] });
+      expect(emptyMediaTypesAllowed).toBe(false);
     });
 
     it('denies requests from subframes, iframes, or untrusted origins', () => {

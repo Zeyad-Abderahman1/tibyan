@@ -1,36 +1,53 @@
 import { useEffect, useState, useCallback } from 'react';
 
 /**
- * Checks if the elapsed time between two keystrokes represents scanner velocity (< thresholdMs).
+ * Checks if the elapsed time between two keystrokes represents scanner velocity (<= thresholdMs).
+ * Defaults to 75ms to accommodate realistic 20-70ms HID hardware scanner bursts.
  */
-export function isScannerSpeed(intervalMs: number, thresholdMs = 35): boolean {
+export function isScannerSpeed(intervalMs: number, thresholdMs = 75): boolean {
   return intervalMs >= 0 && intervalMs <= thresholdMs;
 }
 
 /**
+ * Validates that candidate string conforms to acceptable student identifier / token formats.
+ * Rejects whitespace, arbitrary prose, or invalid control characters.
+ */
+export function isValidStudentIdentifierFormat(code: string): boolean {
+  if (!code || code.length < 2 || code.length > 100) return false;
+  if (/\s/.test(code)) return false;
+  return /^[a-zA-Z0-9\-_:.]+$/.test(code);
+}
+
+/**
  * Parses and sanitizes a raw scanner buffer.
- * Supports plain student codes (e.g. TB-0001, 42) and JSON QR payloads.
+ * Supports plain student codes (e.g. TB-0001, 42, STU-10) and JSON QR payloads.
+ * Validates against canonical identifier formats rather than accepting arbitrary text.
  */
 export function parseBarcodeBuffer(raw: string): string | null {
   const trimmed = raw.trim();
   if (trimmed.length < 2) return null;
+
+  let candidate = trimmed;
 
   // Check if buffer is a JSON payload (e.g. from QR token)
   if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
     try {
       const parsed = JSON.parse(trimmed);
       if (typeof parsed.studentCode === 'string' && parsed.studentCode.trim().length > 0) {
-        return parsed.studentCode.trim();
-      }
-      if (typeof parsed.code === 'string' && parsed.code.trim().length > 0) {
-        return parsed.code.trim();
+        candidate = parsed.studentCode.trim();
+      } else if (typeof parsed.code === 'string' && parsed.code.trim().length > 0) {
+        candidate = parsed.code.trim();
       }
     } catch {
       // Fall through to plain string handling
     }
   }
 
-  return trimmed;
+  if (!isValidStudentIdentifierFormat(candidate)) {
+    return null;
+  }
+
+  return candidate;
 }
 
 export interface UseUsbScannerOptions {
@@ -47,21 +64,37 @@ export interface UsbScannerListener {
 }
 
 /**
+ * Checks if event target is an active input, textarea, or contenteditable element.
+ */
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!target) return false;
+  const el = target as any;
+  const tagName = typeof el.tagName === 'string' ? el.tagName.toUpperCase() : '';
+  if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') {
+    return true;
+  }
+  if (el.isContentEditable === true) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Creates an event listener for physical USB barcode/QR scanner keyboard wedges.
  * Features:
  * 1. Strict sequence terminator (Enter) requirement.
  * 2. Key-repeat rejection (e.repeat).
  * 3. Modifier key rejection (Ctrl, Alt, Meta).
  * 4. Inter-keystroke velocity validation (must all be <= thresholdMs).
- * 5. Input/textarea protection: human typing in inputs is never intercepted or corrupted.
+ * 5. Input/textarea/contenteditable protection: typing in editable controls is never intercepted or corrupted.
  * 6. Buffer expiration cleanup via timer.
  * 7. Deduplication of identical rapid successive scans.
  */
 export function createUsbScannerListener(options: UseUsbScannerOptions): UsbScannerListener {
   const {
     onScan,
-    thresholdMs = 35,
-    resetTimeoutMs = 60,
+    thresholdMs = 75,
+    resetTimeoutMs = 120,
     ignoreDuplicatesWithinMs = 0,
   } = options;
 
@@ -80,6 +113,9 @@ export function createUsbScannerListener(options: UseUsbScannerOptions): UsbScan
   }
 
   function handleKeyDown(e: KeyboardEvent): void {
+    // 0. Protect active input / textarea / contenteditable elements
+    if (isEditableTarget(e.target)) return;
+
     // 1. Ignore key repeats (held down keys)
     if (e.repeat) return;
 
@@ -165,14 +201,14 @@ export function createUsbScannerListener(options: UseUsbScannerOptions): UsbScan
 
 /**
  * Hook for capturing keystroke streams from physical USB barcode / 2D QR scanners.
- * Uses inter-keystroke timing discrimination (< 35ms) and sequence termination (Enter)
+ * Uses inter-keystroke timing discrimination (< 75ms) and sequence termination (Enter)
  * to distinguish hardware scanner bursts from manual human keyboard input.
  */
 export function useUsbScanner({
   onScan,
   enabled = true,
-  thresholdMs = 35,
-  resetTimeoutMs = 60,
+  thresholdMs = 75,
+  resetTimeoutMs = 120,
   ignoreDuplicatesWithinMs = 500,
 }: UseUsbScannerOptions) {
   const [lastScannedCode, setLastScannedCode] = useState<string | null>(null);
