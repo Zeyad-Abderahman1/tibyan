@@ -143,7 +143,7 @@ describe('Gate 2: Scanner Experience & Camera Viewfinder Suite', () => {
     expect(html).toContain('ring-emerald-500');
   });
 
-  it('AttendancePage exposes Camera Scanner CTA in Gate 2, but strictly conceals Gate 3 Parent Follow-Up', () => {
+  it('AttendancePage exposes Camera Scanner CTA in the toolbar alongside approved controls', () => {
     const html = renderToStaticMarkup(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={['/attendance?sessionId=session-1']}>
@@ -152,12 +152,8 @@ describe('Gate 2: Scanner Experience & Camera Viewfinder Suite', () => {
       </QueryClientProvider>
     );
 
-    // Gate 2 control must now be exposed
+    // Gate 2 control is exposed
     expect(html).toContain('btn-open-camera-scanner');
     expect(html).toContain('ماسح الكاميرا');
-
-    // Gate 3 controls MUST remain concealed until Gate 3
-    expect(html).not.toContain('btn-open-followup-drawer');
-    expect(html).not.toContain('متابعة الغياب');
   });
 });

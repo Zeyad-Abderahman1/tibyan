@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   Barcode,
   QrCode,
+  MessageSquare,
 } from 'lucide-react';
 import type { AttendanceStatus, TodayClassSlotDto } from '@tibyan/contracts';
 
@@ -27,6 +28,7 @@ import { AttendanceSummaryStrip } from './AttendanceSummaryStrip.js';
 import { AttendanceRosterTable } from './AttendanceRosterTable.js';
 import { CompleteSessionModal } from './CompleteSessionModal.js';
 import { CameraScannerModal } from './CameraScannerModal.js';
+import { ParentFollowUpDrawer } from './ParentFollowUpDrawer.js';
 
 export function AttendancePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -39,9 +41,10 @@ export function AttendancePage() {
   const initialSessionId = searchParams.get('sessionId') || '';
   const [selectedSessionId, setSelectedSessionId] = useState<string>(initialSessionId);
 
-  // Modals & Drawers State (Gate 2 Scope)
+  // Modals & Drawers State
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
   const [highlightedStudentId, setHighlightedStudentId] = useState<string | null>(null);
   const [scannerToast, setScannerToast] = useState<{ type: 'success' | 'warning' | 'error'; message: string } | null>(null);
 
@@ -316,6 +319,21 @@ export function AttendancePage() {
             </Button>
           )}
 
+          {/* Parent Follow-up Button (Gate 3) */}
+          {canWrite && !isCancelled && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsFollowUpOpen(true)}
+              className="text-xs flex items-center gap-1.5"
+              data-testid="btn-open-followup-drawer"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>متابعة الغياب</span>
+            </Button>
+          )}
+
           {/* Complete Session Primary CTA */}
           {canManageSessions && !isCompleted && !isCancelled && (
             <Button
@@ -499,6 +517,13 @@ export function AttendancePage() {
         isOpen={isCameraModalOpen}
         onClose={() => setIsCameraModalOpen(false)}
         onScan={handleScanCode}
+      />
+
+      {/* Parent Follow-up Drawer (Gate 3) */}
+      <ParentFollowUpDrawer
+        isOpen={isFollowUpOpen}
+        onClose={() => setIsFollowUpOpen(false)}
+        sessionDate={currentSession?.scheduledDate || currentSession?.effectiveDate || new Date().toISOString().slice(0, 10)}
       />
     </div>
   );

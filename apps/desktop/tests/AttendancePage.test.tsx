@@ -230,13 +230,11 @@ describe('AttendancePage, Roster & Summary Suite', () => {
     expect(html).toContain('إنهاء الحصة');
     expect(html).toContain('data-testid="page-attendance"');
 
-    // Gate 2 camera control is now exposed
+    // Gate 2 & Gate 3 controls are now exposed
     expect(html).toContain('btn-open-camera-scanner');
     expect(html).toContain('ماسح الكاميرا');
-
-    // Gate 3 controls MUST remain concealed
-    expect(html).not.toContain('btn-open-followup-drawer');
-    expect(html).not.toContain('متابعة الغياب');
+    expect(html).toContain('btn-open-followup-drawer');
+    expect(html).toContain('متابعة الغياب');
   });
 
   it('explicit valid sessionId + roster renders active session context and never renders no-session message', () => {
