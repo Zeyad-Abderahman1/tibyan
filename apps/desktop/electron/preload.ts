@@ -220,6 +220,9 @@ export const tibyanApi: TibyanApi = {
     switchAcademicYear(input: SwitchAcademicYearInput): Promise<IpcResult<void>> {
       return ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_SWITCH_ACADEMIC_YEAR, input);
     },
+    openWhatsApp(input: { phone: string; message: string }): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_OPEN_WHATSAPP, input);
+    },
   },
 };
 

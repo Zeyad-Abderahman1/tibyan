@@ -62,3 +62,11 @@ export interface SetupStateDto {
   hasActiveAcademicYear: boolean;
   activeAcademicYearName: string | null;
 }
+
+export const EGYPT_PHONE_REGEX = /^01[0125]\d{8}$/;
+
+export const OpenWhatsAppInputSchema = z.object({
+  phone: z.string().trim().regex(EGYPT_PHONE_REGEX, 'Invalid Egyptian phone number (e.g. 01012345678)'),
+  message: z.string().min(1, 'Message cannot be empty').max(2000, 'Message too long'),
+});
+export type OpenWhatsAppInput = z.infer<typeof OpenWhatsAppInputSchema>;

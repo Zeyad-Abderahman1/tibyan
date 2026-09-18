@@ -54,10 +54,38 @@ export function configureWindowSecurity(
 }
 
 /**
- * Hardens Electron session by denying all permission requests by default.
+ * Validates whether a WhatsApp link is strictly an allowed Egyptian mobile wa.me URL.
  */
-export function configureSessionSecurity(session: Session): void {
-  session.setPermissionRequestHandler((_webContents, _permission, callback) => {
+export function isAllowedWhatsAppUrl(targetUrl: string): boolean {
+  try {
+    const parsed = new URL(targetUrl);
+    if (parsed.protocol !== 'https:' || parsed.hostname !== 'wa.me') {
+      return false;
+    }
+    // Strict Egyptian mobile path: /201[0125]\d{8}
+    return /^\/201[0125]\d{8}$/.test(parsed.pathname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Hardens Electron session by denying permission requests by default,
+ * while strictly allowing 'media' permission only for the trusted main window.
+ */
+export function configureSessionSecurity(
+  session: Session,
+  expectedWindow?: BrowserWindow | null
+): void {
+  session.setPermissionRequestHandler((webContents, permission, callback) => {
+    // Strictly allow 'media' permission only for the trusted main window
+    if (
+      permission === 'media' &&
+      (!expectedWindow || webContents.id === expectedWindow.webContents.id)
+    ) {
+      callback(true);
+      return;
+    }
     callback(false);
   });
 }

@@ -1,12 +1,13 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { app, ipcMain, type BrowserWindow } from 'electron';
+import { app, ipcMain, shell, type BrowserWindow } from 'electron';
 import {
   IPC_CHANNELS,
   CreateAcademicYearSchema,
   SwitchAcademicYearSchema,
   UpdateThemeSettingSchema,
+  OpenWhatsAppInputSchema,
   type AppInfoDto,
   type GlobalSettingsDto,
   type SetupStateDto,
@@ -17,7 +18,7 @@ import { createRawDatabase, migrateAcademicDatabase } from '@tibyan/db';
 import { requirePermission } from '@tibyan/core';
 import type { Runtime } from '../runtime.js';
 import { safeIpcCall } from './errors.js';
-import { validateIpcSender } from '../security.js';
+import { validateIpcSender, isAllowedWhatsAppUrl } from '../security.js';
 
 let persistedTheme: 'light' | 'dark' | 'system' = 'system';
 
@@ -243,6 +244,24 @@ export function registerSystemIpcHandlers(runtime: Runtime, mainWindow: BrowserW
       return undefined;
     });
   });
+
+  // 8. Open WhatsApp External Link (Strictly Allowlisted)
+  ipcMain.handle(IPC_CHANNELS.SYSTEM_OPEN_WHATSAPP, async (event, payload) => {
+    if (!validateIpcSender(event, mainWindow)) {
+      throw new Error('UNAUTHORIZED_IPC_SENDER');
+    }
+    return safeIpcCall(async () => {
+      runtime.requireAuthenticatedActor();
+      const validated = OpenWhatsAppInputSchema.parse(payload);
+      const normalizedPhone = `20${validated.phone.slice(1)}`;
+      const targetUrl = `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(validated.message)}`;
+      if (!isAllowedWhatsAppUrl(targetUrl)) {
+        throw new Error('INVALID_WHATSAPP_URL: URL failed strict security validation.');
+      }
+      await shell.openExternal(targetUrl);
+      return undefined;
+    });
+  });
 }
 
 export function unregisterSystemIpcHandlers(): void {
@@ -253,4 +272,5 @@ export function unregisterSystemIpcHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.SYSTEM_LIST_ACADEMIC_YEARS);
   ipcMain.removeHandler(IPC_CHANNELS.SYSTEM_CREATE_ACADEMIC_YEAR);
   ipcMain.removeHandler(IPC_CHANNELS.SYSTEM_SWITCH_ACADEMIC_YEAR);
+  ipcMain.removeHandler(IPC_CHANNELS.SYSTEM_OPEN_WHATSAPP);
 }

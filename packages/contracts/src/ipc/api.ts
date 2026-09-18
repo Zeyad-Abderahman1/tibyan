@@ -127,6 +127,7 @@ export interface TibyanApi {
     listAcademicYears(): Promise<IpcResult<AcademicYearDto[]>>;
     createAcademicYear(input: CreateAcademicYearInput): Promise<IpcResult<AcademicYearDto>>;
     switchAcademicYear(input: SwitchAcademicYearInput): Promise<IpcResult<void>>;
+    openWhatsApp(input: { phone: string; message: string }): Promise<IpcResult<void>>;
   };
 }
 

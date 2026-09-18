@@ -62,6 +62,7 @@ export const IPC_CHANNELS = {
   SYSTEM_LIST_ACADEMIC_YEARS: 'system:listAcademicYears',
   SYSTEM_CREATE_ACADEMIC_YEAR: 'system:createAcademicYear',
   SYSTEM_SWITCH_ACADEMIC_YEAR: 'system:switchAcademicYear',
+  SYSTEM_OPEN_WHATSAPP: 'system:openWhatsApp',
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];

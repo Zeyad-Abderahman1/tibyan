@@ -65,7 +65,7 @@ async function createWindow(): Promise<BrowserWindow> {
   // Apply hardened window & session security
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   configureWindowSecurity(mainWindow, { allowedDevOrigin: devUrl });
-  configureSessionSecurity(mainWindow.webContents.session);
+  configureSessionSecurity(mainWindow.webContents.session, mainWindow);
 
   // Register typed IPC bridge with mainWindow sender validation
   registerAllIpcHandlers(runtime, mainWindow);
