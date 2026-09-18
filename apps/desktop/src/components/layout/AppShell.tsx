@@ -1,28 +1,21 @@
 import { Outlet } from 'react-router-dom';
-import { Sidebar } from './Sidebar.js';
-import { Topbar } from './Topbar.js';
+import { DynamicIslandShell } from './DynamicIslandShell.js';
+import { WorkspaceStage } from './WorkspaceStage.js';
 
 export function AppShell() {
   return (
     <div
-      className="flex h-screen w-screen overflow-hidden bg-[var(--color-bg-app)] text-[var(--color-text-primary)]"
+      className="min-h-screen w-full bg-[var(--color-bg-app)] text-[var(--color-text-primary)] flex flex-col selection:bg-[var(--color-brand-primary)] selection:text-white"
       dir="rtl"
       data-testid="app-shell"
     >
-      {/* Permanent Right-Docked Sidebar in RTL */}
-      <Sidebar />
+      {/* Floating Dynamic Island Navigation Header */}
+      <DynamicIslandShell />
 
-      {/* Main Content Area */}
-      <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
-        <Topbar />
-        <main
-          className="flex-1 overflow-y-auto p-6 min-w-0 focus:outline-none"
-          tabIndex={-1}
-          role="main"
-        >
-          <Outlet />
-        </main>
-      </div>
+      {/* Open, Spacious Workspace Stage */}
+      <WorkspaceStage>
+        <Outlet />
+      </WorkspaceStage>
     </div>
   );
 }

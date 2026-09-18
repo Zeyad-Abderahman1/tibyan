@@ -42,7 +42,7 @@ describe('Task 11: Desktop App Shell & RTL Navigation Suite', () => {
     };
   });
 
-  it('verifies AppShell root direction is strictly RTL and wraps Sidebar + Topbar', () => {
+  it('verifies AppShell root direction is strictly RTL and wraps DynamicIslandShell + WorkspaceStage', () => {
     const html = renderToStaticMarkup(
       <Providers>
         <MemoryRouter>
@@ -53,8 +53,8 @@ describe('Task 11: Desktop App Shell & RTL Navigation Suite', () => {
 
     expect(html).toContain('dir="rtl"');
     expect(html).toContain('data-testid="app-shell"');
-    expect(html).toContain('aria-label="القائمة الجانبية الرئيسية"');
-    expect(html).toContain('aria-label="شريط الرأس العلوي"');
+    expect(html).toContain('data-testid="dynamic-island-shell"');
+    expect(html).toContain('data-testid="workspace-stage"');
   });
 
   it('verifies Sidebar is docked permanently on the right with border-e in RTL', () => {
