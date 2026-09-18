@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parseBarcodeBuffer, isScannerSpeed } from '../src/hooks/useUsbScanner.js';
 
 describe('useUsbScanner timing and buffer logic', () => {

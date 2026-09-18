@@ -100,7 +100,7 @@ export function LateTimeModal({
         <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--color-border-subtle)]">
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={onClose}
             data-testid="cancel-late-btn"

@@ -1,5 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
-import React from 'react';
+import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { StatusSegmentedControl } from '../src/features/attendance/StatusSegmentedControl.js';
 import { LateTimeModal } from '../src/features/attendance/LateTimeModal.js';

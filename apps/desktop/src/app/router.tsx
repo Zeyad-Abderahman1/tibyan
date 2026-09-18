@@ -17,6 +17,7 @@ import { StudentProfilePage } from '../features/students/StudentProfilePage.js';
 import { GroupsPage } from '../features/groups/GroupsPage.js';
 import { GroupDetailsPage } from '../features/groups/GroupDetailsPage.js';
 import { TodayPage } from '../features/dashboard/TodayPage.js';
+import { AttendancePage } from '../features/attendance/AttendancePage.js';
 import { SettingsPage } from '../features/settings/SettingsPage.js';
 
 /**
@@ -210,6 +211,10 @@ export const routes: RouteObject[] = [
       {
         path: 'groups/:groupId',
         element: <GroupDetailsPage />,
+      },
+      {
+        path: 'attendance',
+        element: <AttendancePage />,
       },
       {
         path: 'settings',

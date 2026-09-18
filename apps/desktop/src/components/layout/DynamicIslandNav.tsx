@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, CalendarCheck, Settings } from 'lucide-react';
 import { cn } from '@tibyan/design-system';
 
 export interface NavItem {
@@ -25,6 +25,16 @@ export interface DynamicIslandNavProps {
 export function DynamicIslandNav({ items = DEFAULT_NAV_ITEMS, className }: DynamicIslandNavProps) {
   const location = useLocation();
 
+  const activeItems = React.useMemo(() => {
+    if (items !== DEFAULT_NAV_ITEMS) return items;
+    if (location.pathname.startsWith('/attendance')) {
+      const copy = [...DEFAULT_NAV_ITEMS];
+      copy.splice(3, 0, { to: '/attendance', label: 'الحضور', icon: CalendarCheck });
+      return copy;
+    }
+    return items;
+  }, [items, location.pathname]);
+
   return (
     <nav
       className={cn(
@@ -35,7 +45,7 @@ export function DynamicIslandNav({ items = DEFAULT_NAV_ITEMS, className }: Dynam
       aria-label="التنقل الأساسي في النظام"
       data-testid="dynamic-island-nav"
     >
-      {items.map((item) => {
+      {activeItems.map((item) => {
         const Icon = item.icon;
         const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
 
