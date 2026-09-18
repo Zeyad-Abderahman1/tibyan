@@ -4,11 +4,11 @@
 > **Repository Root:** `F:\tebyan`  
 > **Target Audience:** Incoming Autonomous AI Engineering Agents  
 > **Approved Architecture Version:** `v2.1` (Final Alignment)  
-> **Current Project Phase:** Phase 1 Complete (Foundation & Desktop Core)  
-> **Tasks Completed:** Tasks 1 through 17 inclusive (Task 14 code: `5b0c0ad`, hardening: `3a05971`, Task 15 code: `c9d7ec1`, Task 16 code: `7562a77`, Task 17 code: `c11b46c`)  
-> **Phase 1 Status:** **COMPLETE** (All 17 Phase 1 tasks verified and hardened)  
-> **Next Phase:** Phase 2 — Attendance, QR/Barcode, Student Cards, Finance & Thermal Receipts (Awaiting User Direction)  
-> **Regression Test Baseline:** 24 test files, 504 passing unit/component tests across 5 packages (44 contracts + 25 db + 201 core + 29 design-system + 205 desktop) + 1 Playwright E2E smoke suite (8 lifecycle steps passed)  
+> **Current Project Phase:** Phase 2 (Attendance, Operations & Student Identity)  
+> **Tasks Completed:** Tasks 1 through 18 inclusive (Task 17 code: `c11b46c`, Task 18 code: `f2c1e8b`)  
+> **Phase 2 Status:** Task 18 Complete; Task 19 Ready  
+> **Next Task:** Task 19 — Attendance Scanner & Rapid Check-In UI (Camera/Barcode & Manual Roster)  
+> **Regression Test Baseline:** 24 test files, 539 passing unit/component tests across 5 packages (53 contracts + 27 db + 220 core + 29 design-system + 210 desktop) + 1 Playwright E2E smoke suite (8 lifecycle steps passed)  
 > **Official Logo SHA-256:** `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`  
 
 ---
@@ -21,8 +21,8 @@ Welcome, agent. This document is the **single canonical, durable, and authoritat
 1. **Inspect Actual Source Before Changing Architecture:** Do not trust memory or assume conventions. Before modifying any behavior, inspect the actual source code, migration files, and active tests.
 2. **Current Source Code Trumps Stale Walkthroughs:** If an older plan document or early design sketch contradicts the current production TypeScript files or latest database migrations in `packages/`, the **current production code and migration journals are authoritative**. Report any discrepancies before proposing architectural changes.
 3. **Architecture is v2.1:** All development conforms strictly to the revised v2.1 architectural alignments detailed in [TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md](file:///F:/tebyan/TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md).
-4. **Tasks 1 through 15 are COMPLETE:** All foundation, dual-database, domain core services (auth, student, group, session, backup, dashboard), design system, Electron shell/wizard, PIN login screen, student management UI, group management UI, and real-data Today Dashboard UI are built, fully tested, and hardened up to commit `c9d7ec1`.
-5. **Task 16 Has NOT Started:** Do not assume Task 16 is underway. Task 16 is Settings, Academic-Year Switcher, Assistant Management & Backup Tab.
+4. **Tasks 1 through 18 are COMPLETE:** All foundation, dual-database, domain core services (auth, student, group, session, backup, dashboard, attendance), design system, Electron shell/wizard, PIN login screen, student management UI, group management UI, real-data Today Dashboard UI, Settings/Academic-Year/Assistant UI, Windows packaging & Playwright smoke tests, and Phase 2 Task 18 attendance schema, repository, and core tracking are built, fully tested, and hardened up to commit `f2c1e8b`.
+5. **Task 19 Has NOT Started:** Do not assume Task 19 is underway. Task 19 is Attendance Scanner & Rapid Check-In UI (Camera/Barcode & Manual Roster).
 6. **One Task at a Time:** Always follow the strict workflow: understand requirements, inspect target files, formulate an implementation plan, obtain user approval, execute, verify against regression tests, and halt for review. Never batch multiple tasks.
 7. **Explicit Planning Approval Required Before Execution:** Do not treat creation of an implementation plan as approval to execute it. Stop after planning and wait for an explicit user message approving execution before modifying production code.
 
@@ -470,7 +470,7 @@ The repository has been empirically verified with zero failures across all packa
 | Task # | Task Name | Status | Primary Responsibilities |
 |---|---|---|---|
 | **Task 16** | Settings, Academic Year Switcher & Backup Tab | **COMPLETE** (`7562a77`) | Academic year manager (create/switch), user & assistant account management, manual backup trigger & status view. |
-| **Task 17** | Windows Packaging, Playwright Smoke Tests & Hardening | **NEXT** (NOT STARTED) | End-to-end smoke tests against packaged NSIS binary, ASAR native binary verification, release hardening. |
+| **Task 17** | Windows Packaging, Playwright Smoke Tests & Hardening | **COMPLETE** (`c11b46c`) | End-to-end smoke tests against packaged NSIS binary, ASAR native binary verification, release hardening. |
 
 ---
 
@@ -546,7 +546,43 @@ Task 17 marks the formal completion of **Phase 1: Foundation & Desktop Core**:
 
 ---
 
-## 22. Future Phase Roadmap
+## 23. Task 18 Completion & Attendance Tracking Core Architecture
+
+Task 18 marks the foundational entry into **Phase 2: Attendance, Operations & Student Identity**:
+- **Persistence & Migration:**
+  - Added `attendanceRecords` table to `packages/db/src/schema/academic.schema.ts` with foreign keys to `sessions` and `students` (`onDelete: 'restrict'`).
+  - Added composite unique index `idx_attendance_session_student` on `(sessionId, studentId)` to prevent duplicate records.
+  - Generated and verified deterministic migration `packages/db/src/migrations/academic/0003_neat_krista_starr.sql` and registered it in `migrator.ts`.
+  - Implemented `AttendanceRepository` with atomic `upsert`, `batchUpsert`, `findById`, `findBySessionAndStudent`, `listBySessionId`, `countByStatusForSession`, and `listByDateWithDetails`.
+  - Extended `SessionRepository` with `updateStatus(id, status)` for lifecycle tracking.
+- **Contracts & Validation:**
+  - Defined `AttendanceStatus` enum (`PRESENT`, `ABSENT`, `LATE`, `EXCUSED`) in `packages/contracts/src/enums/attendance.ts`.
+  - Added DTOs and Zod validation schemas in `packages/contracts/src/models/attendance.dto.ts` (`AttendanceRecordDto`, `SessionRosterItemDto`, `SessionAttendanceRosterDto`, `EndOfDayFollowUpDto`, `RecordAttendanceInputSchema`, `BatchRecordAttendanceInputSchema`, `CompleteSessionInputSchema`).
+  - Registered IPC channels in `packages/contracts/src/ipc/channels.ts` (`attendance:get-roster`, `attendance:record`, `attendance:batch-record`, `attendance:get-end-of-day`, `sessions:complete`).
+  - Added `attendance` namespace and `sessions.complete` to `TibyanApi` contract in `packages/contracts/src/ipc/api.ts`.
+- **Domain Services & Audit Logging:**
+  - Implemented `AttendanceService` in `packages/core/src/attendance/attendance.service.ts`:
+    - `getSessionRoster(actor, sessionId)`: Enforces `ATTENDANCE_READ` permission, resolves enrolled students, inherits effective fee/payment terms from group or student override, sorts alphabetically using Arabic locale (`ar-EG`), and computes summary metrics (total, present, absent, late, excused, unmarked).
+    - `recordAttendance(actor, input)`: Enforces `ATTENDANCE_RECORD` permission, performs atomic database upsert, and writes an audit log entry (`ATTENDANCE_RECORDED` or `ATTENDANCE_UPDATED`) within the same transaction.
+    - `batchRecordAttendance(actor, input)`: Enforces `ATTENDANCE_RECORD` permission, performs atomic batch upsert across multiple students, and logs batch audit entries atomically.
+    - `completeSession(input, actor)`: Enforces `ATTENDANCE_RECORD` permission, verifies session exists, updates status to `COMPLETED`, and logs `SESSION_COMPLETED` audit event atomically.
+    - `getEndOfDayFollowUp(actor, dateStr)`: Aggregates daily attendance metrics across all sessions on the given date and generates polite Arabic WhatsApp parent notification templates (`أهلاً بحضرتك...`).
+- **Electron IPC & Preload Security:**
+  - Implemented `attendance.ipc.ts` with frame validation (`validateSenderFrame`), active session checking, and permission enforcement.
+  - Implemented `sessions:complete` handler in `sessions.ipc.ts`.
+  - Mounted attendance IPC in `apps/desktop/electron/ipc/index.ts` and `runtime.ts`.
+  - Exposed sanitized `window.tibyan.attendance` and `window.tibyan.sessions.complete` via `apps/desktop/electron/preload.ts`.
+- **Verification Baseline:**
+  - All 539 unit/component tests pass across 24 test files in all 5 workspace packages (53 contracts + 27 db + 220 core + 29 design-system + 210 desktop).
+  - Zero typecheck errors (`pnpm -r typecheck`).
+  - Zero schema drift (`pnpm --filter @tibyan/db db:generate`).
+  - Windows packaging succeeds (`pnpm --filter @tibyan/desktop run pack`).
+  - Playwright E2E smoke test passes (1/1) on packaged Windows application (`pnpm --filter @tibyan/desktop test:e2e`).
+  - Official logo SHA-256 matches `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`.
+
+---
+
+## 24. Future Phase Roadmap
 
 The overarching roadmap for Tibyan is grounded in the approved v2.1 plan and master specification (`2026-09-17-tibyan-design.md`):
 
@@ -583,7 +619,7 @@ The following capability areas represent planned product features. Their exact p
 
 ---
 
-## 23. Non-Negotiable Regression Rules
+## 25. Non-Negotiable Regression Rules
 
 Under no circumstances may any future modification violate these invariants:
 
@@ -597,10 +633,12 @@ Under no circumstances may any future modification violate these invariants:
 8. **No Renderer Authority Over Roles/Permissions:** The Main process authenticated session is authoritative.
 9. **Exact Official PNG Hash:** The official logo at `packages/design-system/src/assets/tibyan-official-logo.png` must match SHA-256 `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`.
 10. **NO LOCAL AI MODEL:** Local-first refers to SQLite storage and desktop execution, never an offline LLM.
+11. **Attendance Atomic Persistence & Audit:** Attendance record upserts and session completion must atomically insert audit log entries (`ATTENDANCE_RECORDED`, `ATTENDANCE_UPDATED`, `SESSION_COMPLETED`) in the academic database transaction.
+12. **Attendance Authorization Gate:** IPC and Core service methods for attendance must strictly check authenticated session and required permissions (`ATTENDANCE_READ` or `ATTENDANCE_RECORD`).
 
 ---
 
-## 24. Workflow for the Next AI
+## 26. Workflow for the Next AI
 
 When resuming development:
 

@@ -10,14 +10,14 @@
   },
   "architectureVersion": "v2.1",
   "currentPhase": {
-    "phaseNumber": 1,
-    "phaseName": "Foundation & Desktop Core",
-    "totalTasks": 17
+    "phaseNumber": 2,
+    "phaseName": "Phase 2 — Attendance, Operations & Student Identity",
+    "totalTasks": 23
   },
-  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
+  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
   "nextTask": {
-    "taskNumber": 18,
-    "taskName": "Phase 2 Preparation & Architecture (Awaiting Phase 2 Authorization)",
+    "taskNumber": 19,
+    "taskName": "Attendance Scanner & Rapid Check-In UI (Camera/Barcode & Manual Roster)",
     "isStarted": false
   },
   "taskStatus": {
@@ -37,7 +37,8 @@
     "14": "COMPLETE",
     "15": "COMPLETE",
     "16": "COMPLETE",
-    "17": "COMPLETE"
+    "17": "COMPLETE",
+    "18": "COMPLETE"
   },
   "stack": {
     "runtime": "Electron 34.2.0",
@@ -103,6 +104,7 @@
         "group_enrollments",
         "group_schedules",
         "sessions",
+        "attendance_records",
         "academic_audit_log"
       ],
       "persistence": "Scoped strictly to one academic year; unmounted when switching years."
@@ -393,27 +395,33 @@
     },
     {
       "task": 17,
-      "sha": "c11b46c",
-      "type": "packaging_and_smoke",
+      "commit": "c11b46c",
+      "type": "CODE",
       "message": "feat(desktop): verify packaging, native ASAR bindings, and Playwright E2E smoke tests"
+    },
+    {
+      "task": 18,
+      "commit": "f2c1e8b",
+      "type": "CODE",
+      "message": "feat(core): implement Task 18 attendance schema, repository, and session attendance tracking core"
     }
   ],
   "testBaseline": {
     "totalTestFiles": 24,
-    "totalTests": 504,
+    "totalTests": 539,
     "e2eSmokeTests": 1,
     "packages": {
       "@tibyan/contracts": {
         "testFiles": 1,
-        "testsPassed": 44
+        "testsPassed": 53
       },
       "@tibyan/db": {
         "testFiles": 1,
-        "testsPassed": 25
+        "testsPassed": 27
       },
       "@tibyan/core": {
-        "testFiles": 10,
-        "testsPassed": 201
+        "testFiles": 11,
+        "testsPassed": 220
       },
       "@tibyan/design-system": {
         "testFiles": 1,
@@ -421,7 +429,7 @@
       },
       "@tibyan/desktop": {
         "testFiles": 10,
-        "testsPassed": 205
+        "testsPassed": 210
       }
     },
     "typecheckErrors": 0,
