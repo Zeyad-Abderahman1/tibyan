@@ -199,6 +199,16 @@ export const attendanceRecords = sqliteTable(
     updatedAt: text('updated_at').notNull(),
   },
   (t) => ({
+    chkAttendanceStatus: check(
+      'chk_attendance_status',
+      sql`"status" IN ('PRESENT', 'ABSENT', 'LATE', 'EXCUSED')`
+    ),
+    chkAttendanceArrivalTime: check(
+      'chk_attendance_arrival_time',
+      sql`("status" = 'LATE' AND "arrival_time" IS NOT NULL AND ("arrival_time" GLOB '[0-1][0-9]:[0-5][0-9]' OR "arrival_time" GLOB '2[0-3]:[0-5][0-9]'))
+        OR ("status" = 'PRESENT' AND ("arrival_time" IS NULL OR "arrival_time" GLOB '[0-1][0-9]:[0-5][0-9]' OR "arrival_time" GLOB '2[0-3]:[0-5][0-9]'))
+        OR ("status" IN ('ABSENT', 'EXCUSED') AND "arrival_time" IS NULL)`
+    ),
     idxAttendanceSessionStudent: uniqueIndex('idx_attendance_session_student').on(
       t.sessionId,
       t.studentId

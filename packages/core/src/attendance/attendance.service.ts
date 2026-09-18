@@ -32,11 +32,14 @@ import {
   isSystemActor,
   SessionService,
 } from '../groups/session.service.js';
-import { calculateEffectivePayment } from '../groups/payment-inheritance.js';
 
 export type AttendanceErrorCode =
   | 'SESSION_NOT_FOUND'
   | 'STUDENT_NOT_FOUND'
+  | 'STUDENT_NOT_ENROLLED'
+  | 'SESSION_CANCELLED'
+  | 'INVALID_ARRIVAL_TIME'
+  | 'INVALID_PHOTO_PATH'
   | 'PERMISSION_DENIED'
   | 'INVALID_INPUT';
 
@@ -82,9 +85,41 @@ export class AttendanceService {
     }
   }
 
+  private isStudentEnrolledOnDate(
+    enrollment: { enrolledAt: string; leftAt: string | null },
+    effectiveDate: string
+  ): boolean {
+    const enrolledDate = enrollment.enrolledAt.slice(0, 10);
+    if (enrolledDate > effectiveDate) return false;
+    if (enrollment.leftAt) {
+      const leftDate = enrollment.leftAt.slice(0, 10);
+      if (leftDate < effectiveDate) return false;
+    }
+    return true;
+  }
+
+  private toSafePhotoUrl(photoPath: string | null): string | null {
+    if (!photoPath) return null;
+    const normalized = photoPath.trim().replace(/\\/g, '/');
+    if (
+      normalized.startsWith('/') ||
+      /^[a-zA-Z]:/.test(normalized) ||
+      normalized.startsWith('//') ||
+      normalized.includes('..') ||
+      normalized.toLowerCase().includes('appdata')
+    ) {
+      throw new AttendanceError('INVALID_PHOTO_PATH', 'Dangerous or absolute photoPath detected');
+    }
+    const cleanPath = normalized.startsWith('tibyan-media://')
+      ? normalized.replace(/^tibyan-media:\/\//, '')
+      : normalized;
+    return `tibyan-media://${cleanPath}`;
+  }
+
   /**
-   * Retrieves the full roster for a session, including active enrolled students,
-   * any recorded attendance entries, and an aggregate summary count.
+   * Retrieves the full roster for a session, including active enrolled students as of
+   * session.effectiveDate, any recorded attendance entries, and an aggregate summary count.
+   * Roster data is minimized (no financial or guardian phone data exposed).
    */
   async getSessionRoster(
     sessionId: string,
@@ -98,10 +133,10 @@ export class AttendanceService {
       throw new AttendanceError('SESSION_NOT_FOUND', `Group not found for session: ${sessionId}`);
     }
 
-    // Get active enrollments for this group
+    // Get active enrollments for this group as of session.effectiveDate
     const enrollments = this.enrollmentRepo
       .listByGroup(sessionDto.groupId)
-      .filter((e) => e.status === 'ACTIVE');
+      .filter((e) => this.isStudentEnrolledOnDate(e, sessionDto.effectiveDate));
 
     // Get attendance records for this session
     const attendanceRecords = this.attendanceRepo.listBySessionId(sessionId);
@@ -110,7 +145,7 @@ export class AttendanceService {
       attendanceMap.set(rec.studentId, rec);
     }
 
-    // Build roster items
+    // Build roster items with minimized data projection and safe media URL
     const roster: SessionRosterItemDto[] = [];
     let presentCount = 0;
     let absentCount = 0;
@@ -121,17 +156,6 @@ export class AttendanceService {
     for (const enrollment of enrollments) {
       const student = this.studentRepo.findById(enrollment.studentId);
       if (!student) continue;
-
-      const effective = calculateEffectivePayment(
-        {
-          defaultPaymentType: group.defaultPaymentType,
-          defaultPaymentAmount: group.defaultPaymentAmount,
-        },
-        {
-          paymentTypeOverride: enrollment.paymentTypeOverride,
-          paymentAmountOverride: enrollment.paymentAmountOverride,
-        }
-      );
 
       const rec = attendanceMap.get(student.id);
       let recordDto: AttendanceRecordDto | null = null;
@@ -148,11 +172,10 @@ export class AttendanceService {
 
       roster.push({
         studentId: student.id,
+        studentCode: student.studentCode,
         studentName: student.fullName,
-        guardianPhone: student.guardianPhone,
+        photoUrl: this.toSafePhotoUrl(student.photoPath),
         enrollmentId: enrollment.id,
-        paymentType: effective.paymentType,
-        paymentAmount: effective.amount,
         attendanceRecord: recordDto,
       });
     }
@@ -177,6 +200,7 @@ export class AttendanceService {
 
   /**
    * Records or updates attendance for a single student in a session.
+   * Validates temporal enrollment and rejects cancelled sessions.
    * Atomically logs mutation to academic audit log.
    */
   async recordAttendance(
@@ -192,9 +216,41 @@ export class AttendanceService {
       throw new AttendanceError('SESSION_NOT_FOUND', `Session not found: ${validated.sessionId}`);
     }
 
+    if (session.status === 'CANCELLED_BY_TEACHER') {
+      throw new AttendanceError('SESSION_CANCELLED', 'Cannot record attendance for a cancelled session');
+    }
+
     const student = this.studentRepo.findById(validated.studentId);
     if (!student) {
       throw new AttendanceError('STUDENT_NOT_FOUND', `Student not found: ${validated.studentId}`);
+    }
+
+    // Validate temporal enrollment as of session.effectiveDate
+    const enrollments = this.enrollmentRepo
+      .listByGroup(session.groupId)
+      .filter((e) => e.studentId === validated.studentId && this.isStudentEnrolledOnDate(e, session.effectiveDate));
+
+    if (enrollments.length === 0) {
+      throw new AttendanceError(
+        'STUDENT_NOT_ENROLLED',
+        `Student is not enrolled in this group on session date ${session.effectiveDate}`
+      );
+    }
+
+    // Enforce arrival time normalization based on status
+    let normalizedArrivalTime: string | null = null;
+    if (validated.status === 'LATE') {
+      if (!validated.arrivalTime) {
+        throw new AttendanceError('INVALID_ARRIVAL_TIME', 'Arrival time is required for LATE status');
+      }
+      normalizedArrivalTime = validated.arrivalTime;
+    } else if (validated.status === 'PRESENT') {
+      normalizedArrivalTime = validated.arrivalTime ?? null;
+    } else {
+      if (validated.arrivalTime != null) {
+        throw new AttendanceError('INVALID_ARRIVAL_TIME', 'Arrival time must be null for ABSENT or EXCUSED');
+      }
+      normalizedArrivalTime = null;
     }
 
     const existingRecord = this.attendanceRepo.findBySessionAndStudent(
@@ -216,7 +272,7 @@ export class AttendanceService {
         sessionId: validated.sessionId,
         studentId: validated.studentId,
         status: validated.status,
-        arrivalTime: validated.arrivalTime ?? null,
+        arrivalTime: normalizedArrivalTime,
         notes: validated.notes ?? null,
         recordedByUserId: actorUserId,
         recordedAt: existingRecord ? existingRecord.recordedAt : nowIso,
@@ -237,7 +293,7 @@ export class AttendanceService {
           sessionId: validated.sessionId,
           studentId: validated.studentId,
           status: validated.status,
-          arrivalTime: validated.arrivalTime ?? null,
+          arrivalTime: normalizedArrivalTime,
         }),
         createdAt: nowIso,
       });
@@ -250,6 +306,7 @@ export class AttendanceService {
 
   /**
    * Atomically records/updates attendance for multiple students in a session.
+   * Rejects duplicate students and validates temporal enrollment.
    */
   async batchRecordAttendance(
     input: BatchRecordAttendanceInput,
@@ -262,6 +319,25 @@ export class AttendanceService {
     const session = this.sessionRepo.findById(validated.sessionId);
     if (!session) {
       throw new AttendanceError('SESSION_NOT_FOUND', `Session not found: ${validated.sessionId}`);
+    }
+
+    if (session.status === 'CANCELLED_BY_TEACHER') {
+      throw new AttendanceError('SESSION_CANCELLED', 'Cannot record attendance for a cancelled session');
+    }
+
+    // Pre-load all enrollments for this group on session.effectiveDate
+    const eligibleEnrollments = this.enrollmentRepo
+      .listByGroup(session.groupId)
+      .filter((e) => this.isStudentEnrolledOnDate(e, session.effectiveDate));
+    const eligibleStudentIds = new Set(eligibleEnrollments.map((e) => e.studentId));
+
+    for (const item of validated.records) {
+      if (!eligibleStudentIds.has(item.studentId)) {
+        throw new AttendanceError(
+          'STUDENT_NOT_ENROLLED',
+          `Student ${item.studentId} is not enrolled on session date ${session.effectiveDate}`
+        );
+      }
     }
 
     const nowIso = new Date().toISOString();
@@ -279,6 +355,21 @@ export class AttendanceService {
           throw new AttendanceError('STUDENT_NOT_FOUND', `Student not found: ${item.studentId}`);
         }
 
+        let normalizedArrivalTime: string | null = null;
+        if (item.status === 'LATE') {
+          if (!item.arrivalTime) {
+            throw new AttendanceError('INVALID_ARRIVAL_TIME', 'Arrival time is required for LATE status');
+          }
+          normalizedArrivalTime = item.arrivalTime;
+        } else if (item.status === 'PRESENT') {
+          normalizedArrivalTime = item.arrivalTime ?? null;
+        } else {
+          if (item.arrivalTime != null) {
+            throw new AttendanceError('INVALID_ARRIVAL_TIME', 'Arrival time must be null for ABSENT or EXCUSED');
+          }
+          normalizedArrivalTime = null;
+        }
+
         const existingRecord = attendanceRepoTx.findBySessionAndStudent(
           validated.sessionId,
           item.studentId
@@ -290,7 +381,7 @@ export class AttendanceService {
           sessionId: validated.sessionId,
           studentId: item.studentId,
           status: item.status,
-          arrivalTime: item.arrivalTime ?? null,
+          arrivalTime: normalizedArrivalTime,
           notes: item.notes ?? null,
           recordedByUserId: actorUserId,
           recordedAt: existingRecord ? existingRecord.recordedAt : nowIso,
@@ -311,6 +402,7 @@ export class AttendanceService {
             sessionId: validated.sessionId,
             studentId: item.studentId,
             status: item.status,
+            arrivalTime: normalizedArrivalTime,
           }),
           createdAt: nowIso,
         });
@@ -325,7 +417,7 @@ export class AttendanceService {
   }
 
   /**
-   * Completes a session.
+   * Completes a session delegating authoritatively to SessionService.
    */
   async completeSession(
     input: CompleteSessionInput,
@@ -335,8 +427,9 @@ export class AttendanceService {
   }
 
   /**
-   * Compiles End-of-Day Follow-Up items for all absent and late students on a given date,
-   * generating polite Arabic WhatsApp notification drafts.
+   * Compiles End-of-Day Follow-Up items for absent and late students on a given date,
+   * generating polite Arabic WhatsApp notification drafts without hardcoded subjects.
+   * Cancelled teacher sessions are strictly excluded.
    */
   async getEndOfDayFollowUp(
     dateStr: string,
@@ -348,13 +441,19 @@ export class AttendanceService {
     CalendarDateSchema.parse(dateStr);
 
     const details = this.attendanceRepo.listByDateWithDetails(dateStr);
-    const sessionsOnDate = this.sessionRepo.listByEffectiveDate(dateStr);
+    const sessionsOnDate = this.sessionRepo
+      .listByEffectiveDate(dateStr)
+      .filter((s) => s.status !== 'CANCELLED_BY_TEACHER');
+    const validSessionIds = new Set(sessionsOnDate.map((s) => s.id));
+
+    // Exclude cancelled sessions from follow-up items
+    const activeDetails = details.filter((d) => validSessionIds.has(d.sessionId));
 
     const followUps: EndOfDayFollowUpItemDto[] = [];
     let totalAbsent = 0;
     let totalLate = 0;
 
-    for (const d of details) {
+    for (const d of activeDetails) {
       if (d.status === 'ABSENT') {
         totalAbsent++;
         followUps.push({
@@ -366,7 +465,7 @@ export class AttendanceService {
           status: 'ABSENT',
           sessionDate: d.sessionDate,
           sessionStartTime: d.sessionStartTime,
-          whatsappMessage: `السلام عليكم ورحمة الله وبركاته، ولي أمر الطالب/ة ${d.studentName}. نود إحاطتكم بعلم أن الطالب/ة غاب/ت عن حضور حصة الرياضيات اليوم (${d.sessionDate}) لمجموعة ${d.groupName}. يرجى المتابعة لتعويض ما فاته.`,
+          whatsappMessage: `السلام عليكم ورحمة الله وبركاته، ولي أمر الطالب/ة ${d.studentName}. نود إحاطتكم بعلم أن الطالب/ة غاب/ت عن حضور حصة اليوم (${d.sessionDate}) لمجموعة ${d.groupName}. يرجى المتابعة لتعويض ما فاته.`,
         });
       } else if (d.status === 'LATE') {
         totalLate++;
@@ -380,7 +479,7 @@ export class AttendanceService {
           status: 'LATE',
           sessionDate: d.sessionDate,
           sessionStartTime: d.sessionStartTime,
-          whatsappMessage: `السلام عليكم ورحمة الله وبركاته، ولي أمر الطالب/ة ${d.studentName}. نود إحاطتكم بعلم أن الطالب/ة تأخر/ت عن موعد بدء حصة الرياضيات لمجموعة ${d.groupName} اليوم (${d.sessionDate})${timeInfo}. نرجو الحرص على الحضور في الموعد المحدد.`,
+          whatsappMessage: `السلام عليكم ورحمة الله وبركاته، ولي أمر الطالب/ة ${d.studentName}. نود إحاطتكم بعلم أن الطالب/ة تأخر/ت عن موعد بدء الحصة لمجموعة ${d.groupName} اليوم (${d.sessionDate})${timeInfo}. نرجو الحرص على الحضور في الموعد المحدد.`,
         });
       }
     }

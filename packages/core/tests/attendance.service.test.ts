@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -173,7 +173,8 @@ describe('Task 18: AttendanceService & Session Attendance Core', () => {
       id: crypto.randomUUID(),
       groupId: group.id,
       studentId: student3.id,
-      enrolledAt: now,
+      enrolledAt: '2026-08-01T00:00:00.000Z',
+      leftAt: '2026-09-30T23:59:59.000Z',
       status: 'ENDED',
       paymentTypeOverride: null,
       paymentAmountOverride: null,
@@ -256,17 +257,22 @@ describe('Task 18: AttendanceService & Session Attendance Core', () => {
       expect(studentIds).toContain(student2.id);
     });
 
-    it('reflects inherited payment defaults vs enrollment overrides in roster', async () => {
+    it('minimizes roster DTO by omitting payment fields and guardian phone', async () => {
       const { session, student1, student2 } = createTestFixture();
 
       const roster = await attendanceService.getSessionRoster(session.id, ownerActor);
       const item1 = roster.roster.find((r) => r.studentId === student1.id)!;
-      expect(item1.paymentType).toBe('MONTHLY');
-      expect(item1.paymentAmount).toBe(300);
+      expect((item1 as any).paymentType).toBeUndefined();
+      expect((item1 as any).paymentAmount).toBeUndefined();
+      expect((item1 as any).guardianPhone).toBeUndefined();
+      expect(item1.studentCode).toBe('STU-001');
+      expect(item1.studentName).toBe('أحمد محمود');
 
       const item2 = roster.roster.find((r) => r.studentId === student2.id)!;
-      expect(item2.paymentType).toBe('PER_SESSION');
-      expect(item2.paymentAmount).toBe(75);
+      expect((item2 as any).paymentType).toBeUndefined();
+      expect((item2 as any).paymentAmount).toBeUndefined();
+      expect((item2 as any).guardianPhone).toBeUndefined();
+      expect(item2.studentCode).toBe('STU-002');
     });
 
     it('reflects existing attendance records and updates summary counts', async () => {
@@ -578,14 +584,14 @@ describe('Task 18: AttendanceService & Session Attendance Core', () => {
       expect(absentItem.status).toBe('ABSENT');
       expect(absentItem.studentName).toBe('بلال علي');
       expect(absentItem.guardianPhone).toBe('01198765432');
-      expect(absentItem.whatsappMessage).toContain('غاب/ت عن حضور حصة الرياضيات');
+      expect(absentItem.whatsappMessage).toContain('غاب/ت عن حضور حصة اليوم');
       expect(absentItem.whatsappMessage).toContain('مجموعة 2ث تفوق');
 
       const lateItem = followUp.followUps.find((f) => f.studentId === student1.id)!;
       expect(lateItem.status).toBe('LATE');
       expect(lateItem.studentName).toBe('أحمد محمود');
       expect(lateItem.guardianPhone).toBe('01012345678');
-      expect(lateItem.whatsappMessage).toContain('تأخر/ت عن موعد بدء حصة الرياضيات');
+      expect(lateItem.whatsappMessage).toContain('تأخر/ت عن موعد بدء الحصة لمجموعة');
       expect(lateItem.whatsappMessage).toContain('16:15');
     });
 
@@ -607,4 +613,129 @@ describe('Task 18: AttendanceService & Session Attendance Core', () => {
       expect(followUp.followUps).toHaveLength(0);
     });
   });
+
+  describe('Hardening: Photo Media Safety & Projections', () => {
+    it('maps safe relative photoPath to tibyan-media:// and rejects host absolute/UNC paths', async () => {
+      const { session, student1 } = createTestFixture();
+
+      // Set safe relative photoPath
+      studentRepo.update(student1.id, { photoPath: 'students/stu-001.jpg' } as any);
+      let roster = await attendanceService.getSessionRoster(session.id, ownerActor);
+      let item = roster.roster.find((r) => r.studentId === student1.id)!;
+      expect(item.photoUrl).toBe('tibyan-media://students/stu-001.jpg');
+
+      // Set Windows drive-letter path - must throw INVALID_PHOTO_PATH
+      studentRepo.update(student1.id, { photoPath: 'C:\\Users\\photos\\stu.jpg' } as any);
+      await expect(attendanceService.getSessionRoster(session.id, ownerActor)).rejects.toThrow(
+        AttendanceError
+      );
+
+      // Set UNC path - must throw INVALID_PHOTO_PATH
+      studentRepo.update(student1.id, { photoPath: '\\\\server\\share\\photo.jpg' } as any);
+      await expect(attendanceService.getSessionRoster(session.id, ownerActor)).rejects.toThrow(
+        AttendanceError
+      );
+
+      // Set path traversal - must throw INVALID_PHOTO_PATH
+      studentRepo.update(student1.id, { photoPath: '../sensitive/passwords.txt' } as any);
+      await expect(attendanceService.getSessionRoster(session.id, ownerActor)).rejects.toThrow(
+        AttendanceError
+      );
+    });
+  });
+
+  describe('Hardening: Temporal Enrollment Enforcement', () => {
+    it('rejects recording attendance for a student who left before the session date', async () => {
+      const { session, student3 } = createTestFixture();
+      // student3 has leftAt '2026-09-30', session date is '2026-10-01'
+      await expect(
+        attendanceService.recordAttendance(
+          {
+            sessionId: session.id,
+            studentId: student3.id,
+            status: 'PRESENT',
+          },
+          assistantActor
+        )
+      ).rejects.toThrow(AttendanceError);
+    });
+
+    it('rejects batch attendance recording if any student is not enrolled on session date', async () => {
+      const { session, student1, student3 } = createTestFixture();
+      await expect(
+        attendanceService.batchRecordAttendance(
+          {
+            sessionId: session.id,
+            records: [
+              { studentId: student1.id, status: 'PRESENT' },
+              { studentId: student3.id, status: 'PRESENT' },
+            ],
+          },
+          assistantActor
+        )
+      ).rejects.toThrow(AttendanceError);
+    });
+  });
+
+  describe('Hardening: SessionService Auto-Absence on Completion & Atomic Rollback', () => {
+    it('auto-absents unmarked enrolled students upon session completion without overwriting existing marks', async () => {
+      const { session, student1, student2 } = createTestFixture();
+
+      // Mark student1 as PRESENT beforehand
+      await attendanceService.recordAttendance(
+        {
+          sessionId: session.id,
+          studentId: student1.id,
+          status: 'PRESENT',
+          arrivalTime: '16:05',
+        },
+        assistantActor
+      );
+
+      // Complete session via SessionService
+      const completedSession = await sessionService.completeSession(
+        { sessionId: session.id },
+        ownerActor
+      );
+      expect(completedSession.status).toBe('COMPLETED');
+
+      // Verify attendance records in DB
+      const rec1 = attendanceRepo.findBySessionAndStudent(session.id, student1.id);
+      expect(rec1).toBeDefined();
+      expect(rec1?.status).toBe('PRESENT');
+      expect(rec1?.arrivalTime).toBe('16:05');
+
+      const rec2 = attendanceRepo.findBySessionAndStudent(session.id, student2.id);
+      expect(rec2).toBeDefined();
+      expect(rec2?.status).toBe('ABSENT');
+      expect(rec2?.notes).toBe('غياب تلقائي عند اكتمال الحصة');
+      expect(rec2?.arrivalTime).toBeNull();
+
+      // Verify audit logs were created
+      const audits = auditRepo.findByEntity('ATTENDANCE', rec2!.id);
+      expect(audits.length).toBeGreaterThanOrEqual(1);
+      expect(audits[0]!.action).toBe('ATTENDANCE_RECORDED');
+    });
+
+    it('rolls back session completion and auto-absence if an error occurs during completion', async () => {
+      const { session } = createTestFixture();
+
+      vi.spyOn(AcademicAuditRepository.prototype, 'insert').mockImplementationOnce(() => {
+        throw new Error('SIMULATED_AUDIT_FAILURE');
+      });
+
+      await expect(
+        sessionService.completeSession({ sessionId: session.id }, ownerActor)
+      ).rejects.toThrow('SIMULATED_AUDIT_FAILURE');
+
+      // Check that session status rolled back and remains SCHEDULED
+      const sessionAfter = sessionRepo.findById(session.id);
+      expect(sessionAfter?.status).toBe('SCHEDULED');
+
+      // Check that no attendance records were persisted
+      const attendanceList = attendanceRepo.listBySessionId(session.id);
+      expect(attendanceList).toHaveLength(0);
+    });
+  });
 });
+

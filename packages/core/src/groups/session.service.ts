@@ -17,6 +17,7 @@ import {
   SessionRepository,
   GroupRepository,
   EnrollmentRepository,
+  AttendanceRepository,
   AcademicAuditRepository,
   type SessionRow,
   type GroupRow,
@@ -429,7 +430,8 @@ export class SessionService {
   /**
    * Completes a session (setting status = COMPLETED).
    * Updates notes if provided.
-   * Atomically writes academic audit entry.
+   * Atomically records ABSENT attendance records for all unmarked eligible enrolled students.
+   * Atomically writes academic audit entries for session completion and each auto-absence record.
    */
   async completeSession(input: CompleteSessionInput, actor: AnyActor): Promise<SessionDto> {
     const validated = this.parseSchema(CompleteSessionInputSchema, input);
@@ -449,10 +451,14 @@ export class SessionService {
     }
 
     const nowIso = new Date().toISOString();
+    const isSystem = isSystemActor(actor);
+    const actorUserId = isSystem ? null : (actor as AuthenticatedUser).userId;
 
     const updated = this.client.transaction((tx) => {
       const sessionRepoTx = new SessionRepository(tx as any);
       const auditRepoTx = new AcademicAuditRepository(tx as any);
+      const enrollmentRepoTx = new EnrollmentRepository(tx as any);
+      const attendanceRepoTx = new AttendanceRepository(tx as any);
 
       const updates: any = {
         status: 'COMPLETED',
@@ -464,11 +470,11 @@ export class SessionService {
 
       const updatedRow = sessionRepoTx.update(existing.id, updates)!;
 
-      const isSystem = isSystemActor(actor);
+      // 1. Audit session completion
       auditRepoTx.insert({
         id: crypto.randomUUID(),
         actorType: isSystem ? 'SYSTEM' : 'USER',
-        actorUserId: isSystem ? null : (actor as AuthenticatedUser).userId,
+        actorUserId,
         actorNameSnapshot: actor.fullName,
         action: 'SESSION_COMPLETED',
         entityType: 'SESSION',
@@ -480,6 +486,66 @@ export class SessionService {
         }),
         createdAt: nowIso,
       });
+
+      // 2. Query enrolled students active on session.effectiveDate
+      const activeEnrollments = enrollmentRepoTx
+        .listByGroup(existing.groupId)
+        .filter((e) => {
+          const enrolledDate = e.enrolledAt.slice(0, 10);
+          if (enrolledDate > existing.effectiveDate) return false;
+          if (e.leftAt && e.leftAt.slice(0, 10) < existing.effectiveDate) return false;
+          return true;
+        });
+
+      // 3. Find existing attendance records for this session
+      const existingAttendance = attendanceRepoTx.listBySessionId(existing.id);
+      const attendedStudentIds = new Set(existingAttendance.map((a) => a.studentId));
+
+      // 4. Auto-absent unmarked enrolled students with audit records
+      for (const enrollment of activeEnrollments) {
+        if (!attendedStudentIds.has(enrollment.studentId)) {
+          const absentRecordId = crypto.randomUUID();
+          const absentRow = attendanceRepoTx.upsert({
+            id: absentRecordId,
+            sessionId: existing.id,
+            studentId: enrollment.studentId,
+            status: 'ABSENT',
+            arrivalTime: null,
+            notes: 'غياب تلقائي عند اكتمال الحصة',
+            recordedByUserId: actorUserId,
+            recordedAt: nowIso,
+            updatedAt: nowIso,
+          });
+
+          auditRepoTx.insert({
+            id: crypto.randomUUID(),
+            actorType: isSystem ? 'SYSTEM' : 'USER',
+            actorUserId,
+            actorNameSnapshot: actor.fullName,
+            action: 'ATTENDANCE_RECORDED',
+            entityType: 'ATTENDANCE',
+            entityId: absentRow.id,
+            beforeJson: null,
+            afterJson: JSON.stringify({
+              id: absentRow.id,
+              sessionId: absentRow.sessionId,
+              studentId: absentRow.studentId,
+              status: absentRow.status,
+              arrivalTime: absentRow.arrivalTime,
+              notes: absentRow.notes,
+              recordedByUserId: absentRow.recordedByUserId,
+              recordedAt: absentRow.recordedAt,
+              updatedAt: absentRow.updatedAt,
+            }),
+            metadataJson: JSON.stringify({
+              autoAbsenceOnCompletion: true,
+              sessionId: existing.id,
+              studentId: enrollment.studentId,
+            }),
+            createdAt: nowIso,
+          });
+        }
+      }
 
       return updatedRow;
     });

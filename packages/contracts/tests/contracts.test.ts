@@ -601,8 +601,35 @@ describe('Contracts — Attendance Enums & DTOs', () => {
       arrivalTime: '09:05',
     });
     expect(valid.status).toBe('LATE');
+    expect(valid.arrivalTime).toBe('09:05');
 
-    // Invalid time
+    // Valid PRESENT with optional arrival time
+    const presentWithTime = RecordAttendanceInputSchema.parse({
+      sessionId: VALID_UUID,
+      studentId: VALID_UUID,
+      status: 'PRESENT',
+      arrivalTime: '08:50',
+    });
+    expect(presentWithTime.status).toBe('PRESENT');
+
+    // Valid PRESENT without arrival time
+    const presentNoTime = RecordAttendanceInputSchema.parse({
+      sessionId: VALID_UUID,
+      studentId: VALID_UUID,
+      status: 'PRESENT',
+    });
+    expect(presentNoTime.arrivalTime).toBeUndefined();
+
+    // LATE requires arrivalTime
+    expect(() =>
+      RecordAttendanceInputSchema.parse({
+        sessionId: VALID_UUID,
+        studentId: VALID_UUID,
+        status: 'LATE',
+      })
+    ).toThrow('Arrival time is required when status is LATE');
+
+    // Invalid time strings
     expect(() =>
       RecordAttendanceInputSchema.parse({
         sessionId: VALID_UUID,
@@ -611,9 +638,56 @@ describe('Contracts — Attendance Enums & DTOs', () => {
         arrivalTime: '25:00',
       })
     ).toThrow();
+
+    expect(() =>
+      RecordAttendanceInputSchema.parse({
+        sessionId: VALID_UUID,
+        studentId: VALID_UUID,
+        status: 'LATE',
+        arrivalTime: '88:99',
+      })
+    ).toThrow();
+
+    expect(() =>
+      RecordAttendanceInputSchema.parse({
+        sessionId: VALID_UUID,
+        studentId: VALID_UUID,
+        status: 'LATE',
+        arrivalTime: '12:75',
+      })
+    ).toThrow();
+
+    expect(() =>
+      RecordAttendanceInputSchema.parse({
+        sessionId: VALID_UUID,
+        studentId: VALID_UUID,
+        status: 'LATE',
+        arrivalTime: '24:00',
+      })
+    ).toThrow();
+
+    // ABSENT rejects arrivalTime
+    expect(() =>
+      RecordAttendanceInputSchema.parse({
+        sessionId: VALID_UUID,
+        studentId: VALID_UUID,
+        status: 'ABSENT',
+        arrivalTime: '10:00',
+      })
+    ).toThrow('Arrival time must be null for ABSENT or EXCUSED status');
+
+    // EXCUSED rejects arrivalTime
+    expect(() =>
+      RecordAttendanceInputSchema.parse({
+        sessionId: VALID_UUID,
+        studentId: VALID_UUID,
+        status: 'EXCUSED',
+        arrivalTime: '10:00',
+      })
+    ).toThrow('Arrival time must be null for ABSENT or EXCUSED status');
   });
 
-  it('validates BatchRecordAttendanceInputSchema requires at least 1 record', () => {
+  it('validates BatchRecordAttendanceInputSchema requires at least 1 record and rejects duplicate studentIds', () => {
     expect(() =>
       BatchRecordAttendanceInputSchema.parse({
         sessionId: VALID_UUID,
@@ -621,28 +695,45 @@ describe('Contracts — Attendance Enums & DTOs', () => {
       })
     ).toThrow();
 
+    const secondStudentId = '22222222-2222-4222-8222-222222222222';
     const batch = BatchRecordAttendanceInputSchema.parse({
       sessionId: VALID_UUID,
       records: [
         { studentId: VALID_UUID, status: 'PRESENT' },
-        { studentId: VALID_UUID, status: 'ABSENT', notes: 'لم يحضر' },
+        { studentId: secondStudentId, status: 'ABSENT', notes: 'لم يحضر' },
       ],
     });
     expect(batch.records.length).toBe(2);
+
+    // Duplicate studentId in batch is strictly rejected
+    expect(() =>
+      BatchRecordAttendanceInputSchema.parse({
+        sessionId: VALID_UUID,
+        records: [
+          { studentId: VALID_UUID, status: 'PRESENT' },
+          { studentId: VALID_UUID, status: 'ABSENT' },
+        ],
+      })
+    ).toThrow('Duplicate studentId detected in batch attendance records');
   });
 
-  it('validates SessionRosterItemDtoSchema', () => {
+  it('validates SessionRosterItemDtoSchema with data minimization', () => {
     const item = SessionRosterItemDtoSchema.parse({
       studentId: VALID_UUID,
+      studentCode: 'STU-001',
       studentName: 'محمد أحمد',
-      guardianPhone: '01012345678',
+      photoUrl: 'tibyan-media://students/sample.jpg',
       enrollmentId: VALID_UUID,
-      paymentType: 'MONTHLY',
-      paymentAmount: 400,
       attendanceRecord: null,
     });
     expect(item.studentName).toBe('محمد أحمد');
+    expect(item.studentCode).toBe('STU-001');
+    expect(item.photoUrl).toBe('tibyan-media://students/sample.jpg');
     expect(item.attendanceRecord).toBeNull();
+    // Confirms payment and phone fields are not in the DTO shape
+    expect((item as any).guardianPhone).toBeUndefined();
+    expect((item as any).paymentType).toBeUndefined();
+    expect((item as any).paymentAmount).toBeUndefined();
   });
 
   it('validates SessionAttendanceRosterDtoSchema', () => {
@@ -667,11 +758,10 @@ describe('Contracts — Attendance Enums & DTOs', () => {
       roster: [
         {
           studentId: VALID_UUID,
+          studentCode: 'STU-001',
           studentName: 'محمد أحمد',
-          guardianPhone: '01012345678',
+          photoUrl: null,
           enrollmentId: VALID_UUID,
-          paymentType: 'MONTHLY',
-          paymentAmount: 400,
           attendanceRecord: null,
         },
       ],
@@ -685,6 +775,7 @@ describe('Contracts — Attendance Enums & DTOs', () => {
       },
     });
     expect(roster.summary.unmarked).toBe(1);
+    expect(roster.roster[0]?.studentCode).toBe('STU-001');
   });
 
   it('validates CompleteSessionInputSchema', () => {

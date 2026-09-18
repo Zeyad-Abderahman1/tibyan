@@ -94,6 +94,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0001_audit_triggers',
       '0002_glamorous_sunspot',
       '0003_neat_krista_starr',
+      '0004_cold_bullseye',
     ]);
 
     expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers']);
@@ -102,6 +103,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0001_audit_triggers',
       '0002_glamorous_sunspot',
       '0003_neat_krista_starr',
+      '0004_cold_bullseye',
     ]);
 
     sysRaw.close();
@@ -129,6 +131,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0001_audit_triggers',
       '0002_glamorous_sunspot',
       '0003_neat_krista_starr',
+      '0004_cold_bullseye',
     ]);
 
     sysRaw.close();
@@ -968,8 +971,8 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     // 3. Run the normal migrator
     const appliedDuringUpgrade = migrateAcademicDatabase(rawDb);
 
-    // 4. Verify 0002 and 0003 are applied
-    expect(appliedDuringUpgrade).toEqual(['0002_glamorous_sunspot', '0003_neat_krista_starr']);
+    // 4. Verify 0002, 0003, and 0004 are applied
+    expect(appliedDuringUpgrade).toEqual(['0002_glamorous_sunspot', '0003_neat_krista_starr', '0004_cold_bullseye']);
     const colsAfter = rawDb.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
     expect(colsAfter.map((c) => c.name)).toContain('cancellation_reason');
 
@@ -999,6 +1002,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0001_audit_triggers',
       '0002_glamorous_sunspot',
       '0003_neat_krista_starr',
+      '0004_cold_bullseye',
     ]);
     const migrationRecords = rawDb
       .prepare("SELECT COUNT(*) as count FROM __tibyan_migrations WHERE id = '0002_glamorous_sunspot'")
@@ -1187,6 +1191,88 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     const completedSession = sessionRepo.updateStatus(session.id, 'COMPLETED', 'تم الانتهاء بنجاح');
     expect(completedSession?.status).toBe('COMPLETED');
     expect(completedSession?.notes).toBe('تم الانتهاء بنجاح');
+  });
+
+  it('enforces SQLite CHECK constraints on attendance_records (status and 24h arrival_time rules)', () => {
+    const acadConn = openAcademicDatabase('2026-2027', { filePath: ':memory:' });
+    migrateAcademicDatabase(acadConn.raw);
+
+    const studentRepo = new StudentRepository(acadConn.db);
+    const groupRepo = new GroupRepository(acadConn.db);
+    const sessionRepo = new SessionRepository(acadConn.db);
+
+    const student = studentRepo.create({
+      id: 'std-chk-1',
+      studentCode: 'STU-CHK-1',
+      fullName: 'طالب الفحص',
+      qrToken: 'qr-chk-1',
+      barcodeValue: 'bar-chk-1',
+      educationSystem: 'GENERAL',
+      gradeLevel: 'SEC_1',
+      languageTrack: 'ARABIC',
+      guardianPhone: '01011111111',
+      status: 'ACTIVE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const group = groupRepo.create({
+      id: 'grp-chk-1',
+      name: 'مجموعة فحص القيود',
+      educationSystem: 'GENERAL',
+      gradeLevel: 'SEC_1',
+      languageTrack: 'ARABIC',
+      defaultPaymentType: 'MONTHLY',
+      defaultPaymentAmount: 300,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const session = sessionRepo.create({
+      id: 'sess-chk-1',
+      groupId: group.id,
+      scheduleId: null,
+      occurrenceKey: 'grp-chk-1_2026-10-05_16:00',
+      scheduledDate: '2026-10-05',
+      scheduledStartTime: '16:00',
+      effectiveDate: '2026-10-05',
+      effectiveStartTime: '16:00',
+      durationMinutes: 90,
+      status: 'SCHEDULED',
+      rescheduleReason: null,
+      rescheduledAt: null,
+      cancellationReason: null,
+      notes: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const insertRaw = (status: string, arrivalTime: string | null) => {
+      acadConn.raw.prepare(`
+        INSERT INTO attendance_records (id, session_id, student_id, status, arrival_time, recorded_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(crypto.randomUUID(), session.id, student.id, status, arrivalTime, new Date().toISOString(), new Date().toISOString());
+    };
+
+    // 1. Invalid status fails chk_attendance_status
+    expect(() => insertRaw('UNKNOWN', null)).toThrow(/CHECK constraint failed/i);
+
+    // 2. LATE without arrival_time fails chk_attendance_arrival_time
+    expect(() => insertRaw('LATE', null)).toThrow(/CHECK constraint failed/i);
+
+    // 3. LATE with invalid times fails chk_attendance_arrival_time
+    expect(() => insertRaw('LATE', '88:99')).toThrow(/CHECK constraint failed/i);
+    expect(() => insertRaw('LATE', '24:00')).toThrow(/CHECK constraint failed/i);
+    expect(() => insertRaw('LATE', '12:75')).toThrow(/CHECK constraint failed/i);
+
+    // 4. ABSENT with arrival_time fails chk_attendance_arrival_time
+    expect(() => insertRaw('ABSENT', '16:00')).toThrow(/CHECK constraint failed/i);
+
+    // 5. EXCUSED with arrival_time fails chk_attendance_arrival_time
+    expect(() => insertRaw('EXCUSED', '16:00')).toThrow(/CHECK constraint failed/i);
+
+    // 6. Valid entries succeed
+    expect(() => insertRaw('PRESENT', null)).not.toThrow();
   });
 });
 

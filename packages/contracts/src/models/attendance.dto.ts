@@ -1,14 +1,14 @@
 import { z } from 'zod';
 import { AttendanceStatusSchema } from '../enums/attendance.js';
-import { PaymentTypeSchema } from '../enums/payment.js';
 import { SessionDtoSchema } from './session.dto.js';
+import { TIME_HHMM_REGEX } from '../common/regex.js';
 
 export const AttendanceRecordDtoSchema = z.object({
   id: z.string().uuid(),
   sessionId: z.string().uuid(),
   studentId: z.string().uuid(),
   status: AttendanceStatusSchema,
-  arrivalTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format HH:MM').nullable(),
+  arrivalTime: z.string().regex(TIME_HHMM_REGEX, 'Invalid arrival time format (HH:mm 00:00-23:59)').nullable(),
   notes: z.string().max(1000).nullable(),
   recordedByUserId: z.string().nullable(),
   recordedAt: z.string().datetime(),
@@ -16,13 +16,18 @@ export const AttendanceRecordDtoSchema = z.object({
 });
 export type AttendanceRecordDto = z.infer<typeof AttendanceRecordDtoSchema>;
 
+/**
+ * Minimized attendance roster item DTO.
+ * Exposes strictly attendance-relevant fields: student identity, code, name,
+ * safe media URL projection, enrollment ID, and current attendance record.
+ * Unnecessary financial and guardian contact fields are excluded for data minimization.
+ */
 export const SessionRosterItemDtoSchema = z.object({
   studentId: z.string().uuid(),
+  studentCode: z.string().min(1),
   studentName: z.string().min(1),
-  guardianPhone: z.string().min(1),
+  photoUrl: z.string().nullable(),
   enrollmentId: z.string().uuid(),
-  paymentType: PaymentTypeSchema,
-  paymentAmount: z.number().nonnegative(),
   attendanceRecord: AttendanceRecordDtoSchema.nullable(),
 });
 export type SessionRosterItemDto = z.infer<typeof SessionRosterItemDtoSchema>;
@@ -42,26 +47,73 @@ export const SessionAttendanceRosterDtoSchema = z.object({
 });
 export type SessionAttendanceRosterDto = z.infer<typeof SessionAttendanceRosterDtoSchema>;
 
-export const RecordAttendanceInputSchema = z.object({
-  sessionId: z.string().uuid(),
-  studentId: z.string().uuid(),
-  status: AttendanceStatusSchema,
-  arrivalTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format HH:MM').nullish(),
-  notes: z.string().max(1000).nullish(),
-});
+export const RecordAttendanceInputSchema = z
+  .object({
+    sessionId: z.string().uuid(),
+    studentId: z.string().uuid(),
+    status: AttendanceStatusSchema,
+    arrivalTime: z.string().regex(TIME_HHMM_REGEX, 'Invalid arrival time format (HH:mm 00:00-23:59)').nullish(),
+    notes: z.string().max(1000).nullish(),
+  })
+  .refine((data) => {
+    if (data.status === 'LATE') {
+      return typeof data.arrivalTime === 'string' && data.arrivalTime.trim().length > 0;
+    }
+    return true;
+  }, {
+    message: 'Arrival time is required when status is LATE',
+    path: ['arrivalTime'],
+  })
+  .refine((data) => {
+    if ((data.status === 'ABSENT' || data.status === 'EXCUSED') && data.arrivalTime != null) {
+      return false;
+    }
+    return true;
+  }, {
+    message: 'Arrival time must be null for ABSENT or EXCUSED status',
+    path: ['arrivalTime'],
+  });
 export type RecordAttendanceInput = z.infer<typeof RecordAttendanceInputSchema>;
 
-export const BatchRecordAttendanceInputSchema = z.object({
-  sessionId: z.string().uuid(),
-  records: z.array(
-    z.object({
-      studentId: z.string().uuid(),
-      status: AttendanceStatusSchema,
-      arrivalTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Invalid time format HH:MM').nullish(),
-      notes: z.string().max(1000).nullish(),
-    })
-  ).min(1),
-});
+export const BatchAttendanceRecordItemSchema = z
+  .object({
+    studentId: z.string().uuid(),
+    status: AttendanceStatusSchema,
+    arrivalTime: z.string().regex(TIME_HHMM_REGEX, 'Invalid arrival time format (HH:mm 00:00-23:59)').nullish(),
+    notes: z.string().max(1000).nullish(),
+  })
+  .refine((data) => {
+    if (data.status === 'LATE') {
+      return typeof data.arrivalTime === 'string' && data.arrivalTime.trim().length > 0;
+    }
+    return true;
+  }, {
+    message: 'Arrival time is required when status is LATE',
+    path: ['arrivalTime'],
+  })
+  .refine((data) => {
+    if ((data.status === 'ABSENT' || data.status === 'EXCUSED') && data.arrivalTime != null) {
+      return false;
+    }
+    return true;
+  }, {
+    message: 'Arrival time must be null for ABSENT or EXCUSED status',
+    path: ['arrivalTime'],
+  });
+export type BatchAttendanceRecordItem = z.infer<typeof BatchAttendanceRecordItemSchema>;
+
+export const BatchRecordAttendanceInputSchema = z
+  .object({
+    sessionId: z.string().uuid(),
+    records: z.array(BatchAttendanceRecordItemSchema).min(1, 'At least one record is required'),
+  })
+  .refine((data) => {
+    const ids = data.records.map((r) => r.studentId);
+    return new Set(ids).size === ids.length;
+  }, {
+    message: 'Duplicate studentId detected in batch attendance records',
+    path: ['records'],
+  });
 export type BatchRecordAttendanceInput = z.infer<typeof BatchRecordAttendanceInputSchema>;
 
 export const CompleteSessionInputSchema = z.object({
@@ -79,7 +131,7 @@ export const EndOfDayFollowUpItemDtoSchema = z.object({
   status: AttendanceStatusSchema,
   sessionDate: z.string(),
   sessionStartTime: z.string(),
-  whatsappMessage: z.string().min(1),
+  whatsappMessage: z.string(),
 });
 export type EndOfDayFollowUpItemDto = z.infer<typeof EndOfDayFollowUpItemDtoSchema>;
 

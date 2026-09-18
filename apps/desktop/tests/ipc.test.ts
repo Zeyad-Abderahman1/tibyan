@@ -1549,7 +1549,7 @@ describe('Task 10 — Typed IPC Bridge & Main Session Authority', () => {
       expect(eodRes.data.followUps).toHaveLength(2);
 
       const absentMsg = eodRes.data.followUps.find((f: any) => f.studentId === studentId2);
-      expect(absentMsg.whatsappMessage).toContain('غاب/ت عن حضور حصة الرياضيات');
+      expect(absentMsg.whatsappMessage).toContain('غاب/ت عن حضور حصة اليوم');
 
       const lateMsg = eodRes.data.followUps.find((f: any) => f.studentId === studentId1);
       expect(lateMsg.whatsappMessage).toContain('15:15');
