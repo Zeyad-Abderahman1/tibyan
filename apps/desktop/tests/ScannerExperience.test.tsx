@@ -116,12 +116,14 @@ describe('Gate 2: Scanner Experience & Camera Viewfinder Suite', () => {
     }
   });
 
-  it('renders clear unavailable state when BarcodeDetector is not present in runtime', () => {
-    // Ensure BarcodeDetector is absent
-    delete (global as any).window.BarcodeDetector;
-
+  it('renders clear unavailable state when BarcodeDetector fails initialization or is unavailable', () => {
     const html = renderToStaticMarkup(
-      <CameraScannerModal isOpen={true} onClose={() => {}} onScan={() => {}} />
+      <CameraScannerModal
+        isOpen={true}
+        onClose={() => {}}
+        onScan={() => {}}
+        initialDecoderError="محرك مسح الباركود عبر الكاميرا غير مفعل في النظام"
+      />
     );
 
     expect(html).toContain('ماسح الكاميرا للـ QR والباركود');
@@ -130,17 +132,7 @@ describe('Gate 2: Scanner Experience & Camera Viewfinder Suite', () => {
     expect(html).not.toContain('data-testid="camera-scanner-video"');
   });
 
-  it('renders CameraScannerModal with viewfinder target and close button when BarcodeDetector is supported', () => {
-    // Mock BarcodeDetector support
-    (global as any).window.BarcodeDetector = class MockBarcodeDetector {
-      static getSupportedFormats() {
-        return Promise.resolve(['qr_code', 'code_128']);
-      }
-      detect() {
-        return Promise.resolve([]);
-      }
-    };
-
+  it('renders CameraScannerModal with viewfinder target and close button when decoder is ready', () => {
     const html = renderToStaticMarkup(
       <CameraScannerModal isOpen={true} onClose={() => {}} onScan={() => {}} />
     );
@@ -149,8 +141,6 @@ describe('Gate 2: Scanner Experience & Camera Viewfinder Suite', () => {
     expect(html).toContain('data-testid="camera-scanner-video"');
     expect(html).toContain('data-testid="close-camera-scanner-btn"');
     expect(html).toContain('وجّه كاميرا الجهاز');
-
-    delete (global as any).window.BarcodeDetector;
   });
 
   it('renders AttendanceRosterTable with highlighted student row on scan', () => {
