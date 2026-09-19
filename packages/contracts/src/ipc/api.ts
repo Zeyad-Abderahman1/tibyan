@@ -86,6 +86,8 @@ export interface TibyanApi {
     addNote(input: CreateStudentNoteInput): Promise<IpcResult<StudentNoteDto>>;
     listNotes(studentId: string): Promise<IpcResult<StudentNoteDto[]>>;
     choosePhotoDialog(): Promise<IpcResult<PhotoSelectionDto | null>>;
+    printCards(): Promise<IpcResult<void>>;
+    exportCardsPdf(input?: { defaultFilename?: string; targetPath?: string }): Promise<IpcResult<{ canceled: boolean; filePath: string }>>;
   };
   groups: {
     list(): Promise<IpcResult<GroupDto[]>>;

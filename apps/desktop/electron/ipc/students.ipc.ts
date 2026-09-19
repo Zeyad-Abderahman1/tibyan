@@ -309,6 +309,59 @@ export function registerStudentsIpcHandlers(runtime: Runtime, mainWindow: Browse
       return { photoToken, previewUrl };
     });
   });
+
+  ipcMain.handle(IPC_CHANNELS.STUDENTS_PRINT_CARDS, async (event) => {
+    if (!validateIpcSender(event, mainWindow)) {
+      throw new Error('UNAUTHORIZED_IPC_SENDER');
+    }
+    return safeIpcCall(async () => {
+      runtime.requireAuthenticatedActor();
+      if (!mainWindow) {
+        throw new Error('WINDOW_NOT_FOUND: Main window is not available for printing');
+      }
+      mainWindow.webContents.print({
+        silent: false,
+        printBackground: true,
+      });
+    });
+  });
+
+  ipcMain.handle(
+    IPC_CHANNELS.STUDENTS_EXPORT_CARDS_PDF,
+    async (event, input?: { defaultFilename?: string; targetPath?: string }) => {
+      if (!validateIpcSender(event, mainWindow)) {
+        throw new Error('UNAUTHORIZED_IPC_SENDER');
+      }
+      return safeIpcCall(async () => {
+        runtime.requireAuthenticatedActor();
+        if (!mainWindow) {
+          throw new Error('WINDOW_NOT_FOUND: Main window is not available for PDF export');
+        }
+        const pdfBuffer = await mainWindow.webContents.printToPDF({
+          pageSize: 'A4',
+          printBackground: true,
+          margins: { top: 0, bottom: 0, left: 0, right: 0 },
+        });
+
+        let destinationPath = input?.targetPath;
+        if (!destinationPath) {
+          const defaultName = input?.defaultFilename || 'بطاقات_الطلاب.pdf';
+          const saveRes = await dialog.showSaveDialog(mainWindow, {
+            title: 'حفظ بطاقات الطلاب بصيغة PDF',
+            defaultPath: defaultName,
+            filters: [{ name: 'PDF Documents', extensions: ['pdf'] }],
+          });
+          if (saveRes.canceled || !saveRes.filePath) {
+            return { canceled: true, filePath: '' };
+          }
+          destinationPath = saveRes.filePath;
+        }
+
+        await fs.promises.writeFile(destinationPath, pdfBuffer);
+        return { canceled: false, filePath: destinationPath };
+      });
+    }
+  );
 }
 
 export function unregisterStudentsIpcHandlers(): void {
@@ -319,4 +372,6 @@ export function unregisterStudentsIpcHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.STUDENTS_ADD_NOTE);
   ipcMain.removeHandler(IPC_CHANNELS.STUDENTS_LIST_NOTES);
   ipcMain.removeHandler(IPC_CHANNELS.STUDENTS_CHOOSE_PHOTO_DIALOG);
+  ipcMain.removeHandler(IPC_CHANNELS.STUDENTS_PRINT_CARDS);
+  ipcMain.removeHandler(IPC_CHANNELS.STUDENTS_EXPORT_CARDS_PDF);
 }

@@ -19,6 +19,8 @@ export const IPC_CHANNELS = {
   STUDENTS_ADD_NOTE: 'students:addNote',
   STUDENTS_LIST_NOTES: 'students:listNotes',
   STUDENTS_CHOOSE_PHOTO_DIALOG: 'students:choosePhotoDialog',
+  STUDENTS_PRINT_CARDS: 'students:printCards',
+  STUDENTS_EXPORT_CARDS_PDF: 'students:exportCardsPdf',
 
   // Groups
   GROUPS_LIST: 'groups:list',

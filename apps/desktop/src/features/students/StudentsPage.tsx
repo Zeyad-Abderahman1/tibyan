@@ -8,6 +8,7 @@ import {
   X,
   AlertCircle,
   RefreshCw,
+  CreditCard,
 } from 'lucide-react';
 import {
   Card,
@@ -33,6 +34,7 @@ import type {
 import { useStudentsList } from '../../hooks/useStudents.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { StudentCreateModal } from './StudentCreateModal.js';
+import { StudentCardPreviewModal } from './cards/StudentCardPreviewModal.js';
 
 const SYSTEM_OPTIONS = [
   { value: '', label: 'جميع الأنظمة' },
@@ -94,6 +96,9 @@ export function StudentsPage() {
   const [status, setStatus] = useState<string>('ACTIVE');
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
+  const [cardPreviewStudents, setCardPreviewStudents] = useState<StudentDto[]>([]);
+  const [isCardPreviewOpen, setIsCardPreviewOpen] = useState(false);
 
   // Construct typed filter input
   const filterInput: StudentFilterInput = useMemo(() => {
@@ -120,6 +125,38 @@ export function StudentsPage() {
     setStatus('ACTIVE');
   };
 
+  const toggleSelectStudent = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedStudentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedStudentIds.size === students.length && students.length > 0) {
+      setSelectedStudentIds(new Set());
+    } else {
+      setSelectedStudentIds(new Set(students.map((s) => s.id)));
+    }
+  };
+
+  const handleOpenBatchCards = () => {
+    const selected = students.filter((s) => selectedStudentIds.has(s.id));
+    if (selected.length > 0) {
+      setCardPreviewStudents(selected);
+      setIsCardPreviewOpen(true);
+    }
+  };
+
+  const handleOpenSingleCard = (student: StudentDto, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCardPreviewStudents([student]);
+    setIsCardPreviewOpen(true);
+  };
+
   return (
     <div className="space-y-4" data-testid="page-students">
       {/* Header */}
@@ -131,17 +168,31 @@ export function StudentsPage() {
           </p>
         </div>
 
-        {canWrite && (
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsCreateModalOpen(true)}
-            data-testid="add-student-btn"
-          >
-            <UserPlus size={16} className="me-1.5" />
-            إضافة طالب جديد
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {selectedStudentIds.size > 0 && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleOpenBatchCards}
+              data-testid="batch-print-cards-btn"
+            >
+              <CreditCard size={15} className="me-1.5 text-[var(--color-brand-primary)]" />
+              طباعة بطاقات ({selectedStudentIds.size})
+            </Button>
+          )}
+
+          {canWrite && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsCreateModalOpen(true)}
+              data-testid="add-student-btn"
+            >
+              <UserPlus size={16} className="me-1.5" />
+              إضافة طالب جديد
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filter Bar */}
@@ -289,6 +340,16 @@ export function StudentsPage() {
           <Table data-testid="students-table">
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10 text-center">
+                  <input
+                    type="checkbox"
+                    checked={students.length > 0 && selectedStudentIds.size === students.length}
+                    onChange={toggleSelectAll}
+                    aria-label="تحديد جميع الطلاب"
+                    className="rounded border-slate-400 text-[var(--color-brand-primary)] focus:ring-[var(--color-brand-primary)] cursor-pointer"
+                    data-testid="select-all-students-checkbox"
+                  />
+                </TableHead>
                 <TableHead className="w-12">الصورة</TableHead>
                 <TableHead className="w-28">كود الطالب</TableHead>
                 <TableHead>اسم الطالب</TableHead>
@@ -297,7 +358,7 @@ export function StudentsPage() {
                 <TableHead>المسار</TableHead>
                 <TableHead>هاتف ولي الأمر</TableHead>
                 <TableHead>الحالة</TableHead>
-                <TableHead className="w-24 text-center">الإجراءات</TableHead>
+                <TableHead className="w-28 text-center">الإجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -308,6 +369,17 @@ export function StudentsPage() {
                   className="cursor-pointer hover:bg-[var(--color-bg-surface-subtle)] transition-colors"
                   data-testid={`student-row-${student.id}`}
                 >
+                  <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedStudentIds.has(student.id)}
+                      onChange={(e) => toggleSelectStudent(student.id, e as any)}
+                      aria-label={`تحديد ${student.fullName}`}
+                      className="rounded border-slate-400 text-[var(--color-brand-primary)] focus:ring-[var(--color-brand-primary)] cursor-pointer"
+                      data-testid={`select-student-checkbox-${student.id}`}
+                    />
+                  </TableCell>
+
                   <TableCell>
                     <div className="w-8 h-8 rounded-full overflow-hidden bg-[var(--color-bg-surface-subtle)] border border-[var(--color-border-subtle)] flex items-center justify-center shrink-0">
                       {student.photoUrl ? (
@@ -385,19 +457,33 @@ export function StudentsPage() {
                   </TableCell>
 
                   <TableCell className="text-center">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/students/${student.id}`);
-                      }}
-                      className="p-1.5"
-                      aria-label="عرض ملف الطالب"
-                      data-testid={`view-student-${student.id}`}
-                    >
-                      <ChevronLeft size={16} />
-                    </Button>
+                    <div className="flex items-center justify-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => handleOpenSingleCard(student, e)}
+                        className="p-1.5 text-[var(--color-text-secondary)] hover:text-[var(--color-brand-primary)]"
+                        aria-label="طباعة بطاقة الطالب"
+                        title="طباعة بطاقة الطالب"
+                        data-testid={`print-card-btn-${student.id}`}
+                      >
+                        <CreditCard size={15} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/students/${student.id}`);
+                        }}
+                        className="p-1.5"
+                        aria-label="عرض ملف الطالب"
+                        title="عرض ملف الطالب"
+                        data-testid={`view-student-${student.id}`}
+                      >
+                        <ChevronLeft size={16} />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -406,6 +492,11 @@ export function StudentsPage() {
 
           <div className="p-2 text-xs text-[var(--color-text-muted)] flex items-center justify-between">
             <span>إجمالي الطلاب: {students.length}</span>
+            {selectedStudentIds.size > 0 && (
+              <span className="text-[var(--color-brand-primary)] font-semibold">
+                محدد للطباعة: {selectedStudentIds.size}
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -420,6 +511,13 @@ export function StudentsPage() {
           }}
         />
       )}
+
+      {/* Student Card Preview & Print Modal */}
+      <StudentCardPreviewModal
+        isOpen={isCardPreviewOpen}
+        onClose={() => setIsCardPreviewOpen(false)}
+        students={cardPreviewStudents}
+      />
     </div>
   );
 }

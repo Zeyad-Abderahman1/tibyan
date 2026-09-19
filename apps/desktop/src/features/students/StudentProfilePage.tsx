@@ -10,6 +10,7 @@ import {
   BookOpen,
   Languages,
   AlertCircle,
+  CreditCard,
 } from 'lucide-react';
 import {
   Card,
@@ -21,6 +22,7 @@ import { useStudent, useUpdateStudent } from '../../hooks/useStudents.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { StudentCreateModal } from './StudentCreateModal.js';
 import { StudentNotesView } from './StudentNotesView.js';
+import { StudentCardPreviewModal } from './cards/StudentCardPreviewModal.js';
 
 const GRADE_LEVEL_LABELS: Record<string, string> = {
   PREP_1: 'الصف الأول الإعدادي',
@@ -52,6 +54,7 @@ export function StudentProfilePage() {
   const canWrite = session?.role === 'OWNER' || session?.permissions?.includes('STUDENTS_WRITE');
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCardPreviewOpen, setIsCardPreviewOpen] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
 
   const handleToggleStatus = async () => {
@@ -227,6 +230,15 @@ export function StudentProfilePage() {
               <Button
                 variant="secondary"
                 size="sm"
+                onClick={() => setIsCardPreviewOpen(true)}
+                data-testid="print-student-card-btn"
+              >
+                <CreditCard size={14} className="me-1 text-[var(--color-brand-primary)]" />
+                طباعة البطاقة
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => setIsEditModalOpen(true)}
                 data-testid="edit-student-btn"
               >
@@ -336,6 +348,15 @@ export function StudentProfilePage() {
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
           initialStudent={student}
+        />
+      )}
+
+      {/* Student Card Preview & Print Modal */}
+      {student && (
+        <StudentCardPreviewModal
+          isOpen={isCardPreviewOpen}
+          onClose={() => setIsCardPreviewOpen(false)}
+          students={[student]}
         />
       )}
     </div>

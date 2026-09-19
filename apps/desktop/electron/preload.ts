@@ -114,6 +114,12 @@ export const tibyanApi: TibyanApi = {
     choosePhotoDialog(): Promise<IpcResult<PhotoSelectionDto | null>> {
       return ipcRenderer.invoke(IPC_CHANNELS.STUDENTS_CHOOSE_PHOTO_DIALOG);
     },
+    printCards(): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.STUDENTS_PRINT_CARDS);
+    },
+    exportCardsPdf(input?: { defaultFilename?: string; targetPath?: string }): Promise<IpcResult<{ canceled: boolean; filePath: string }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.STUDENTS_EXPORT_CARDS_PDF, input);
+    },
   },
 
   groups: {
