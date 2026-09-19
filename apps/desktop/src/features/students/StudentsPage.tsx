@@ -350,7 +350,6 @@ export function StudentsPage() {
                     data-testid="select-all-students-checkbox"
                   />
                 </TableHead>
-                <TableHead className="w-12">الصورة</TableHead>
                 <TableHead className="w-28">كود الطالب</TableHead>
                 <TableHead>اسم الطالب</TableHead>
                 <TableHead>النظام</TableHead>
@@ -378,23 +377,6 @@ export function StudentsPage() {
                       className="rounded border-slate-400 text-[var(--color-brand-primary)] focus:ring-[var(--color-brand-primary)] cursor-pointer"
                       data-testid={`select-student-checkbox-${student.id}`}
                     />
-                  </TableCell>
-
-                  <TableCell>
-                    <div className="w-8 h-8 rounded-full overflow-hidden bg-[var(--color-bg-surface-subtle)] border border-[var(--color-border-subtle)] flex items-center justify-center shrink-0">
-                      {student.photoUrl ? (
-                        <img
-                          src={student.photoUrl}
-                          alt={student.fullName}
-                          className="w-full h-full object-cover"
-                          data-testid={`student-avatar-${student.id}`}
-                        />
-                      ) : (
-                        <span className="text-xs font-bold text-[var(--color-text-muted)]">
-                          {student.fullName.slice(0, 1)}
-                        </span>
-                      )}
-                    </div>
                   </TableCell>
 
                   <TableCell>

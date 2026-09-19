@@ -48,26 +48,32 @@ describe('StudentCardPreviewModal Component (TDD)', () => {
     expect(html).toBe('');
   });
 
-  it('renders modal structure with header, tabs, and action buttons when open', () => {
+  it('renders modal structure with variant switcher, view tabs, and action buttons', () => {
     const html = renderToStaticMarkup(
       <StudentCardPreviewModal
         isOpen={true}
         onClose={() => {}}
         students={mockStudents}
+        teacherName="الأستاذ أحمد الشريف"
       />
     );
 
     expect(html).toContain('data-testid="student-card-preview-modal"');
     expect(html).toContain('معاينة وطباعة بطاقات الطلاب');
+    expect(html).toContain('data-testid="tab-variant-full"');
+    expect(html).toContain('data-testid="tab-variant-economical"');
     expect(html).toContain('data-testid="tab-single-card"');
     expect(html).toContain('data-testid="tab-a4-sheet"');
     expect(html).toContain('data-testid="btn-print-cards"');
     expect(html).toContain('data-testid="btn-export-pdf"');
     expect(html).toContain('data-testid="btn-close-card-modal"');
     expect(html).toContain('إجمالي الطلاب المحددين: 2 طالب');
+
+    // Confirm no student photo
+    expect(html).not.toContain('data-testid="student-avatar"');
   });
 
-  it('renders single card viewport by default with student data', () => {
+  it('renders single card viewport by default with student data and scannable code', () => {
     const html = renderToStaticMarkup(
       <StudentCardPreviewModal
         isOpen={true}
@@ -83,7 +89,7 @@ describe('StudentCardPreviewModal Component (TDD)', () => {
     expect(html).toContain('data-testid="code128-svg"');
   });
 
-  it('includes dedicated print sheet container for physical printing', () => {
+  it('includes dedicated print sheet container for physical printing with 6-up layout', () => {
     const html = renderToStaticMarkup(
       <StudentCardPreviewModal
         isOpen={true}
@@ -93,5 +99,6 @@ describe('StudentCardPreviewModal Component (TDD)', () => {
     );
 
     expect(html).toContain('print-sheet-root');
+    expect(html).toContain('data-testid="student-card-print-sheets"');
   });
 });

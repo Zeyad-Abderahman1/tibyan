@@ -1,30 +1,35 @@
 import { useMemo } from 'react';
 import type { StudentDto } from '@tibyan/contracts';
-import { StudentCard } from './StudentCard.js';
+import { StudentCard, type CardVariant } from './StudentCard.js';
 
 export interface StudentCardPrintSheetProps {
   students: StudentDto[];
+  variant?: CardVariant;
   groupName?: string;
+  teacherName?: string;
   academicYearLabel?: string;
   className?: string;
 }
 
-const CARDS_PER_PAGE = 8; // 2 columns x 4 rows
+export const CARDS_PER_PAGE = 6; // 2 columns x 3 rows
 
 /**
  * Standard A4 Portrait Print Sheet (210mm x 297mm).
  * Engineered strictly for physical paper printing:
- * - Deterministic physical mm grid layout (2 cols x 4 rows)
+ * - Deterministic physical mm grid layout (2 cols x 3 rows = 6 cards/page)
  * - Strict CSS page-break-after: always pagination
  * - Zero card clipping or cross-page splitting
+ * - 7 or more students creates a clean second page
  */
 export function StudentCardPrintSheet({
   students,
+  variant = 'full',
   groupName,
+  teacherName,
   academicYearLabel = '2026 - 2027',
   className = '',
 }: StudentCardPrintSheetProps) {
-  // Partition students into exact pages of 8 cards
+  // Partition students into exact pages of 6 cards
   const pages = useMemo(() => {
     const result: StudentDto[][] = [];
     for (let i = 0; i < students.length; i += CARDS_PER_PAGE) {
@@ -57,7 +62,7 @@ export function StudentCardPrintSheet({
               height: '297mm',
               minHeight: '297mm',
               maxHeight: '297mm',
-              padding: '14mm 10mm',
+              padding: '16mm 14mm',
               boxSizing: 'border-box',
               pageBreakAfter: isLastPage ? 'auto' : 'always',
               breakAfter: isLastPage ? 'auto' : 'page',
@@ -66,24 +71,28 @@ export function StudentCardPrintSheet({
             data-page-number={pageIndex + 1}
           >
             {/* Sheet Header Banner with Trim Instructions */}
-            <div className="flex items-center justify-between pb-2 mb-2 border-b border-dashed border-slate-300 text-[9px] text-slate-500 font-cairo dir-rtl">
+            <div className="flex items-center justify-between pb-2 mb-4 border-b border-dashed border-slate-300 text-[9.5px] text-slate-500 font-cairo dir-rtl">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-[#0f3d3e]">تِبيان — بطاقات الطلاب الذكية</span>
+                <span className="font-bold text-[#0f3d3e]">
+                  {variant === 'economical'
+                    ? 'تِبيان — بطاقات الطلاب السريعة (اقتصادية)'
+                    : 'تِبيان — بطاقات الطلاب الذكية'}
+                </span>
                 {groupName && <span>• {groupName}</span>}
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-slate-400">قص البطاقات على طول خطوط التحديد</span>
+              <div className="flex items-center gap-4">
+                <span className="text-slate-400">قص البطاقات على خطوط التحديد (6 بطاقات / صفحة)</span>
                 <span className="font-bold font-mono dir-ltr">
                   صفحة {pageIndex + 1} من {pages.length}
                 </span>
               </div>
             </div>
 
-            {/* 2 columns x 4 rows Grid */}
+            {/* 2 columns x 3 rows Grid (Deterministic 6-up Layout) */}
             <div
-              className="grid grid-cols-2 gap-x-[8.8mm] gap-y-[5.5mm] justify-center items-center my-auto"
+              className="grid grid-cols-2 gap-x-[10mm] gap-y-[14mm] justify-center items-center my-auto"
               style={{
-                width: '180mm',
+                width: '182mm',
                 margin: '0 auto',
               }}
             >
@@ -98,19 +107,19 @@ export function StudentCardPrintSheet({
                 >
                   <StudentCard
                     student={student}
+                    variant={variant}
                     groupName={groupName}
+                    teacherName={teacherName}
                     academicYearLabel={academicYearLabel}
                   />
                 </div>
               ))}
             </div>
 
-            {/* Sheet Footer with Sheet Timestamp and Guide Marks */}
-            <div className="flex items-center justify-between pt-2 mt-2 border-t border-dashed border-slate-300 text-[8.5px] text-slate-400 font-mono dir-ltr">
-              <span>TIBYAN TEACHER OS • LOCAL-FIRST • VERIFIED ID-1</span>
-              <span>
-                TOTAL: {students.length} CARDS • PAGE {pageIndex + 1}/{pages.length}
-              </span>
+            {/* Sheet Footer Banner */}
+            <div className="flex items-center justify-between pt-2 mt-4 border-t border-dashed border-slate-300 text-[8.5px] text-slate-400 font-cairo dir-rtl">
+              <span>نظام تِبيان الذكي لإدارة المعلمين • بطاقات معيارية ISO/IEC 7810 ID-1</span>
+              <span className="font-mono dir-ltr">TIBYAN CARDS • 6-UP A4 • OFFLINE WASM</span>
             </div>
           </div>
         );

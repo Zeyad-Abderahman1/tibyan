@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Trash2, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import {
   Modal,
   Input,
@@ -15,7 +15,7 @@ import type {
   UpdateStudentIpcInput,
 } from '@tibyan/contracts';
 import { EgyptianGuardianPhoneSchema } from '@tibyan/contracts';
-import { useCreateStudent, useUpdateStudent, useChooseStudentPhoto } from '../../hooks/useStudents.js';
+import { useCreateStudent, useUpdateStudent } from '../../hooks/useStudents.js';
 
 export interface StudentCreateModalProps {
   isOpen: boolean;
@@ -58,18 +58,12 @@ export function StudentCreateModal({
   const [guardianPhone, setGuardianPhone] = useState('');
   const [initialNote, setInitialNote] = useState('');
 
-  // Photo state
-  const [photoToken, setPhotoToken] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [photoRemoved, setPhotoRemoved] = useState(false);
-
   // Errors
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const createMutation = useCreateStudent();
   const updateMutation = useUpdateStudent();
-  const choosePhotoMutation = useChooseStudentPhoto();
 
   // Reset or populate fields when modal opens
   useEffect(() => {
@@ -80,9 +74,6 @@ export function StudentCreateModal({
         setGradeLevel(initialStudent.gradeLevel);
         setLanguageTrack(initialStudent.languageTrack);
         setGuardianPhone(initialStudent.guardianPhone);
-        setPreviewUrl(initialStudent.photoUrl ?? null);
-        setPhotoToken(null);
-        setPhotoRemoved(false);
       } else {
         setFullName('');
         setEducationSystem('GENERAL');
@@ -90,36 +81,11 @@ export function StudentCreateModal({
         setLanguageTrack('ARABIC');
         setGuardianPhone('');
         setInitialNote('');
-        setPhotoToken(null);
-        setPreviewUrl(null);
-        setPhotoRemoved(false);
       }
       setErrors({});
       setSubmitError(null);
     }
   }, [isOpen, initialStudent]);
-
-  const handleChoosePhoto = async () => {
-    setSubmitError(null);
-    try {
-      const res = await choosePhotoMutation.mutateAsync();
-      if (res.success && res.data) {
-        setPhotoToken(res.data.photoToken);
-        setPreviewUrl(res.data.previewUrl);
-        setPhotoRemoved(false);
-      } else if (!res.success) {
-        setSubmitError(res.error.message || 'فشل اختيار الصورة');
-      }
-    } catch (err: any) {
-      setSubmitError(err?.message || 'فشل اختيار الصورة');
-    }
-  };
-
-  const handleRemovePhoto = () => {
-    setPhotoToken(null);
-    setPreviewUrl(null);
-    setPhotoRemoved(true);
-  };
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {};
@@ -159,13 +125,6 @@ export function StudentCreateModal({
           guardianPhone: guardianPhone.trim(),
         };
 
-        if (photoToken) {
-          updatePayload.photoToken = photoToken;
-        } else if (photoRemoved) {
-          updatePayload.photoToken = null;
-        }
-        // photoToken undefined preserves existing photo
-
         const res = await updateMutation.mutateAsync(updatePayload);
         if (res.success) {
           onSuccess?.(res.data);
@@ -180,7 +139,6 @@ export function StudentCreateModal({
           gradeLevel,
           languageTrack,
           guardianPhone: guardianPhone.trim(),
-          photoToken: photoToken ?? null,
           initialNote: initialNote.trim() ? initialNote.trim() : undefined,
         };
 
@@ -197,7 +155,7 @@ export function StudentCreateModal({
     }
   };
 
-  const isPending = createMutation.isPending || updateMutation.isPending || choosePhotoMutation.isPending;
+  const isPending = createMutation.isPending || updateMutation.isPending;
 
   return (
     <Modal
@@ -222,54 +180,6 @@ export function StudentCreateModal({
             <span>{submitError}</span>
           </div>
         )}
-
-        {/* Photo Picker */}
-        <div className="flex items-center gap-4 p-3 bg-[var(--color-bg-surface-subtle)] rounded-[var(--radius-md)] border border-[var(--color-border-subtle)]">
-          <div className="relative w-16 h-16 rounded-full overflow-hidden bg-[var(--color-bg-surface)] border-2 border-[var(--color-border-subtle)] flex items-center justify-center shrink-0">
-            {previewUrl ? (
-              <img
-                src={previewUrl}
-                alt="معاينة صورة الطالب"
-                className="w-full h-full object-cover"
-                data-testid="student-photo-preview"
-              />
-            ) : (
-              <Camera size={24} className="text-[var(--color-text-muted)]" />
-            )}
-          </div>
-          <div className="flex flex-col gap-1.5 flex-1">
-            <span className="text-xs font-medium text-[var(--color-text-primary)]">صورة الطالب (اختياري)</span>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={handleChoosePhoto}
-                disabled={isPending}
-                data-testid="choose-photo-btn"
-              >
-                {previewUrl ? 'تغيير الصورة' : 'اختر صورة'}
-              </Button>
-              {previewUrl && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRemovePhoto}
-                  disabled={isPending}
-                  className="text-[var(--color-status-danger)] hover:bg-[var(--color-status-danger-bg)]"
-                  data-testid="remove-photo-btn"
-                >
-                  <Trash2 size={14} className="me-1" />
-                  حذف الصورة
-                </Button>
-              )}
-            </div>
-            <span className="text-[11px] text-[var(--color-text-muted)]">
-              صيغ JPEG أو PNG أو WebP بحد أقصى 10 ميجابايت.
-            </span>
-          </div>
-        </div>
 
         {/* Read-only Student Code if Editing */}
         {isEdit && initialStudent && (

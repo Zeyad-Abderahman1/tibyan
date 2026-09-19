@@ -173,22 +173,6 @@ export function StudentProfilePage() {
       <Card variant="default" className="p-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            {/* Avatar / Photo */}
-            <div className="w-20 h-20 rounded-full overflow-hidden bg-[var(--color-bg-surface-subtle)] border-2 border-[var(--color-border-subtle)] flex items-center justify-center shrink-0">
-              {student.photoUrl ? (
-                <img
-                  src={student.photoUrl}
-                  alt={student.fullName}
-                  className="w-full h-full object-cover"
-                  data-testid="student-profile-photo"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-[var(--color-brand-primary)] text-white text-xl font-bold">
-                  {student.fullName.slice(0, 1)}
-                </div>
-              )}
-            </div>
-
             {/* Identity Info */}
             <div className="space-y-1">
               <div className="flex items-center gap-2 flex-wrap">

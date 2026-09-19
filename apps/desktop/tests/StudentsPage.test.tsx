@@ -346,7 +346,7 @@ describe('Task 13: Student Management UI Suite', () => {
       expect(html).toContain(mockGeneralStudent.fullName);
       expect(html).toContain(mockGeneralStudent.studentCode);
       expect(html).toContain(mockGeneralStudent.guardianPhone);
-      expect(html).toContain('data-testid="student-profile-photo"');
+      expect(html).not.toContain('data-testid="student-profile-photo"');
       expect(html).toContain('data-testid="toggle-status-btn"');
       expect(html).toContain('data-testid="edit-student-btn"');
     });
@@ -490,7 +490,7 @@ describe('Task 13: Student Management UI Suite', () => {
       }
     });
 
-    it('displays managed photo via tibyan-media protocol on profile page', () => {
+    it('omits photo from profile page per systemwide student photo removal rule', () => {
       queryClient.setQueryData(['students', 'detail', mockGeneralStudent.id], mockGeneralStudent);
       queryClient.setQueryData(['students', 'notes', mockGeneralStudent.id], []);
 
@@ -504,7 +504,8 @@ describe('Task 13: Student Management UI Suite', () => {
         </QueryClientProvider>
       );
 
-      expect(html).toContain('src="tibyan-media://students/11111111-aaaa-4111-8111-111111111111-uuid.jpg"');
+      expect(html).not.toContain('src="tibyan-media://');
+      expect(html).not.toContain('data-testid="student-profile-photo"');
     });
   });
 

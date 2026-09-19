@@ -19,41 +19,69 @@ const mockStudent: StudentDto = {
   updatedAt: '2026-09-19T00:00:00.000Z',
 };
 
-describe('StudentCard Component (TDD)', () => {
-  it('renders student card with exact 85.6mm x 54mm dimensions style', () => {
-    const html = renderToStaticMarkup(<StudentCard student={mockStudent} />);
-    
+describe('StudentCard Component & Variants (TDD)', () => {
+  it('renders Full Card with exact 85.6mm x 54mm dimensions and break-inside avoid', () => {
+    const html = renderToStaticMarkup(
+      <StudentCard student={mockStudent} variant="full" teacherName="الأستاذ أحمد الشريف" />
+    );
+
     expect(html).toContain('data-testid="student-card"');
+    expect(html).toContain('data-card-variant="full"');
     expect(html).toContain('85.6mm');
     expect(html).toContain('54mm');
+    expect(html).toContain('break-inside');
   });
 
-  it('renders official logo, student name, and studentCode', () => {
-    const html = renderToStaticMarkup(<StudentCard student={mockStudent} />);
+  it('Full Card renders student name, studentCode, grade, teacher name, and official logo without photo/avatar', () => {
+    const html = renderToStaticMarkup(
+      <StudentCard student={mockStudent} variant="full" teacherName="الأستاذ أحمد الشريف" />
+    );
 
     expect(html).toContain('زياد محمد عبد الله');
     expect(html).toContain('TB-0042');
-    expect(html).toContain('tibyan-official-logo');
-  });
-
-  it('renders education system, grade level, and language track in Arabic', () => {
-    const html = renderToStaticMarkup(<StudentCard student={mockStudent} />);
-
     expect(html).toContain('تانية ثانوي');
-    expect(html).toContain('عام');
-    expect(html).toContain('عربي');
+    expect(html).toContain('الأستاذ أحمد الشريف');
+    expect(html).toContain('tibyan-official-logo');
+
+    // Verify complete absence of student photo and avatar placeholders
+    expect(html).not.toContain('data-testid="student-avatar"');
+    expect(html).not.toContain('data-testid="student-profile-photo"');
+    expect(html).not.toContain('photoUrl');
+    expect(html).not.toContain('العمر'); // Age is safely omitted since canonical DOB/age does not exist
   });
 
-  it('renders both QR code and Code128 barcode encoding TB-0042', () => {
-    const html = renderToStaticMarkup(<StudentCard student={mockStudent} />);
+  it('Full Card renders both QR code and Code128 barcode encoding exact studentCode', () => {
+    const html = renderToStaticMarkup(<StudentCard student={mockStudent} variant="full" />);
 
     expect(html).toContain('data-testid="student-qr-svg"');
     expect(html).toContain('data-testid="code128-svg"');
   });
 
-  it('preserves print safety rules with break-inside avoid', () => {
-    const html = renderToStaticMarkup(<StudentCard student={mockStudent} />);
+  it('renders Economical Card with minimal ink, large scannable code, student info, and no photo', () => {
+    const html = renderToStaticMarkup(
+      <StudentCard student={mockStudent} variant="economical" teacherName="الأستاذ أحمد الشريف" />
+    );
 
-    expect(html).toContain('break-inside');
+    expect(html).toContain('data-testid="student-card"');
+    expect(html).toContain('data-card-variant="economical"');
+    expect(html).toContain('85.6mm');
+    expect(html).toContain('54mm');
+    expect(html).toContain('بطاقة اقتصادية');
+    expect(html).toContain('زياد محمد عبد الله');
+    expect(html).toContain('TB-0042');
+    expect(html).toContain('تانية ثانوي');
+    expect(html).toContain('الأستاذ أحمد الشريف');
+    expect(html).toContain('data-testid="student-qr-svg"');
+    expect(html).toContain('tibyan-official-logo');
+
+    // Economical card must have zero student photo/avatar elements
+    expect(html).not.toContain('data-testid="student-avatar"');
+    expect(html).not.toContain('data-testid="student-profile-photo"');
+    expect(html).not.toContain('العمر');
+  });
+
+  it('safely uses teacher fallback when teacherName is not explicitly provided', () => {
+    const html = renderToStaticMarkup(<StudentCard student={mockStudent} />);
+    expect(html).toContain('المعلم');
   });
 });

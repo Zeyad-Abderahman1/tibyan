@@ -85,6 +85,7 @@ describe('Students Workspace Card Printing & Selection Suite (TDD)', () => {
     expect(html).toContain('data-testid="select-all-students-checkbox"');
     expect(html).toContain('data-testid="select-student-checkbox-student-1"');
     expect(html).toContain('data-testid="select-student-checkbox-student-2"');
+    expect(html).not.toContain('data-testid="student-avatar"');
   });
 
   it('renders print card action button on each student table row', () => {
@@ -102,7 +103,7 @@ describe('Students Workspace Card Printing & Selection Suite (TDD)', () => {
     expect(html).toContain('data-testid="print-card-btn-student-2"');
   });
 
-  it('renders print student card button in StudentProfilePage', () => {
+  it('renders print student card button in StudentProfilePage without avatar/photo', () => {
     queryClient.setQueryData(studentKeys.detail('student-1'), mockStudents[0]);
     queryClient.setQueryData(studentKeys.notes('student-1'), []);
 
@@ -118,5 +119,6 @@ describe('Students Workspace Card Printing & Selection Suite (TDD)', () => {
 
     expect(html).toContain('data-testid="print-student-card-btn"');
     expect(html).toContain('طباعة البطاقة');
+    expect(html).not.toContain('data-testid="student-profile-photo"');
   });
 });

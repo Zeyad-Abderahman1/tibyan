@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-test.describe('Student Cards Visual Approval Gate & Verification Suite', () => {
+test.describe('Student Cards Visual Approval Gate & Verification Suite (6-Up & Variants)', () => {
   let testDataDir: string;
   let electronApp: ElectronApplication;
   let page: Page;
@@ -35,7 +35,7 @@ test.describe('Student Cards Visual Approval Gate & Verification Suite', () => {
     }
   });
 
-  test('captures Student Cards at 1920x1080 & 1366x768, single card, A4 page 1 & 2, and exports valid PDF', async () => {
+  test('captures Student Cards full & economical variants, workspaces, 6-up A4 pagination, and exports PDF', async () => {
     test.setTimeout(120000);
     const packagedExePath = path.resolve(__dirname, '../release/win-unpacked/تِبيان.exe');
 
@@ -131,6 +131,10 @@ test.describe('Student Cards Visual Approval Gate & Verification Suite', () => {
     await expect(studentsTable).toBeVisible({ timeout: 15000 });
     await page.waitForTimeout(1000);
 
+    // Verify photo column is completely absent from table
+    const tableHeaderHtml = await page.locator('thead').innerHTML();
+    expect(tableHeaderHtml).not.toContain('الصورة');
+
     // 4. Capture 1920x1080 Workspace with batch selection
     await page.setViewportSize({ width: 1920, height: 1080 });
     const selectAllCheckbox = page.locator('[data-testid="select-all-students-checkbox"]');
@@ -157,32 +161,53 @@ test.describe('Student Cards Visual Approval Gate & Verification Suite', () => {
     const previewModal = page.locator('[data-testid="student-card-preview-modal"]');
     await expect(previewModal).toBeVisible({ timeout: 10000 });
 
-    // Single Card View is the default tab in the modal
-    const singleCard = page.locator('[data-testid="student-card"]').first();
-    await expect(singleCard).toBeVisible({ timeout: 10000 });
-    await page.waitForTimeout(800);
-
-    // Capture Single Student Card Preview (Close-up of the rendered card)
-    const singleCardPath = path.join(screenshotsDir, 'task3-single-student-card-preview.png');
-    await singleCard.screenshot({ path: singleCardPath });
-
-    // Capture Full Modal at 1920x1080
+    // Capture Full Modal Workspace showing card controls
     const modal1920Path = path.join(screenshotsDir, 'task3-card-preview-modal-1920x1080.png');
     await page.screenshot({ path: modal1920Path, fullPage: true });
 
-    // 7. Switch to A4 print sheet tab
+    // Capture Full Student Card Close-Up (Default Variant)
+    const singleCard = page.locator('[data-testid="student-card"]').first();
+    await expect(singleCard).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(600);
+
+    const fullCardPath = path.join(screenshotsDir, 'task3-full-card-preview.png');
+    await singleCard.screenshot({ path: fullCardPath });
+
+    // Switch to Economical Card Variant
+    const tabEconomical = page.locator('[data-testid="tab-variant-economical"]');
+    await tabEconomical.click();
+    await page.waitForTimeout(600);
+
+    // Capture Simplified / Economical Card Close-Up
+    const economicalCardPath = path.join(screenshotsDir, 'task3-economical-card-preview.png');
+    await singleCard.screenshot({ path: economicalCardPath });
+
+    // 7. Switch to A4 Print Sheet Tab
     const tabA4 = page.locator('[data-testid="tab-a4-sheet"]');
     await tabA4.click();
     await page.waitForTimeout(1000);
 
     const a4Pages = page.locator('[data-testid="a4-sheet-viewport"] [data-testid="a4-print-page"]');
-    await expect(a4Pages).toHaveCount(2);
+    await expect(a4Pages).toHaveCount(2); // 10 students / 6 per page = 2 pages
 
-    // Page 1 screenshot (Contains 8 realistic Arabic students)
+    // Capture A4 Economical Sheet (Page 1)
+    const a4EconomicalPath = path.join(screenshotsDir, 'task3-a4-economical-sheet.png');
+    await a4Pages.nth(0).screenshot({ path: a4EconomicalPath });
+
+    // Switch back to Full Variant on A4 Sheet
+    const tabFull = page.locator('[data-testid="tab-variant-full"]');
+    await tabFull.click();
+    await page.waitForTimeout(800);
+
+    // Page 1 screenshot (Contains exactly 6 full cards)
+    const a4Page1Cards = a4Pages.nth(0).locator('[data-testid="student-card"]');
+    await expect(a4Page1Cards).toHaveCount(6);
     const a4Page1Path = path.join(screenshotsDir, 'task3-a4-sheet-page-1.png');
     await a4Pages.nth(0).screenshot({ path: a4Page1Path });
 
-    // Page 2 screenshot (Proving pagination with students 9 & 10)
+    // Page 2 screenshot (Contains exactly 4 cards: students 7, 8, 9, 10 - clean pagination without splitting)
+    const a4Page2Cards = a4Pages.nth(1).locator('[data-testid="student-card"]');
+    await expect(a4Page2Cards).toHaveCount(4);
     const a4Page2Path = path.join(screenshotsDir, 'task3-a4-sheet-page-2.png');
     await a4Pages.nth(1).screenshot({ path: a4Page2Path });
 
@@ -199,7 +224,7 @@ test.describe('Student Cards Visual Approval Gate & Verification Suite', () => {
     const header = pdfBuffer.subarray(0, 5).toString('ascii');
     expect(header).toBe('%PDF-');
 
-    // 9. Close Modal cleanly
+    // 9. Close Modal cleanly via close button
     const closeBtn = page.locator('[data-testid="btn-close-card-modal"]');
     await closeBtn.click();
     await expect(previewModal).toBeHidden({ timeout: 5000 });

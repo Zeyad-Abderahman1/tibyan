@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   X,
   Printer,
@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@tibyan/design-system';
 import type { StudentDto } from '@tibyan/contracts';
-import { StudentCard } from './StudentCard.js';
+import { StudentCard, type CardVariant } from './StudentCard.js';
 import { StudentCardPrintSheet } from './StudentCardPrintSheet.js';
 
 export interface StudentCardPreviewModalProps {
@@ -20,6 +20,7 @@ export interface StudentCardPreviewModalProps {
   onClose: () => void;
   students: StudentDto[];
   groupName?: string;
+  teacherName?: string;
   academicYearLabel?: string;
 }
 
@@ -30,15 +31,30 @@ export function StudentCardPreviewModal({
   onClose,
   students,
   groupName,
+  teacherName,
   academicYearLabel = '2026 - 2027',
 }: StudentCardPreviewModalProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('single');
+  const [cardVariant, setCardVariant] = useState<CardVariant>('full');
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{
     type: 'success' | 'error';
     text: string;
   } | null>(null);
+
+  // Close on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen || students.length === 0) return null;
 
@@ -64,10 +80,11 @@ export function StudentCardPreviewModal({
     setFeedbackMessage(null);
     try {
       if (typeof window !== 'undefined' && window.tibyan?.students?.exportCardsPdf) {
+        const variantSuffix = cardVariant === 'economical' ? '_اقتصادية' : '';
         const defaultFilename =
           students.length === 1
-            ? `بطاقة_${currentStudent.studentCode}_${currentStudent.fullName.replace(/\s+/g, '_')}.pdf`
-            : `بطاقات_الطلاب_${students.length}_طالب.pdf`;
+            ? `بطاقة_${currentStudent.studentCode}_${currentStudent.fullName.replace(/\s+/g, '_')}${variantSuffix}.pdf`
+            : `بطاقات_الطلاب_${students.length}_طالب${variantSuffix}.pdf`;
 
         const res = await window.tibyan.students.exportCardsPdf({ defaultFilename });
         if (res.success && !res.data.canceled) {
@@ -98,7 +115,7 @@ export function StudentCardPreviewModal({
         data-testid="student-card-modal-content"
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[var(--color-border-subtle,#2a4244)] bg-[var(--color-bg-surface-subtle,#121e1f)]">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[var(--color-border-subtle,#2a4244)] bg-[var(--color-bg-surface-subtle,#121e1f)] flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-[var(--color-brand-primary)]/10 text-[var(--color-brand-primary,#14b8a6)] flex items-center justify-center">
               <CreditCard size={18} />
@@ -115,8 +132,36 @@ export function StudentCardPreviewModal({
             </div>
           </div>
 
-          {/* View Mode Toggle & Actions */}
-          <div className="flex items-center gap-2">
+          {/* View Mode Toggle, Variant Switcher & Actions */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Card Variant Segmented Control */}
+            <div className="flex items-center bg-[var(--color-bg-surface,#182627)] p-1 rounded-lg border border-[var(--color-border-subtle,#2a4244)] text-xs font-cairo">
+              <button
+                type="button"
+                onClick={() => setCardVariant('full')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors ${
+                  cardVariant === 'full'
+                    ? 'bg-[var(--color-brand-primary,#0f3d3e)] text-white font-semibold shadow-xs'
+                    : 'text-[var(--color-text-secondary,#94a3b8)] hover:text-white'
+                }`}
+                data-testid="tab-variant-full"
+              >
+                <span>البطاقة الكاملة</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCardVariant('economical')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors ${
+                  cardVariant === 'economical'
+                    ? 'bg-[var(--color-brand-primary,#0f3d3e)] text-white font-semibold shadow-xs'
+                    : 'text-[var(--color-text-secondary,#94a3b8)] hover:text-white'
+                }`}
+                data-testid="tab-variant-economical"
+              >
+                <span>البطاقة الاقتصادية</span>
+              </button>
+            </div>
+
             {/* View Mode Segmented Control */}
             <div className="flex items-center bg-[var(--color-bg-surface,#182627)] p-1 rounded-lg border border-[var(--color-border-subtle,#2a4244)] text-xs font-cairo">
               <button
@@ -188,42 +233,43 @@ export function StudentCardPreviewModal({
         {/* Feedback Message Banner */}
         {feedbackMessage && (
           <div
-            className={`px-4 py-2 text-xs flex items-center gap-2 ${
+            className={`px-5 py-2 text-xs flex items-center gap-2 font-cairo ${
               feedbackMessage.type === 'success'
-                ? 'bg-emerald-950/60 text-emerald-300 border-b border-emerald-800/50'
-                : 'bg-red-950/60 text-red-300 border-b border-red-800/50'
+                ? 'bg-emerald-500/15 text-emerald-300 border-b border-emerald-500/30'
+                : 'bg-rose-500/15 text-rose-300 border-b border-rose-500/30'
             }`}
-            data-testid="modal-feedback-banner"
+            data-testid="card-preview-feedback"
           >
             {feedbackMessage.type === 'success' ? (
-              <CheckCircle2 size={14} className="shrink-0" />
+              <CheckCircle2 size={15} className="shrink-0 text-emerald-400" />
             ) : (
-              <AlertCircle size={14} className="shrink-0" />
+              <AlertCircle size={15} className="shrink-0 text-rose-400" />
             )}
-            <span className="truncate">{feedbackMessage.text}</span>
+            <span>{feedbackMessage.text}</span>
           </div>
         )}
 
-        {/* Modal Main Viewport */}
-        <div className="flex-1 overflow-y-auto p-6 bg-[var(--color-bg-app,#0d1516)] flex flex-col items-center justify-center min-h-[420px]">
+        {/* Modal Viewport Body */}
+        <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center min-h-[420px] bg-[var(--color-bg-base,#0b1314)]">
           {viewMode === 'single' ? (
-            <div className="flex flex-col items-center gap-4 my-auto">
-              {/* Card Container with Paper Shadow */}
-              <div
-                className="p-2 bg-slate-200/20 dark:bg-black/30 rounded-xl shadow-2xl border border-white/10 transition-transform duration-200"
-                style={{ transform: 'scale(1.15)', transformOrigin: 'center' }}
-                data-testid="single-card-viewport"
-              >
+            /* Single Card Preview Viewport */
+            <div className="flex flex-col items-center gap-6" data-testid="single-card-viewport">
+              <div className="p-4 bg-white/5 rounded-xl border border-white/10 shadow-lg">
                 <StudentCard
                   student={currentStudent}
+                  variant={cardVariant}
                   groupName={groupName}
+                  teacherName={teacherName}
                   academicYearLabel={academicYearLabel}
                 />
               </div>
 
-              {/* Navigation Arrows for multi-student selection */}
+              {/* Multi-student navigation controls */}
               {students.length > 1 && (
-                <div className="flex items-center gap-4 mt-6 bg-[var(--color-bg-surface,#182627)] px-4 py-1.5 rounded-full border border-[var(--color-border-subtle,#2a4244)] text-xs text-[var(--color-text-secondary,#94a3b8)] font-cairo">
+                <div
+                  className="flex items-center gap-3 bg-[var(--color-bg-surface,#182627)] px-4 py-1.5 rounded-full border border-[var(--color-border-subtle,#2a4244)] text-xs font-cairo"
+                  data-testid="single-card-navigator"
+                >
                   <button
                     type="button"
                     onClick={() => setCurrentIdx((prev) => Math.max(0, prev - 1))}
@@ -233,7 +279,7 @@ export function StudentCardPreviewModal({
                   >
                     <ChevronRight size={16} />
                   </button>
-                  <span className="font-mono dir-ltr font-bold text-white">
+                  <span className="font-mono dir-ltr text-white font-semibold">
                     {currentIdx + 1} / {students.length}
                   </span>
                   <button
@@ -257,7 +303,9 @@ export function StudentCardPreviewModal({
               >
                 <StudentCardPrintSheet
                   students={students}
+                  variant={cardVariant}
                   groupName={groupName}
+                  teacherName={teacherName}
                   academicYearLabel={academicYearLabel}
                 />
               </div>
@@ -269,11 +317,11 @@ export function StudentCardPreviewModal({
         <div className="px-5 py-2.5 bg-[var(--color-bg-surface-subtle,#121e1f)] border-t border-[var(--color-border-subtle,#2a4244)] flex items-center justify-between text-xs text-[var(--color-text-secondary,#94a3b8)] font-cairo">
           <span>
             {viewMode === 'single'
-              ? 'معاينة البطاقة الفردية بأبعاد ISO/IEC 7810 القياسية (85.6 × 54 مم)'
-              : `معاينة الطباعة A4: تتسع كل صفحة لـ 8 بطاقات مرتبة 2 عمود × 4 صفوف`}
+              ? `معاينة ${cardVariant === 'economical' ? 'البطاقة الاقتصادية' : 'البطاقة الكاملة'} بأبعاد ISO/IEC 7810 القياسية (85.6 × 54 مم)`
+              : `معاينة طباعة A4 (6 بطاقات / صفحة مرتبة 2 عمود × 3 صفوف)`}
           </span>
           <span className="font-mono dir-ltr text-[11px] text-[var(--color-text-muted)]">
-            TIBYAN ID CARDS • OFFLINE WASM
+            TIBYAN ID CARDS • 6-UP A4 • OFFLINE WASM
           </span>
         </div>
       </div>
@@ -282,7 +330,9 @@ export function StudentCardPreviewModal({
       <div className="hidden print:block print-sheet-root">
         <StudentCardPrintSheet
           students={students}
+          variant={cardVariant}
           groupName={groupName}
+          teacherName={teacherName}
           academicYearLabel={academicYearLabel}
         />
       </div>
