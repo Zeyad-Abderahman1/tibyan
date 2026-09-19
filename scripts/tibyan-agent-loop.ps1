@@ -201,7 +201,10 @@ If user action is required, end with RESULT=BLOCKED_USER. Otherwise end with RES
 Read AGENTS.md and .github/SUPERVISOR_PROTOCOL.md. Read PR #$($pr.number), its checks, and latest supervisor comment.
 The supervisor approved it. Merge ONLY if every merge-contract condition is satisfied, including any required user visual/product approval.
 If blocked, do not merge and end with RESULT=BLOCKED_USER.
-If merged: update handoff files if required, sync this worktree to origin/master, post a comment on GitHub Issue #$PhaseIssue containing TASK_MERGED=PR#$($pr.number), and end with RESULT=MERGED.
+If merged: update handoff files if required, sync this worktree to origin/master, determine the active Phase 3 task number from Issue #$PhaseIssue, and post a comment there containing BOTH lines:
+TASK_MERGED=PR#$($pr.number)
+TASK_MERGED_TASK=<the active task number>
+Then end with RESULT=MERGED.
 Never force-push or rewrite history. Do not start the next task.
 "@
       if ($result -match "(?m)^RESULT=BLOCKED_USER") {
@@ -224,7 +227,7 @@ Never force-push or rewrite history. Do not start the next task.
   $taskMatch = [regex]::Match($task, 'Task ([1-6]) of 6')
   if ($mergedMarker -and $taskMatch.Success) {
     $taskNumber = [int]$taskMatch.Groups[1].Value
-    if ($taskNumber -lt 6 -and ($mergedMarker -notmatch "ADVANCED_FROM_TASK=$taskNumber")) {
+    if ($taskNumber -lt 6 -and ($mergedMarker -match "TASK_MERGED_TASK=$taskNumber")) {
       $phase = (& gh issue view $PhaseIssue --repo $Repo --comments | Out-String)
       $instruction = @'
 You are Tibyan's PRIMARY SUPERVISOR/ORCHESTRATOR. Read AGENTS.md and .github/SUPERVISOR_PROTOCOL.md locally.
