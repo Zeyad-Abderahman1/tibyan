@@ -70,7 +70,7 @@ function Run-Agy([string]$prompt) {
   Push-Location $WorkerRoot
   try {
     $log = Join-Path $StateDir ("agy-" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".log")
-    return ((& agy --dangerously-skip-permissions --print-timeout 60m -p $prompt 2>&1 | Tee-Object -FilePath $log | Out-String).Trim())
+    return ((& agy --print-timeout 60m -p $prompt 2>&1 | Tee-Object -FilePath $log | Out-String).Trim())
   } finally { Pop-Location }
 }
 
@@ -190,8 +190,10 @@ If user action is required, end with RESULT=BLOCKED_USER. Otherwise end with RES
       if ($result -match "(?m)^RESULT=BLOCKED_USER") {
         Gh-Comment $ControlIssue ("Antigravity requires user action on PR #$($pr.number)." + [Environment]::NewLine + [Environment]::NewLine + $result)
         $state.paused = $true
-        Save-State $state
+      } else {
+        $state.reviewedSha = ""
       }
+      Save-State $state
       exit 0
     }
 
@@ -227,7 +229,7 @@ Never force-push or rewrite history. Do not start the next task.
   $taskMatch = [regex]::Match($task, 'Task ([1-6]) of 6')
   if ($mergedMarker -and $taskMatch.Success) {
     $taskNumber = [int]$taskMatch.Groups[1].Value
-    if ($taskNumber -lt 6 -and ($mergedMarker -match "TASK_MERGED_TASK=$taskNumber")) {
+    if ($mergedMarker -match "TASK_MERGED_TASK=$taskNumber") {
       $phase = (& gh issue view $PhaseIssue --repo $Repo --comments | Out-String)
       $instruction = @'
 You are Tibyan's PRIMARY SUPERVISOR/ORCHESTRATOR. Read AGENTS.md and .github/SUPERVISOR_PROTOCOL.md locally.
@@ -271,7 +273,13 @@ If user action is required, end with RESULT=BLOCKED_USER. Otherwise end with RES
     Gh-Comment $ControlIssue ("Antigravity requires user action." + [Environment]::NewLine + [Environment]::NewLine + $result)
     $state.paused = $true
   } else {
-    $state.taskHash = $h
+    $readyAfter = Ready-Pr
+    if ($readyAfter) {
+      $state.taskHash = $h
+      Log "Antigravity opened PR #$($readyAfter.number)."
+    } else {
+      Log "Antigravity returned without a ready PR; task will retry next cycle."
+    }
   }
   Save-State $state
 }
