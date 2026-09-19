@@ -506,7 +506,7 @@ describe('CurriculumService (Core Domain & Invariants)', () => {
     expect(finalOverview.completedSkills).toBe(4);
     expect(finalOverview.remainingSkills).toBe(0);
     expect(finalOverview.completionPercentage).toBe(100);
-    expect(finalOverview.projection.status).toBe('ON_TRACK');
+    expect(finalOverview.projection.status).toBe('COMPLETED');
     expect(finalOverview.projection.messageAr).toBe('تم إكمال جميع مهارات المنهج بنجاح');
   });
 
@@ -1332,5 +1332,69 @@ describe('CurriculumService (Core Domain & Invariants)', () => {
         ownerActor
       )
     ).toThrowError(/Reorder collision: position '1' would be occupied by multiple sibling nodes/);
+  });
+
+  it('26. rejects createNode with orderIndex occupied by an existing sibling', () => {
+    const cat = curriculumService.createCatalog(
+      {
+        code: 'CAT-COLL-CREATE',
+        title: 'Collision Create Test',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'SEC_1',
+        languageTrack: 'ARABIC',
+      },
+      ownerActor
+    );
+
+    curriculumService.createNode(
+      { catalogId: cat.id, tier: 'UNIT', code: 'U1', titleAr: 'وحدة 1', orderIndex: 0 },
+      ownerActor
+    );
+
+    expect(() =>
+      curriculumService.createNode(
+        { catalogId: cat.id, tier: 'UNIT', code: 'U2', titleAr: 'وحدة 2', orderIndex: 0 },
+        ownerActor
+      )
+    ).toThrowError(/Reorder collision: position '0' would be occupied by multiple sibling nodes/);
+  });
+
+  it('27. rejects updateNode with orderIndex occupied by another sibling', () => {
+    const cat = curriculumService.createCatalog(
+      {
+        code: 'CAT-COLL-UPDATE',
+        title: 'Collision Update Test',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'SEC_1',
+        languageTrack: 'ARABIC',
+      },
+      ownerActor
+    );
+
+    const u1 = curriculumService.createNode(
+      { catalogId: cat.id, tier: 'UNIT', code: 'U1', titleAr: 'وحدة 1', orderIndex: 0 },
+      ownerActor
+    );
+    curriculumService.createNode(
+      { catalogId: cat.id, tier: 'UNIT', code: 'U2', titleAr: 'وحدة 2', orderIndex: 1 },
+      ownerActor
+    );
+
+    // Updating u1 to orderIndex 1 should collide with u2
+    expect(() =>
+      curriculumService.updateNode(
+        u1.id,
+        { orderIndex: 1 },
+        ownerActor
+      )
+    ).toThrowError(/Reorder collision: position '1' would be occupied by multiple sibling nodes/);
+
+    // Updating u1 to its current orderIndex 0 should succeed without error
+    const unchanged = curriculumService.updateNode(
+      u1.id,
+      { orderIndex: 0, titleAr: 'وحدة 1 المحدثة' },
+      ownerActor
+    );
+    expect(unchanged.titleAr).toBe('وحدة 1 المحدثة');
   });
 });

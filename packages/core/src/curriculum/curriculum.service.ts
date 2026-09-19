@@ -432,6 +432,20 @@ export class CurriculumService {
 
     this.validateParent(validated.tier, parent);
 
+    const siblings = this.nodeRepo
+      .findByCatalogId(validated.catalogId)
+      .filter((n) => (n.parentId ?? null) === (validated.parentId ?? null));
+
+    if (validated.orderIndex !== undefined) {
+      const collision = siblings.find((s) => s.orderIndex === validated.orderIndex);
+      if (collision) {
+        throw new CurriculumError(
+          'INVALID_INPUT',
+          `Reorder collision: position '${validated.orderIndex}' would be occupied by multiple sibling nodes`
+        );
+      }
+    }
+
     const orderIndex =
       validated.orderIndex ?? this.nodeRepo.getNextOrderIndex(validated.catalogId, validated.parentId ?? null);
 
@@ -494,6 +508,20 @@ export class CurriculumService {
         'IMMUTABLE_CATALOG',
         'Cannot update nodes of a published or archived catalog. Revise catalog to version N+1 instead.'
       );
+    }
+
+    if (validated.orderIndex !== undefined && validated.orderIndex !== existing.orderIndex) {
+      const siblings = this.nodeRepo
+        .findByCatalogId(existing.catalogId)
+        .filter((n) => (n.parentId ?? null) === (existing.parentId ?? null) && n.id !== id);
+
+      const collision = siblings.find((s) => s.orderIndex === validated.orderIndex);
+      if (collision) {
+        throw new CurriculumError(
+          'INVALID_INPUT',
+          `Reorder collision: position '${validated.orderIndex}' would be occupied by multiple sibling nodes`
+        );
+      }
     }
 
     const now = new Date().toISOString();
@@ -918,13 +946,13 @@ export class CurriculumService {
 
     const completedSessionsCount = completedSessions.length;
 
-    let projectionStatus: 'INSUFFICIENT_DATA' | 'ON_TRACK' | 'UNREALISTIC_PACING' = 'INSUFFICIENT_DATA';
+    let projectionStatus: 'INSUFFICIENT_DATA' | 'COMPLETED' | 'ON_TRACK' | 'UNREALISTIC_PACING' = 'INSUFFICIENT_DATA';
     let messageAr = 'بيانات الحصص والتقدم غير كافية لحساب التوقع بدقة (يلزم حصتان مكتملتان ومهارة مكتملة واحدة على الأقل)';
     let skillsPerWeekRate: number | null = null;
     let projectedCompletionDate: string | null = null;
 
     if (totalSkills > 0 && remainingSkills === 0) {
-      projectionStatus = 'ON_TRACK';
+      projectionStatus = 'COMPLETED';
       messageAr = 'تم إكمال جميع مهارات المنهج بنجاح';
       projectedCompletionDate = completedSessions[completedSessions.length - 1]?.effectiveDate ?? null;
     } else if (completedSessionsCount >= 2 && completedSkills > 0) {

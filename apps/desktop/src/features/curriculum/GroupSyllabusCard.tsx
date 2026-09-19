@@ -43,6 +43,11 @@ const PROJECTION_LABELS: Record<
   CurriculumProjectionStatus,
   { label: string; badgeVariant: any; desc: string }
 > = {
+  COMPLETED: {
+    label: 'مكتمل',
+    badgeVariant: 'success',
+    desc: 'تم إكمال جميع مهارات المنهج بنجاح.',
+  },
   ON_TRACK: {
     label: 'على المسار الصحيح',
     badgeVariant: 'success',

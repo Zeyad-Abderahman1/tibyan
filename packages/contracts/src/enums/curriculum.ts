@@ -11,6 +11,7 @@ export type CurriculumProgressStatus = z.infer<typeof CurriculumProgressStatusSc
 
 export const CurriculumProjectionStatusSchema = z.enum([
   'INSUFFICIENT_DATA',
+  'COMPLETED',
   'ON_TRACK',
   'UNREALISTIC_PACING',
 ]);
