@@ -14,10 +14,10 @@
     "phaseName": "Phase 2 — Attendance, Operations & Student Identity",
     "totalTasks": 23
   },
-  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
   "nextTask": {
-    "taskNumber": 20,
-    "taskName": "Phase 2 — Task 3 of 5: Student Cards, QR Tokens & Code128 Barcodes",
+    "taskNumber": 21,
+    "taskName": "Phase 2 — Task 4 of 5: Finance & Subscriptions",
     "isStarted": false
   },
   "taskStatus": {
@@ -39,7 +39,8 @@
     "16": "COMPLETE",
     "17": "COMPLETE",
     "18": "COMPLETE",
-    "19": "COMPLETE"
+    "19": "COMPLETE",
+    "20": "COMPLETE"
   },
   "stack": {
     "runtime": "Electron 34.2.0",

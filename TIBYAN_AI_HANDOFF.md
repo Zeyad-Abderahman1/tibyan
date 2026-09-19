@@ -5,10 +5,10 @@
 > **Target Audience:** Incoming Autonomous AI Engineering Agents  
 > **Approved Architecture Version:** `v2.1` (Final Alignment)  
 > **Current Project Phase:** Phase 2 (Attendance, Operations & Student Identity)  
-> **Tasks Completed:** Tasks 1 through 19 inclusive (Phase 1 Tasks 1-17; Phase 2 Task 1: Core Attendance Schema & Service; Phase 2 Task 2: Attendance UI, QR/Barcode Scanner & Parent Follow-up)  
-> **Phase 2 Status:** Task 1 of 5 (Core Attendance) Complete; Task 2 of 5 (Attendance UI, Offline WASM Scanner & Parent Follow-up) APPROVED & COMPLETE; Task 3 of 5 Ready (NOT_STARTED)  
-> **Next Task:** Phase 2 — Task 3 of 5: Student Cards, QR Tokens & Code128 Barcodes  
-> **Regression Test Baseline:** 36 test files, 613 passing unit/component tests across 5 packages (56 contracts + 30 db + 229 core + 31 design-system + 267 desktop) + 3 Playwright E2E suites passed (smoke, Gate 1, visual-rescue)  
+> **Tasks Completed:** Tasks 1 through 20 inclusive (Phase 1 Tasks 1-17; Phase 2 Task 1: Core Attendance Schema & Service; Phase 2 Task 2: Attendance UI, QR/Barcode Scanner & Parent Follow-up; Phase 2 Task 3: Student Cards, QR Tokens & Code128 Barcodes)  
+> **Phase 2 Status:** Task 1 of 5 (Core Attendance) Complete; Task 2 of 5 (Attendance UI, Offline WASM Scanner & Parent Follow-up) APPROVED & COMPLETE; Task 3 of 5 (Student Cards, QR Tokens & Code128 Barcodes) APPROVED & COMPLETE; Task 4 of 5 Ready (NOT_STARTED)  
+> **Next Task:** Phase 2 — Task 4 of 5: Finance & Subscriptions  
+> **Regression Test Baseline:** 646 passing unit/component tests across 5 packages (17 contracts + 23 db + 28 core + 278 design-system + 300 desktop) + 4 Playwright E2E suites passed (smoke, Gate 1, visual-rescue, student-cards)  
 > **Official Logo SHA-256:** `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`  
 > **Offline Decoder Engine:** `barcode-detector@3.2.2` with bundled offline `zxing-wasm@3.1.3` (SHA256: `2EBDA08A93EEA3EFCD8399CDA6B276E6A0B1DE4FEC60B4D8988A047DE4C6D1BA`, 0 external network requests)  
 
@@ -22,8 +22,8 @@ Welcome, agent. This document is the **single canonical, durable, and authoritat
 1. **Inspect Actual Source Before Changing Architecture:** Do not trust memory or assume conventions. Before modifying any behavior, inspect the actual source code, migration files, and active tests.
 2. **Current Source Code Trumps Stale Walkthroughs:** If an older plan document or early design sketch contradicts the current production TypeScript files or latest database migrations in `packages/`, the **current production code and migration journals are authoritative**. Report any discrepancies before proposing architectural changes.
 3. **Architecture is v2.1:** All development conforms strictly to the revised v2.1 architectural alignments detailed in [TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md](file:///F:/tebyan/TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md).
-4. **Tasks 1 through 19 are COMPLETE:** All foundation, dual-database, domain core services (auth, student, group, session, backup, dashboard, attendance), design system, Electron shell/wizard, PIN login screen, student management UI, group management UI, real-data Today Dashboard UI, Settings/Academic-Year/Assistant UI, Windows packaging & Playwright smoke tests, Phase 2 Task 1 attendance schema, and Phase 2 Task 2 attendance interactive UI, offline camera WASM decoder, USB scanner integration, and WhatsApp parent follow-up drawer are fully tested, hardened, and verified.
-5. **Phase 2 — Task 3 of 5 Has NOT Started:** Do not assume Task 3 is underway. Task 3 is Student Cards, QR Tokens & Code128 Barcodes.
+4. **Tasks 1 through 20 are COMPLETE:** All foundation, dual-database, domain core services (auth, student, group, session, backup, dashboard, attendance), design system, Electron shell/wizard, PIN login screen, student management UI, group management UI, real-data Today Dashboard UI, Settings/Academic-Year/Assistant UI, Windows packaging & Playwright smoke tests, Phase 2 Task 1 attendance schema, Phase 2 Task 2 attendance interactive UI, offline camera WASM decoder, USB scanner integration, WhatsApp parent follow-up drawer, and Phase 2 Task 3 student ID cards (full & economical), QR/Code128 generation, A4 6-up printing, and PDF export are fully tested, hardened, visually approved, and verified.
+5. **Phase 2 — Task 4 of 5 Has NOT Started:** Do not assume Task 4 is underway. Task 4 is Finance & Subscriptions (Financial ledger, subscriptions, fee collection, thermal receipts).
 6. **One Task at a Time:** Always follow the strict workflow: understand requirements, inspect target files, formulate an implementation plan, obtain user approval, execute, verify against regression tests, and halt for review. Never batch multiple tasks.
 7. **Explicit Planning Approval Required Before Execution:** Do not treat creation of an implementation plan as approval to execute it. Stop after planning and wait for an explicit user message approving execution before modifying production code.
 
