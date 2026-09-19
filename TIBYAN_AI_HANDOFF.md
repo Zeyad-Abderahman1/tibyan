@@ -4,13 +4,14 @@
 > **Repository Root:** `F:\tebyan`  
 > **Target Audience:** Incoming Autonomous AI Engineering Agents  
 > **Approved Architecture Version:** `v2.1` (Final Alignment)  
-> **Current Project Phase:** Phase 2 (Attendance, Operations & Student Identity)  
-> **Tasks Completed:** Phase 1 Tasks 1-17; Phase 2 Task 1: Core Attendance Schema & Service; Phase 2 Task 2: Attendance UI, QR/Barcode Scanner & Parent Follow-up; Phase 2 Task 3: Student Cards, QR Tokens & Code128 Barcodes; Phase 2 Task 4: Finance, Payments, Subscriptions, Discounts & Invoicing  
-> **Phase 2 Status:** Task 1 of 5 (Core Attendance) Complete; Task 2 of 5 (Attendance UI, Offline WASM Scanner & Parent Follow-up) APPROVED & COMPLETE; Task 3 of 5 (Student Cards, QR Tokens & Code128 Barcodes) APPROVED & COMPLETE; Task 4 of 5 (Finance, Payments, Subscriptions, Discounts & Invoicing) APPROVED & COMPLETE; Task 5 of 5 Ready (NOT_STARTED)  
-> **Next Task:** Phase 2 — Task 5 of 5: Thermal Receipts & ESC/POS Printing  
-> **Regression Test Baseline:** 691 passing unit/component tests across 5 packages (72 contracts + 35 db + 240 core + 29 design-system + 315 desktop) + 5 Playwright E2E suites passed (smoke, Gate 1, visual-rescue, student-cards-gate, finance-visual-gate)  
+> **Current Project Phase:** Phase 2 Complete (Attendance, Operations & Student Identity)  
+> **Tasks Completed:** Phase 1 Tasks 1-17; Phase 2 Task 1: Core Attendance Schema & Service; Phase 2 Task 2: Attendance UI, QR/Barcode Scanner & Parent Follow-up; Phase 2 Task 3: Student Cards, QR Tokens & Code128 Barcodes; Phase 2 Task 4: Finance, Payments, Subscriptions, Discounts & Invoicing; Phase 2 Task 5: Thermal Receipts & ESC/POS Printing  
+> **Phase 2 Status:** COMPLETE (All 5 Tasks Approved & Merged)  
+> **Next Phase:** Phase 3: Educational Preparation, Exams & Academic Workflows (NOT_STARTED)  
+> **Regression Test Baseline:** 715 passing unit/component tests across 5 packages (72 contracts + 35 db + 251 core + 29 design-system + 328 desktop) + 6 Playwright E2E suites passed (smoke, Gate 1, visual-rescue, student-cards-gate, finance-visual-gate, thermal-receipt-gate)  
 > **Official Logo SHA-256:** `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`  
 > **Offline Decoder Engine:** `barcode-detector@3.2.2` with bundled offline `zxing-wasm@3.1.3` (SHA256: `2EBDA08A93EEA3EFCD8399CDA6B276E6A0B1DE4FEC60B4D8988A047DE4C6D1BA`, 0 external network requests)  
+> **Thermal Printing Engine:** Dual-path architecture: Windows Driver via isolated hidden Chromium window (`80mm`/`58mm`) + Pure 1-bit monochrome raster ESC/POS stream (`GS v 0`) over TCP port 9100.  
 
 ---
 
@@ -22,8 +23,8 @@ Welcome, agent. This document is the **single canonical, durable, and authoritat
 1. **Inspect Actual Source Before Changing Architecture:** Do not trust memory or assume conventions. Before modifying any behavior, inspect the actual source code, migration files, and active tests.
 2. **Current Source Code Trumps Stale Walkthroughs:** If an older plan document or early design sketch contradicts the current production TypeScript files or latest database migrations in `packages/`, the **current production code and migration journals are authoritative**. Report any discrepancies before proposing architectural changes.
 3. **Architecture is v2.1:** All development conforms strictly to the revised v2.1 architectural alignments detailed in [TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md](file:///F:/tebyan/TIBYAN_PHASE1_IMPLEMENTATION_PLAN_REVIEW.md).
-4. **Phase 2 — Task 4 of 5 is COMPLETE:** All financial schema migrations (`student_discounts`, `payments`, `invoices`, `invoice_items`), Core financial service (`finance.service.ts`), Electron IPC handlers (`finance.ipc.ts`), desktop UI (`FinancePage`, `AddPaymentModal`, `ApplyDiscountModal`, `InvoicePreviewModal`, `StudentFinancialView`), and packaged Playwright E2E tests are fully tested, hardened, verified, and merged.
-5. **Phase 2 — Task 5 of 5 Has NOT Started:** Do not assume Task 5 is underway. Task 5 is Phase 2 — Task 5 of 5: Thermal Receipts & ESC/POS Printing (offline USB thermal printer communication, ESC/POS commands, 80mm/58mm paper layouts, and receipt generation).
+4. **Phase 2 is COMPLETE:** All 5 tasks of Phase 2 (Attendance Schema, Attendance UI & Scanner, Student Cards & Barcodes, Finance & Invoicing, Thermal Receipts & ESC/POS Printing) are fully implemented, tested, verified, and merged into `master`.
+5. **Phase 3 Has NOT Started:** Do not begin Phase 3 without explicit instructions and planning approval.
 6. **One Task at a Time:** Always follow the strict workflow: understand requirements, inspect target files, formulate an implementation plan, obtain user approval, execute, verify against regression tests, and halt for review. Never batch multiple tasks.
 7. **Explicit Planning Approval Required Before Execution:** Do not treat creation of an implementation plan as approval to execute it. Stop after planning and wait for an explicit user message approving execution before modifying production code.
 

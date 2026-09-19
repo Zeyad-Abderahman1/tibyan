@@ -14,18 +14,24 @@
     "phaseName": "Phase 2 — Attendance, Operations & Student Identity",
     "totalTasks": 23
   },
-  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21],
   "phase2CompletedTasks": [
     "Phase 2 — Task 1 of 5: Core Attendance Schema, Migration & Service Hardening",
     "Phase 2 — Task 2 of 5: Attendance Interactive UI, Camera/USB Scanners & Parent Follow-up",
     "Phase 2 — Task 3 of 5: Student Cards, QR Tokens & Code128 Barcodes",
-    "Phase 2 — Task 4 of 5: Finance, Payments, Subscriptions, Discounts & Invoicing"
+    "Phase 2 — Task 4 of 5: Finance, Payments, Subscriptions, Discounts & Invoicing",
+    "Phase 2 — Task 5 of 5: Thermal Receipts & ESC/POS Printing"
   ],
+  "phaseStatus": {
+    "Phase 1": "COMPLETE",
+    "Phase 2": "COMPLETE",
+    "Phase 3": "NOT_STARTED"
+  },
   "nextTask": {
-    "taskCanonicalName": "Phase 2 — Task 5 of 5: Thermal Receipts & ESC/POS Printing",
-    "taskName": "Phase 2 — Task 5 of 5: Thermal Receipts & ESC/POS Printing",
-    "isStarted": true,
-    "status": "IMPLEMENTED_PENDING_SINGLE_FINAL_USER_VISUAL_APPROVAL"
+    "taskCanonicalName": "Phase 3: Educational Preparation, Exams & Academic Workflows",
+    "taskName": "Phase 3: Educational Preparation, Exams & Academic Workflows",
+    "isStarted": false,
+    "status": "NOT_STARTED"
   },
   "taskStatus": {
     "Phase 1 — Tasks 1 through 17": "COMPLETE",
@@ -33,7 +39,8 @@
     "Phase 2 — Task 2 of 5: Attendance UI, QR/Barcode Scanner & Parent Follow-up": "COMPLETE",
     "Phase 2 — Task 3 of 5: Student Cards, QR Tokens & Code128 Barcodes": "COMPLETE",
     "Phase 2 — Task 4 of 5: Finance, Payments, Subscriptions, Discounts & Invoicing": "COMPLETE",
-    "Phase 2 — Task 5 of 5: Thermal Receipts & ESC/POS Printing": "IMPLEMENTED_PENDING_SINGLE_FINAL_USER_VISUAL_APPROVAL"
+    "Phase 2 — Task 5 of 5: Thermal Receipts & ESC/POS Printing": "COMPLETE",
+    "Phase 3": "NOT_STARTED"
   },
   "stack": {
     "runtime": "Electron 34.2.0",
