@@ -25,6 +25,7 @@ import {
   ActorType,
   AttendanceStatus,
   FollowUpContactStatus,
+  CurriculumProgressStatus,
 } from '@tibyan/contracts';
 
 export const students = sqliteTable(
@@ -401,3 +402,62 @@ export type InvoiceRow = typeof invoices.$inferSelect;
 export type NewInvoiceRow = typeof invoices.$inferInsert;
 export type InvoiceItemRow = typeof invoiceItems.$inferSelect;
 export type NewInvoiceItemRow = typeof invoiceItems.$inferInsert;
+
+export const groupCurriculumAssignments = sqliteTable(
+  'group_curriculum_assignments',
+  {
+    id: text('id').primaryKey(),
+    groupId: text('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    catalogId: text('catalog_id').notNull(), // External ID to system DB
+    catalogVersion: integer('catalog_version').notNull(),
+    assignedAt: text('assigned_at').notNull(),
+    assignedByUserId: text('assigned_by_user_id'),
+    assignedByNameSnapshot: text('assigned_name_snapshot').notNull(),
+    notes: text('notes'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    idxGroupCurriculumAssignmentGroup: uniqueIndex('idx_group_curriculum_assignment_group').on(t.groupId),
+    idxGroupCurriculumAssignmentCatalog: index('idx_group_curriculum_assignment_catalog').on(t.catalogId),
+  })
+);
+
+export const groupCurriculumProgress = sqliteTable(
+  'group_curriculum_progress',
+  {
+    id: text('id').primaryKey(),
+    groupId: text('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    catalogId: text('catalog_id').notNull(), // External ID to system DB
+    nodeId: text('node_id').notNull(), // External ID to system DB
+    status: text('status', { enum: ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED'] })
+      .$type<CurriculumProgressStatus>()
+      .notNull()
+      .default('NOT_STARTED'),
+    completedAt: text('completed_at'),
+    updatedByUserId: text('updated_by_user_id'),
+    updatedByNameSnapshot: text('updated_name_snapshot').notNull(),
+    notes: text('notes'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    idxGroupCurriculumProgressGroupNode: uniqueIndex('idx_group_curriculum_progress_group_node').on(
+      t.groupId,
+      t.nodeId
+    ),
+    idxGroupCurriculumProgressGroupStatus: index('idx_group_curriculum_progress_group_status').on(
+      t.groupId,
+      t.status
+    ),
+  })
+);
+
+export type GroupCurriculumAssignmentRow = typeof groupCurriculumAssignments.$inferSelect;
+export type NewGroupCurriculumAssignmentRow = typeof groupCurriculumAssignments.$inferInsert;
+export type GroupCurriculumProgressRow = typeof groupCurriculumProgress.$inferSelect;
+export type NewGroupCurriculumProgressRow = typeof groupCurriculumProgress.$inferInsert;

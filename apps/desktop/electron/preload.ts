@@ -67,6 +67,21 @@ import {
   type TestPrintInput,
   type EscPosGenerateInput,
   type EscPosNetworkPrintInput,
+  type CurriculumCatalogDto,
+  type CurriculumTreeNodeDto,
+  type CurriculumNodeDto,
+  type GroupCurriculumOverviewDto,
+  type GroupCurriculumAssignmentDto,
+  type GroupNodeProgressDto,
+  type CurriculumProgressStatus,
+  type CurriculumCatalogFilter,
+  type CreateCurriculumCatalogDto,
+  type UpdateCurriculumCatalogDto,
+  type CreateCurriculumNodeDto,
+  type UpdateCurriculumNodeDto,
+  type ReorderCurriculumNodesDto,
+  type AssignGroupCatalogDto,
+  type UpdateGroupNodeProgressDto,
 } from '@tibyan/contracts';
 
 /**
@@ -307,6 +322,53 @@ export const tibyanApi: TibyanApi = {
     },
     printEscposNetwork(input: EscPosNetworkPrintInput): Promise<IpcResult<{ success: boolean; message?: string }>> {
       return ipcRenderer.invoke(IPC_CHANNELS.THERMAL_PRINT_ESCPOS_NETWORK, input);
+    },
+  },
+  curriculum: {
+    listCatalogs(filter?: CurriculumCatalogFilter): Promise<IpcResult<CurriculumCatalogDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIST_CATALOGS, filter);
+    },
+    getCatalog(id: string): Promise<IpcResult<CurriculumCatalogDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_GET_CATALOG, id);
+    },
+    createCatalog(input: CreateCurriculumCatalogDto): Promise<IpcResult<CurriculumCatalogDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_CREATE_CATALOG, input);
+    },
+    updateCatalog(id: string, input: UpdateCurriculumCatalogDto): Promise<IpcResult<CurriculumCatalogDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_UPDATE_CATALOG, { id, input });
+    },
+    publishCatalog(id: string): Promise<IpcResult<CurriculumCatalogDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_PUBLISH_CATALOG, id);
+    },
+    reviseCatalog(id: string): Promise<IpcResult<CurriculumCatalogDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_REVISE_CATALOG, id);
+    },
+    getTree(catalogId: string): Promise<IpcResult<CurriculumTreeNodeDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_GET_TREE, catalogId);
+    },
+    createNode(input: CreateCurriculumNodeDto): Promise<IpcResult<CurriculumNodeDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_CREATE_NODE, input);
+    },
+    updateNode(id: string, input: UpdateCurriculumNodeDto): Promise<IpcResult<CurriculumNodeDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_UPDATE_NODE, { id, input });
+    },
+    deleteNode(id: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_DELETE_NODE, id);
+    },
+    reorderNodes(input: ReorderCurriculumNodesDto): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_REORDER_NODES, input);
+    },
+    getGroupOverview(groupId: string): Promise<IpcResult<GroupCurriculumOverviewDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_GET_GROUP_OVERVIEW, groupId);
+    },
+    assignGroupCatalog(input: AssignGroupCatalogDto): Promise<IpcResult<GroupCurriculumAssignmentDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_ASSIGN_GROUP_CATALOG, input);
+    },
+    updateGroupProgress(input: UpdateGroupNodeProgressDto): Promise<IpcResult<GroupNodeProgressDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_UPDATE_GROUP_PROGRESS, input);
+    },
+    getGroupProgressMap(groupId: string): Promise<IpcResult<Record<string, CurriculumProgressStatus>>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_GET_GROUP_PROGRESS_MAP, groupId);
     },
   },
 };

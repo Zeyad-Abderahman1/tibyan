@@ -38,6 +38,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { GroupCreateModal, WEEKDAY_LABELS } from './GroupCreateModal.js';
 import { EnrollmentModal } from './EnrollmentModal.js';
 import { RescheduleSessionModal } from './RescheduleSessionModal.js';
+import { GroupSyllabusCard } from '../curriculum/GroupSyllabusCard.js';
 
 export function GroupDetailsPage() {
   const { groupId = '' } = useParams<{ groupId: string }>();
@@ -325,6 +326,9 @@ export function GroupDetailsPage() {
           )}
         </Card>
       </div>
+
+      {/* Group Syllabus & Curriculum Progress Tracking */}
+      <GroupSyllabusCard group={group} canWrite={canWrite} />
 
       {/* Enrolled Students Roster */}
       <Card variant="default" className="p-5 space-y-4" data-testid="section-enrollments">

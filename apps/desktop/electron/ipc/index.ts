@@ -10,6 +10,7 @@ import { registerSystemIpcHandlers, unregisterSystemIpcHandlers } from './system
 import { registerAttendanceIpcHandlers, unregisterAttendanceIpcHandlers } from './attendance.ipc.js';
 import { registerFinanceIpcHandlers, unregisterFinanceIpcHandlers } from './finance.ipc.js';
 import { registerThermalIpcHandlers, unregisterThermalIpcHandlers } from './thermal.ipc.js';
+import { registerCurriculumIpcHandlers, unregisterCurriculumIpcHandlers } from './curriculum.ipc.js';
 
 /**
  * Registers all typed IPC domain handlers against the electron ipcMain dispatcher.
@@ -25,6 +26,7 @@ export function registerAllIpcHandlers(runtime: Runtime, mainWindow: BrowserWind
   registerAttendanceIpcHandlers(runtime, mainWindow);
   registerFinanceIpcHandlers(runtime, mainWindow);
   registerThermalIpcHandlers(runtime, mainWindow);
+  registerCurriculumIpcHandlers(runtime, mainWindow);
   registerDashboardIpcHandlers(runtime, mainWindow);
   registerBackupIpcHandlers(runtime, mainWindow);
   registerSystemIpcHandlers(runtime, mainWindow);
@@ -41,6 +43,7 @@ export function unregisterAllIpcHandlers(): void {
   unregisterAttendanceIpcHandlers();
   unregisterFinanceIpcHandlers();
   unregisterThermalIpcHandlers();
+  unregisterCurriculumIpcHandlers();
   unregisterDashboardIpcHandlers();
   unregisterBackupIpcHandlers();
   unregisterSystemIpcHandlers();
@@ -54,6 +57,7 @@ export * from './sessions.ipc.js';
 export * from './attendance.ipc.js';
 export * from './finance.ipc.js';
 export * from './thermal.ipc.js';
+export * from './curriculum.ipc.js';
 export * from './dashboard.ipc.js';
 export * from './backup.ipc.js';
 export * from './system.ipc.js';

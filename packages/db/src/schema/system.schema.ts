@@ -1,6 +1,16 @@
-import { sqliteTable, text, integer, uniqueIndex, check, primaryKey } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, uniqueIndex, index, check, primaryKey } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
-import { UserRole, PermissionCode, ActorType } from '@tibyan/contracts';
+import {
+  UserRole,
+  PermissionCode,
+  ActorType,
+  EducationSystem,
+  GradeLevel,
+  LanguageTrack,
+  MathBranch,
+  CurriculumCatalogStatus,
+  CurriculumNodeTier,
+} from '@tibyan/contracts';
 
 export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
@@ -93,3 +103,68 @@ export type SystemAuditLogRow = typeof systemAuditLog.$inferSelect;
 export type NewSystemAuditLogRow = typeof systemAuditLog.$inferInsert;
 export type BackupRecordRow = typeof backupRecords.$inferSelect;
 export type NewBackupRecordRow = typeof backupRecords.$inferInsert;
+
+export const curriculumCatalogs = sqliteTable(
+  'curriculum_catalogs',
+  {
+    id: text('id').primaryKey(),
+    code: text('code').notNull(),
+    title: text('title').notNull(),
+    educationSystem: text('education_system').$type<EducationSystem>().notNull(),
+    gradeLevel: text('grade_level').$type<GradeLevel>().notNull(),
+    languageTrack: text('language_track').$type<LanguageTrack>().notNull(),
+    mathBranch: text('math_branch').$type<MathBranch | null>(),
+    version: integer('version').notNull().default(1),
+    status: text('status', { enum: ['DRAFT', 'PUBLISHED', 'ARCHIVED'] })
+      .$type<CurriculumCatalogStatus>()
+      .notNull()
+      .default('DRAFT'),
+    publishedAt: text('published_at'),
+    description: text('description'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    idxCatalogScopeVersion: uniqueIndex('idx_curriculum_catalog_scope_version').on(
+      t.educationSystem,
+      t.gradeLevel,
+      t.languageTrack,
+      t.mathBranch,
+      t.version
+    ),
+    idxCatalogCodeVersion: uniqueIndex('idx_curriculum_catalog_code_version').on(t.code, t.version),
+    idxCatalogStatus: index('idx_curriculum_catalog_status').on(t.status),
+  })
+);
+
+export const curriculumNodes = sqliteTable(
+  'curriculum_nodes',
+  {
+    id: text('id').primaryKey(),
+    catalogId: text('catalog_id')
+      .notNull()
+      .references(() => curriculumCatalogs.id, { onDelete: 'cascade' }),
+    parentId: text('parent_id'),
+    tier: text('tier', { enum: ['UNIT', 'LESSON', 'CONCEPT', 'SKILL'] })
+      .$type<CurriculumNodeTier>()
+      .notNull(),
+    titleAr: text('title_ar').notNull(),
+    titleEn: text('title_en'),
+    code: text('code').notNull(),
+    orderIndex: integer('order_index').notNull().default(0),
+    description: text('description'),
+    metadataJson: text('metadata_json'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    idxNodeCatalogParent: index('idx_curriculum_node_catalog_parent').on(t.catalogId, t.parentId),
+    idxNodeCatalogOrder: index('idx_curriculum_node_catalog_order').on(t.catalogId, t.orderIndex),
+    idxNodeCatalogTier: index('idx_curriculum_node_catalog_tier').on(t.catalogId, t.tier),
+  })
+);
+
+export type CurriculumCatalogRow = typeof curriculumCatalogs.$inferSelect;
+export type NewCurriculumCatalogRow = typeof curriculumCatalogs.$inferInsert;
+export type CurriculumNodeRow = typeof curriculumNodes.$inferSelect;
+export type NewCurriculumNodeRow = typeof curriculumNodes.$inferInsert;

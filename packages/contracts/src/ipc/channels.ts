@@ -88,6 +88,23 @@ export const IPC_CHANNELS = {
   THERMAL_TEST_PRINT: 'thermal:testPrint',
   THERMAL_GENERATE_ESCPOS: 'thermal:generateEscpos',
   THERMAL_PRINT_ESCPOS_NETWORK: 'thermal:printEscposNetwork',
+
+  // Curriculum & Group Progress
+  CURRICULUM_LIST_CATALOGS: 'curriculum:listCatalogs',
+  CURRICULUM_GET_CATALOG: 'curriculum:getCatalog',
+  CURRICULUM_CREATE_CATALOG: 'curriculum:createCatalog',
+  CURRICULUM_UPDATE_CATALOG: 'curriculum:updateCatalog',
+  CURRICULUM_PUBLISH_CATALOG: 'curriculum:publishCatalog',
+  CURRICULUM_REVISE_CATALOG: 'curriculum:reviseCatalog',
+  CURRICULUM_GET_TREE: 'curriculum:getTree',
+  CURRICULUM_CREATE_NODE: 'curriculum:createNode',
+  CURRICULUM_UPDATE_NODE: 'curriculum:updateNode',
+  CURRICULUM_DELETE_NODE: 'curriculum:deleteNode',
+  CURRICULUM_REORDER_NODES: 'curriculum:reorderNodes',
+  CURRICULUM_GET_GROUP_OVERVIEW: 'curriculum:getGroupOverview',
+  CURRICULUM_ASSIGN_GROUP_CATALOG: 'curriculum:assignGroupCatalog',
+  CURRICULUM_UPDATE_GROUP_PROGRESS: 'curriculum:updateGroupProgress',
+  CURRICULUM_GET_GROUP_PROGRESS_MAP: 'curriculum:getGroupProgressMap',
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];
