@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
+  Printer,
 } from 'lucide-react';
 import {
   Card,
@@ -24,6 +25,7 @@ import {
 import { AddPaymentModal } from '../finance/AddPaymentModal.js';
 import { ApplyDiscountModal } from '../finance/ApplyDiscountModal.js';
 import { InvoicePreviewModal } from '../finance/InvoicePreviewModal.js';
+import { ThermalReceiptModal } from '../finance/thermal/ThermalReceiptModal.js';
 
 export interface StudentFinancialViewProps {
   studentId: string;
@@ -66,6 +68,7 @@ export function StudentFinancialView({
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isDiscountModalOpen, setIsDiscountModalOpen] = useState(false);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
+  const [thermalReceiptPaymentId, setThermalReceiptPaymentId] = useState<string | null>(null);
   const [invoiceErrorMessage, setInvoiceErrorMessage] = useState<string | null>(null);
 
   const formatCurrency = (cents: number): string => {
@@ -286,13 +289,22 @@ export function StudentFinancialView({
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <time className="text-[11px] text-[var(--color-text-muted)]" dir="ltr">
                     {formatDate(p.paymentDate)}
                   </time>
                   <span className="font-bold text-[var(--color-status-success)] text-sm" dir="ltr">
                     {formatCurrency(p.amountCents)}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => setThermalReceiptPaymentId(p.id)}
+                    title={`طباعة الإيصال الحراري (${p.receiptNumber})`}
+                    data-testid={`print-receipt-btn-${p.id}`}
+                    className="p-1 hover:bg-[var(--color-bg-surface-subtle)] text-[var(--color-text-secondary)] hover:text-amber-600 dark:hover:text-amber-400 rounded transition-colors"
+                  >
+                    <Printer size={14} />
+                  </button>
                 </div>
               </div>
             ))}
@@ -377,6 +389,14 @@ export function StudentFinancialView({
           isOpen={!!selectedInvoiceId}
           onClose={() => setSelectedInvoiceId(null)}
           invoiceId={selectedInvoiceId}
+        />
+      )}
+
+      {thermalReceiptPaymentId && (
+        <ThermalReceiptModal
+          isOpen={Boolean(thermalReceiptPaymentId)}
+          onClose={() => setThermalReceiptPaymentId(null)}
+          paymentId={thermalReceiptPaymentId}
         />
       )}
     </div>

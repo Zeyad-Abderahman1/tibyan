@@ -80,6 +80,14 @@ export const IPC_CHANNELS = {
   FINANCE_LIST_DISCOUNTS: 'finance:listDiscounts',
   FINANCE_PRINT_INVOICE: 'finance:printInvoice',
   FINANCE_EXPORT_INVOICE_PDF: 'finance:exportInvoicePdf',
+
+  // Thermal Printing
+  THERMAL_LIST_PRINTERS: 'thermal:listPrinters',
+  THERMAL_GET_RECEIPT_DATA: 'thermal:getReceiptData',
+  THERMAL_PRINT_RECEIPT: 'thermal:printReceipt',
+  THERMAL_TEST_PRINT: 'thermal:testPrint',
+  THERMAL_GENERATE_ESCPOS: 'thermal:generateEscpos',
+  THERMAL_PRINT_ESCPOS_NETWORK: 'thermal:printEscposNetwork',
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];

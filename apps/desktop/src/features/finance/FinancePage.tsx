@@ -14,6 +14,7 @@ import { useGroupsList } from '../../hooks/useGroups.js';
 import { AddPaymentModal } from './AddPaymentModal.js';
 import { ApplyDiscountModal } from './ApplyDiscountModal.js';
 import { InvoicePreviewModal } from './InvoicePreviewModal.js';
+import { ThermalReceiptModal } from './thermal/ThermalReceiptModal.js';
 import type { StudentFinancialSummaryDto, FinancialStatus, InvoiceDto } from '@tibyan/contracts';
 import {
   CreditCard,
@@ -24,6 +25,7 @@ import {
   AlertCircle,
   TrendingUp,
   Users,
+  Printer,
 } from 'lucide-react';
 
 export function FinancePage() {
@@ -35,6 +37,8 @@ export function FinancePage() {
   const [paymentStudent, setPaymentStudent] = useState<StudentFinancialSummaryDto | null>(null);
   const [discountStudent, setDiscountStudent] = useState<StudentFinancialSummaryDto | null>(null);
   const [invoicePreviewData, setInvoicePreviewData] = useState<{ student: StudentFinancialSummaryDto; invoice?: InvoiceDto } | null>(null);
+  const [thermalReceiptPaymentId, setThermalReceiptPaymentId] = useState<string | null>(null);
+  const [showTestPrinterModal, setShowTestPrinterModal] = useState(false);
 
   const { data: kpi } = useOverallFinanceKpi();
   const { data: groups = [] } = useGroupsList();
@@ -104,6 +108,19 @@ export function FinancePage() {
           <p className="text-xs text-[var(--color-text-secondary)]">
             متابعة الاشتراكات الشهرية، تسديد الرسوم، كشوف الحسابات وفواتير الطلاب
           </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setShowTestPrinterModal(true)}
+            data-testid="open-thermal-printer-settings-btn"
+            className="flex items-center gap-1.5"
+          >
+            <Printer size={14} className="text-amber-500" />
+            <span>إعدادات الطابعة الحرارية</span>
+          </Button>
         </div>
       </div>
 
@@ -348,6 +365,20 @@ export function FinancePage() {
                           >
                             <FileText size={13} className="text-[var(--color-text-secondary)]" />
                           </Button>
+
+                          {student.recentPayments && student.recentPayments.length > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setThermalReceiptPaymentId(student.recentPayments[0]!.id)}
+                              title={`طباعة الإيصال الحراري (${student.recentPayments[0]!.receiptNumber})`}
+                              data-testid={`receipt-btn-${student.studentCode}`}
+                              data-test-receipt-id={`thermal-receipt-${student.studentId}`}
+                              className="thermal-receipt-btn"
+                            >
+                              <Printer size={13} className="text-amber-600 dark:text-amber-400" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -397,6 +428,15 @@ export function FinancePage() {
           initialInvoice={invoicePreviewData.invoice}
         />
       )}
+
+      <ThermalReceiptModal
+        isOpen={Boolean(thermalReceiptPaymentId || showTestPrinterModal)}
+        onClose={() => {
+          setThermalReceiptPaymentId(null);
+          setShowTestPrinterModal(false);
+        }}
+        paymentId={thermalReceiptPaymentId || undefined}
+      />
     </div>
   );
 }

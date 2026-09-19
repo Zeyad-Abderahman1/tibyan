@@ -13,4 +13,6 @@ export * from './backup/backup.service.js';
 export * from './dashboard/dashboard.service.js';
 export * from './attendance/index.js';
 export * from './finance/finance.service.js';
+export * from './finance/thermal-receipt.service.js';
+export * from './finance/escpos.builder.js';
 

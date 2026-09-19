@@ -220,6 +220,7 @@ describe('Task 10 — Preload Bridge Surface & Isolation Verification', () => {
       'sessions',
       'students',
       'system',
+      'thermal',
     ].sort());
   });
 

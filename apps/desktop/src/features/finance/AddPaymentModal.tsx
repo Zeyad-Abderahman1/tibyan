@@ -6,8 +6,9 @@ import {
   Select,
 } from '@tibyan/design-system';
 import { useRecordPayment } from '../../hooks/useFinance.js';
-import type { PaymentMethod } from '@tibyan/contracts';
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import type { PaymentMethod, PaymentDto } from '@tibyan/contracts';
+import { CheckCircle2, AlertCircle, Printer } from 'lucide-react';
+import { ThermalReceiptModal } from './thermal/ThermalReceiptModal.js';
 
 export interface AddPaymentModalProps {
   isOpen: boolean;
@@ -50,6 +51,8 @@ export function AddPaymentModal({
   const [periodMonth, setPeriodMonth] = useState<string>(currentMonth);
   const [notes, setNotes] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successPayment, setSuccessPayment] = useState<PaymentDto | null>(null);
+  const [showThermalReceipt, setShowThermalReceipt] = useState(false);
 
   const recordPaymentMutation = useRecordPayment();
 
@@ -82,11 +85,77 @@ export function AddPaymentModal({
       }
 
       onSuccess?.();
-      onClose();
+      setSuccessPayment(res.data);
     } catch (err: any) {
       setErrorMsg(err?.message || 'حدث خطأ أثناء تسجيل الدفعة');
     }
   };
+
+  if (successPayment) {
+    return (
+      <>
+        <Modal
+          isOpen={isOpen && !showThermalReceipt}
+          onClose={() => {
+            setSuccessPayment(null);
+            onClose();
+          }}
+          title="تم تسجيل الدفعة بنجاح"
+          size="sm"
+        >
+          <div className="text-center py-4 space-y-4" data-testid="payment-success-card">
+            <div className="w-14 h-14 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
+              <CheckCircle2 size={32} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-[var(--color-text-primary)]">
+                تم استلام وتوثيق الدفعة
+              </h3>
+              <p className="text-xs text-[var(--color-text-muted)] mt-1.5">
+                رقم الإيصال:{' '}
+                <span className="font-mono font-bold text-[var(--color-brand-primary)] text-sm">
+                  {successPayment.receiptNumber}
+                </span>
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <Button
+                variant="primary"
+                onClick={() => setShowThermalReceipt(true)}
+                data-testid="print-receipt-modal-button"
+                className="w-full flex items-center justify-center gap-2"
+              >
+                <Printer size={16} />
+                <span>طباعة الإيصال الحراري (Receipt)</span>
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setSuccessPayment(null);
+                  onClose();
+                }}
+                data-testid="close-after-payment-btn"
+                className="w-full"
+              >
+                تم وإنهاء
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+        <ThermalReceiptModal
+          isOpen={showThermalReceipt}
+          onClose={() => {
+            setShowThermalReceipt(false);
+            setSuccessPayment(null);
+            onClose();
+          }}
+          paymentId={successPayment.id}
+        />
+      </>
+    );
+  }
 
   return (
     <Modal

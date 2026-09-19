@@ -74,6 +74,14 @@ import {
   StudentFinancialSummaryDto,
   OverallFinanceKpiDto,
 } from '../models/finance.dto.js';
+import {
+  PrinterInfo,
+  ThermalReceiptDto,
+  PrintThermalReceiptInput,
+  TestPrintInput,
+  EscPosGenerateInput,
+  EscPosNetworkPrintInput,
+} from '../models/thermal-receipt.dto.js';
 import { FinancialStatus } from '../enums/payment.js';
 
 export interface TibyanApi {
@@ -158,6 +166,14 @@ export interface TibyanApi {
     listDiscounts(studentId: string): Promise<IpcResult<StudentDiscountDto[]>>;
     printInvoice(invoiceId: string): Promise<IpcResult<void>>;
     exportInvoicePdf(input: { invoiceId: string; defaultFilename?: string; targetPath?: string }): Promise<IpcResult<{ canceled: boolean; filePath: string }>>;
+  };
+  thermal: {
+    listPrinters(): Promise<IpcResult<PrinterInfo[]>>;
+    getReceiptData(paymentId: string): Promise<IpcResult<ThermalReceiptDto>>;
+    printReceipt(input: PrintThermalReceiptInput): Promise<IpcResult<{ success: boolean; message?: string }>>;
+    testPrint(input: TestPrintInput): Promise<IpcResult<{ success: boolean; message?: string }>>;
+    generateEscpos(input: EscPosGenerateInput): Promise<IpcResult<{ base64: string; byteLength: number }>>;
+    printEscposNetwork(input: EscPosNetworkPrintInput): Promise<IpcResult<{ success: boolean; message?: string }>>;
   };
 }
 

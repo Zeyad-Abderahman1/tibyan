@@ -61,6 +61,12 @@ import {
   type StudentFinancialSummaryDto,
   type OverallFinanceKpiDto,
   type FinancialStatus,
+  type PrinterInfo,
+  type ThermalReceiptDto,
+  type PrintThermalReceiptInput,
+  type TestPrintInput,
+  type EscPosGenerateInput,
+  type EscPosNetworkPrintInput,
 } from '@tibyan/contracts';
 
 /**
@@ -281,6 +287,26 @@ export const tibyanApi: TibyanApi = {
     },
     exportInvoicePdf(input: { invoiceId: string; defaultFilename?: string; targetPath?: string }): Promise<IpcResult<{ canceled: boolean; filePath: string }>> {
       return ipcRenderer.invoke(IPC_CHANNELS.FINANCE_EXPORT_INVOICE_PDF, input);
+    },
+  },
+  thermal: {
+    listPrinters(): Promise<IpcResult<PrinterInfo[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.THERMAL_LIST_PRINTERS);
+    },
+    getReceiptData(paymentId: string): Promise<IpcResult<ThermalReceiptDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.THERMAL_GET_RECEIPT_DATA, paymentId);
+    },
+    printReceipt(input: PrintThermalReceiptInput): Promise<IpcResult<{ success: boolean; message?: string }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.THERMAL_PRINT_RECEIPT, input);
+    },
+    testPrint(input: TestPrintInput): Promise<IpcResult<{ success: boolean; message?: string }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.THERMAL_TEST_PRINT, input);
+    },
+    generateEscpos(input: EscPosGenerateInput): Promise<IpcResult<{ base64: string; byteLength: number }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.THERMAL_GENERATE_ESCPOS, input);
+    },
+    printEscposNetwork(input: EscPosNetworkPrintInput): Promise<IpcResult<{ success: boolean; message?: string }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.THERMAL_PRINT_ESCPOS_NETWORK, input);
     },
   },
 };

@@ -178,6 +178,12 @@ test.describe('Phase 2 — Task 4: Finance & Invoicing Visual Approval Gate Spec
     await page.locator('[data-testid="confirm-payment-btn"]').click();
     await page.waitForTimeout(1000);
 
+    const closeAfterPayBtn = page.locator('[data-testid="close-after-payment-btn"]');
+    if (await closeAfterPayBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await closeAfterPayBtn.click();
+      await page.waitForTimeout(500);
+    }
+
     // 5. Open Apply Discount Modal for the second student
     const secondStudentId = seedResult.studentIds[1];
     const discountBtn = page.locator('.apply-discount-btn').nth(1);
