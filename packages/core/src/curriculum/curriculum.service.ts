@@ -950,8 +950,10 @@ export class CurriculumService {
         const targetDate = new Date(targetMs);
         projectedCompletionDate = targetDate.toISOString().split('T')[0] ?? null;
 
-        projectionStatus = 'ON_TRACK';
-        messageAr = `يسير المنهج بمعدل ${skillsPerWeekRate} مهارة/أسبوع، ومتوقع الانتهاء في ${projectedCompletionDate}`;
+        // Neutral Informational Pacing per Product Owner decision:
+        // Report observed velocity and projected date without asserting ON_TRACK without a target deadline.
+        projectionStatus = 'INSUFFICIENT_DATA';
+        messageAr = `يسير المنهج بمعدل تقديري ${skillsPerWeekRate} مهارة/أسبوع (موعد الانتهاء التقديري: ${projectedCompletionDate})؛ لم يُحدد تاريخ مستهدف للمنهج`;
       }
     }
 

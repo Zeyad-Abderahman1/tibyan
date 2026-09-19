@@ -481,10 +481,12 @@ describe('CurriculumService (Core Domain & Invariants)', () => {
     });
 
     const projectedOverview = curriculumService.getGroupOverview(group.id, ownerActor);
-    expect(projectedOverview.projection.status).toBe('ON_TRACK');
+    // Neutral Informational Pacing per Product Owner decision
+    expect(projectedOverview.projection.status).toBe('INSUFFICIENT_DATA');
     expect(projectedOverview.projection.completedSessionsCount).toBe(2);
     expect(projectedOverview.projection.skillsPerWeekRate).toBeGreaterThan(0);
     expect(projectedOverview.projection.projectedCompletionDate).toBeDefined();
+    expect(projectedOverview.projection.messageAr).toContain('موعد الانتهاء التقديري');
 
     // Complete all remaining skills
     curriculumService.updateGroupNodeProgress(
