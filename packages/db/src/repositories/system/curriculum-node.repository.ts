@@ -46,6 +46,12 @@ export class CurriculumNodeRepository {
       .all();
   }
 
+  getNextOrderIndex(catalogId: string, parentId: string | null): number {
+    const siblings = this.findByParentId(catalogId, parentId);
+    if (siblings.length === 0) return 0;
+    return Math.max(...siblings.map((s) => s.orderIndex)) + 1;
+  }
+
   countByCatalogId(catalogId: string): number {
     const rows = this.db
       .select({ id: curriculumNodes.id })
@@ -98,6 +104,16 @@ export class CurriculumNodeRepository {
   delete(id: string): boolean {
     const res = this.db.delete(curriculumNodes).where(eq(curriculumNodes.id, id)).run();
     return res.changes > 0;
+  }
+
+  deleteBatch(ids: string[]): number {
+    if (ids.length === 0) return 0;
+    let deleted = 0;
+    for (const id of ids) {
+      const res = this.db.delete(curriculumNodes).where(eq(curriculumNodes.id, id)).run();
+      deleted += res.changes;
+    }
+    return deleted;
   }
 
   reorder(catalogId: string, items: { id: string; orderIndex: number }[]): void {

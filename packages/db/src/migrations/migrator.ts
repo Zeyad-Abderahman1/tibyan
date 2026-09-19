@@ -145,6 +145,14 @@ export const SYSTEM_MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS \`idx_curriculum_node_catalog_tier\` ON \`curriculum_nodes\` (\`catalog_id\`,\`tier\`);
     `,
   },
+  {
+    id: '0003_uneven_vengeance',
+    sql: `
+      DROP INDEX IF EXISTS \`idx_curriculum_catalog_scope_version\`;
+      CREATE UNIQUE INDEX IF NOT EXISTS \`idx_curriculum_catalog_scope_version_branch\` ON \`curriculum_catalogs\` (\`education_system\`,\`grade_level\`,\`language_track\`,\`math_branch\`,\`version\`) WHERE math_branch IS NOT NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS \`idx_curriculum_catalog_scope_version_nobranch\` ON \`curriculum_catalogs\` (\`education_system\`,\`grade_level\`,\`language_track\`,\`version\`) WHERE math_branch IS NULL;
+    `,
+  },
 ];
 
 export const ACADEMIC_MIGRATIONS: Migration[] = [

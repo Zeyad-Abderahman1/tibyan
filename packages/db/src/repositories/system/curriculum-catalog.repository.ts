@@ -1,4 +1,4 @@
-import { eq, and, desc, like, or } from 'drizzle-orm';
+import { eq, and, desc, like, or, isNull } from 'drizzle-orm';
 import { type SystemDrizzle } from '../../connection.js';
 import {
   curriculumCatalogs,
@@ -62,8 +62,10 @@ export class CurriculumCatalogRepository {
       eq(curriculumCatalogs.languageTrack, languageTrack),
     ];
 
-    if (mathBranch) {
+    if (mathBranch !== undefined && mathBranch !== null) {
       conditions.push(eq(curriculumCatalogs.mathBranch, mathBranch));
+    } else {
+      conditions.push(isNull(curriculumCatalogs.mathBranch));
     }
 
     if (version !== undefined) {
@@ -90,6 +92,15 @@ export class CurriculumCatalogRepository {
     return latest ? latest.version : 0;
   }
 
+  getNextVersion(
+    educationSystem: EducationSystem,
+    gradeLevel: GradeLevel,
+    languageTrack: LanguageTrack,
+    mathBranch?: MathBranch | null
+  ): number {
+    return this.getLatestScopeVersion(educationSystem, gradeLevel, languageTrack, mathBranch) + 1;
+  }
+
   list(filter?: {
     educationSystem?: EducationSystem;
     gradeLevel?: GradeLevel;
@@ -111,7 +122,7 @@ export class CurriculumCatalogRepository {
     }
     if (filter?.mathBranch !== undefined) {
       if (filter.mathBranch === null) {
-        // match null or any
+        conditions.push(isNull(curriculumCatalogs.mathBranch));
       } else {
         conditions.push(eq(curriculumCatalogs.mathBranch, filter.mathBranch));
       }

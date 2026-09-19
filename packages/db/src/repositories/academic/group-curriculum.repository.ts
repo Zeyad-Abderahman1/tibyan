@@ -121,4 +121,12 @@ export class GroupCurriculumRepository {
       .where(eq(groupCurriculumProgress.groupId, groupId))
       .run();
   }
+
+  deleteByGroup(groupId: string): void {
+    this.resetProgressForGroup(groupId);
+  }
+
+  countByGroup(groupId: string): number {
+    return this.getProgressByGroup(groupId).length;
+  }
 }

@@ -147,6 +147,7 @@ export type GroupCurriculumAssignmentDto = z.infer<typeof GroupCurriculumAssignm
 export const AssignGroupCatalogSchema = z.object({
   groupId: z.string().uuid(),
   catalogId: z.string().uuid(),
+  resetProgress: z.boolean().optional(),
   notes: z.string().max(1000).optional().nullable(),
 });
 export type AssignGroupCatalogDto = z.infer<typeof AssignGroupCatalogSchema>;

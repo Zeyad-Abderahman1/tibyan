@@ -125,13 +125,12 @@ export const curriculumCatalogs = sqliteTable(
     updatedAt: text('updated_at').notNull(),
   },
   (t) => ({
-    idxCatalogScopeVersion: uniqueIndex('idx_curriculum_catalog_scope_version').on(
-      t.educationSystem,
-      t.gradeLevel,
-      t.languageTrack,
-      t.mathBranch,
-      t.version
-    ),
+    idxCatalogScopeVersionBranch: uniqueIndex('idx_curriculum_catalog_scope_version_branch')
+      .on(t.educationSystem, t.gradeLevel, t.languageTrack, t.mathBranch, t.version)
+      .where(sql`math_branch IS NOT NULL`),
+    idxCatalogScopeVersionNoBranch: uniqueIndex('idx_curriculum_catalog_scope_version_nobranch')
+      .on(t.educationSystem, t.gradeLevel, t.languageTrack, t.version)
+      .where(sql`math_branch IS NULL`),
     idxCatalogCodeVersion: uniqueIndex('idx_curriculum_catalog_code_version').on(t.code, t.version),
     idxCatalogStatus: index('idx_curriculum_catalog_status').on(t.status),
   })

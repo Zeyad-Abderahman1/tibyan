@@ -1,0 +1,3 @@
+DROP INDEX `idx_curriculum_catalog_scope_version`;--> statement-breakpoint
+CREATE UNIQUE INDEX `idx_curriculum_catalog_scope_version_branch` ON `curriculum_catalogs` (`education_system`,`grade_level`,`language_track`,`math_branch`,`version`) WHERE math_branch IS NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX `idx_curriculum_catalog_scope_version_nobranch` ON `curriculum_catalogs` (`education_system`,`grade_level`,`language_track`,`version`) WHERE math_branch IS NULL;
