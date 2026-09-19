@@ -28,7 +28,7 @@ It checks git, gh, agy and codex; creates F:\tebyan-agent-worktree; installs Win
 
 ## Safety
 
-Antigravity runs with --dangerously-skip-permissions for unattended execution. Google documents that this auto-approves tool permission requests. This is elevated risk. The worker uses a dedicated Git worktree and repository protocol, but that is not an OS security sandbox.
+Before installing, set Antigravity Tool Permission to always-proceed once in Antigravity settings/config. The orchestrator then invokes normal non-interactive agy -p. This is still elevated-risk host automation because Antigravity may execute commands and write files without prompting. The worker uses a dedicated Git worktree and repository protocol, but that is not an OS security sandbox.
 
 Codex supervision runs read-only with no interactive approvals.
 
