@@ -242,5 +242,35 @@ describe('ThermalReceiptService & EscPosBuilder', () => {
       // buf58 has autoCut=false so no cut command
       expect(buf58.includes(Buffer.from([0x1d, 0x56]))).toBe(false);
     });
+
+    it('generates full deterministic Arabic receipt raster with GS v 0 command stream', () => {
+      const receipt = thermalService.generateTestReceiptData('80mm', 'الأستاذ أحمد الشريف');
+      const raster80 = EscPosBuilder.createDeterministicReceiptRaster(receipt, '80mm');
+
+      expect(raster80.widthDots).toBe(576);
+      expect(raster80.heightDots).toBe(560);
+      expect(raster80.rasterByteCount).toBe(40320); // (576 / 8) * 560
+      expect(raster80.bitData.length).toBe(40320);
+
+      const raster58 = EscPosBuilder.createDeterministicReceiptRaster(receipt, '58mm');
+      expect(raster58.widthDots).toBe(384);
+      expect(raster58.heightDots).toBe(560);
+      expect(raster58.rasterByteCount).toBe(26880); // (384 / 8) * 560
+      expect(raster58.bitData.length).toBe(26880);
+
+      // Build full ESC/POS payload
+      const fullEscPos80 = EscPosBuilder.buildReceipt(receipt, { paperWidth: '80mm', autoCut: true });
+
+      // Verify GS v 0 (0x1D, 0x76, 0x30, 0x00) is present
+      const gsV0Header = Buffer.from([0x1d, 0x76, 0x30, 0x00]);
+      expect(fullEscPos80.includes(gsV0Header)).toBe(true);
+
+      // Verify xL=72, xH=0, yL=48, yH=2 (576 dots width, 560 dots height)
+      const exactDimHeader = Buffer.from([0x1d, 0x76, 0x30, 0x00, 72, 0, 48, 2]);
+      expect(fullEscPos80.includes(exactDimHeader)).toBe(true);
+
+      // Total ESC/POS payload size includes init (2), align (3), GS v 0 header (8), raster (40320), feed (3), cut (4)
+      expect(fullEscPos80.length).toBe(40340);
+    });
   });
 });
