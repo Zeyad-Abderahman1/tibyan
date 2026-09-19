@@ -23,6 +23,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { StudentCreateModal } from './StudentCreateModal.js';
 import { StudentNotesView } from './StudentNotesView.js';
 import { StudentCardPreviewModal } from './cards/StudentCardPreviewModal.js';
+import { StudentFinancialView } from './StudentFinancialView.js';
 
 const GRADE_LEVEL_LABELS: Record<string, string> = {
   PREP_1: 'الصف الأول الإعدادي',
@@ -56,6 +57,7 @@ export function StudentProfilePage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isCardPreviewOpen, setIsCardPreviewOpen] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'notes' | 'finance'>('notes');
 
   const handleToggleStatus = async () => {
     if (!student || !canWrite) return;
@@ -318,10 +320,49 @@ export function StudentProfilePage() {
           </Card>
         </div>
 
-        {/* Right Column: Notes Timeline */}
-        <div className="lg:col-span-2">
+        {/* Right Column: Financial & Notes Tabs */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center gap-2 border-b border-[var(--color-border-subtle)] pb-2" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'finance'}
+              onClick={() => setActiveTab('finance')}
+              className={`px-4 py-2 text-xs font-semibold rounded-[var(--radius-md)] transition-colors ${
+                activeTab === 'finance'
+                  ? 'bg-[var(--color-brand-primary)] text-white shadow-sm'
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-subtle)]'
+              }`}
+              data-testid="profile-tab-finance"
+            >
+              السجل المالي والاشتراكات
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'notes'}
+              onClick={() => setActiveTab('notes')}
+              className={`px-4 py-2 text-xs font-semibold rounded-[var(--radius-md)] transition-colors ${
+                activeTab === 'notes'
+                  ? 'bg-[var(--color-brand-primary)] text-white shadow-sm'
+                  : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-subtle)]'
+              }`}
+              data-testid="profile-tab-notes"
+            >
+              الملاحظات والمتابعة
+            </button>
+          </div>
+
           <Card variant="default" className="p-4">
-            <StudentNotesView studentId={student.id} canWrite={canWrite} />
+            {activeTab === 'finance' ? (
+              <StudentFinancialView
+                studentId={student.id}
+                studentName={student.fullName}
+                canWrite={canWrite}
+              />
+            ) : (
+              <StudentNotesView studentId={student.id} canWrite={canWrite} />
+            )}
           </Card>
         </div>
       </div>

@@ -11,3 +11,4 @@ export * from './academic/session.repository.js';
 export * from './academic/attendance.repository.js';
 export * from './academic/attendance-follow-up.repository.js';
 export * from './academic/academic-audit.repository.js';
+export * from './academic/finance.repository.js';

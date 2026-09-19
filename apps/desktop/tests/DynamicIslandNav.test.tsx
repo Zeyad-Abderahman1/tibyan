@@ -16,11 +16,11 @@ describe('DynamicIslandNav Component Suite', () => {
     expect(html).toContain('اليوم');
     expect(html).toContain('الطلاب');
     expect(html).toContain('المجموعات');
+    expect(html).toContain('المالية');
     expect(html).toContain('الإعدادات');
 
-    // Mandatory correction: Unimplemented routes must NOT be displayed
+    // Contextual routes must not be displayed on home
     expect(html).not.toContain('الحضور');
-    expect(html).not.toContain('المالية');
   });
 
   it('marks active navigation destination with accessible indicator and styling', () => {
@@ -35,7 +35,7 @@ describe('DynamicIslandNav Component Suite', () => {
   });
 
   it('supports configuration-driven items without hardcoding', () => {
-    expect(DEFAULT_NAV_ITEMS).toHaveLength(4);
-    expect(DEFAULT_NAV_ITEMS.map((i) => i.to)).toEqual(['/', '/students', '/groups', '/settings']);
+    expect(DEFAULT_NAV_ITEMS).toHaveLength(5);
+    expect(DEFAULT_NAV_ITEMS.map((i) => i.to)).toEqual(['/', '/students', '/groups', '/finance', '/settings']);
   });
 });

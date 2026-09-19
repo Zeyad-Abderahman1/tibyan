@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, CalendarCheck, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, CalendarCheck, Settings, CreditCard } from 'lucide-react';
 import { cn } from '@tibyan/design-system';
 
 export interface NavItem {
@@ -14,6 +14,7 @@ export const DEFAULT_NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'اليوم', icon: LayoutDashboard },
   { to: '/students', label: 'الطلاب', icon: Users },
   { to: '/groups', label: 'المجموعات', icon: BookOpen },
+  { to: '/finance', label: 'المالية', icon: CreditCard },
   { to: '/settings', label: 'الإعدادات', icon: Settings },
 ];
 

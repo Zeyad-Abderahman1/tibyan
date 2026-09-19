@@ -27,6 +27,7 @@ import {
   DashboardService,
   BackupService,
   AttendanceService,
+  FinanceService,
   type AuthenticatedUser,
 } from '@tibyan/core';
 
@@ -95,6 +96,7 @@ export class Runtime {
   public sessionService: SessionService | null = null;
   public dashboardService: DashboardService | null = null;
   public attendanceService: AttendanceService | null = null;
+  public financeService: FinanceService | null = null;
 
   constructor(options: RuntimeOptions = {}) {
     this.inMemory = options.inMemory ?? false;
@@ -193,6 +195,7 @@ export class Runtime {
     this.sessionService = new SessionService(this.academicDb.db);
     this.dashboardService = new DashboardService(this.academicDb.db);
     this.attendanceService = new AttendanceService(this.academicDb.db);
+    this.financeService = new FinanceService(this.academicDb.db);
   }
 
   /**
@@ -205,6 +208,7 @@ export class Runtime {
     this.sessionService = null;
     this.dashboardService = null;
     this.attendanceService = null;
+    this.financeService = null;
 
     closeAcademicDatabase();
     this.academicDb = null;

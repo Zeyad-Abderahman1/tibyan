@@ -19,6 +19,7 @@ import { GroupDetailsPage } from '../features/groups/GroupDetailsPage.js';
 import { TodayPage } from '../features/dashboard/TodayPage.js';
 import { AttendancePage } from '../features/attendance/AttendancePage.js';
 import { SettingsPage } from '../features/settings/SettingsPage.js';
+import { FinancePage } from '../features/finance/index.js';
 
 /**
  * Root Controller: Checks authoritative persisted SQLite setup state.
@@ -215,6 +216,10 @@ export const routes: RouteObject[] = [
       {
         path: 'attendance',
         element: <AttendancePage />,
+      },
+      {
+        path: 'finance',
+        element: <FinancePage />,
       },
       {
         path: 'settings',

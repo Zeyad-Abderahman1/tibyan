@@ -66,6 +66,20 @@ export const IPC_CHANNELS = {
   SYSTEM_CREATE_ACADEMIC_YEAR: 'system:createAcademicYear',
   SYSTEM_SWITCH_ACADEMIC_YEAR: 'system:switchAcademicYear',
   SYSTEM_OPEN_WHATSAPP: 'system:openWhatsApp',
+
+  // Finance
+  FINANCE_RECORD_PAYMENT: 'finance:recordPayment',
+  FINANCE_LIST_STUDENT_PAYMENTS: 'finance:listStudentPayments',
+  FINANCE_GET_STUDENT_SUMMARY: 'finance:getStudentSummary',
+  FINANCE_LIST_ALL_SUMMARIES: 'finance:listAllSummaries',
+  FINANCE_GET_OVERALL_KPI: 'finance:getOverallKpi',
+  FINANCE_CREATE_INVOICE: 'finance:createInvoice',
+  FINANCE_GET_INVOICE: 'finance:getInvoice',
+  FINANCE_LIST_INVOICES: 'finance:listInvoices',
+  FINANCE_APPLY_DISCOUNT: 'finance:applyDiscount',
+  FINANCE_LIST_DISCOUNTS: 'finance:listDiscounts',
+  FINANCE_PRINT_INVOICE: 'finance:printInvoice',
+  FINANCE_EXPORT_INVOICE_PDF: 'finance:exportInvoicePdf',
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];

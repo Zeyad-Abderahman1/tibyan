@@ -8,3 +8,4 @@ export * from './backup.dto.js';
 export * from './dashboard.dto.js';
 export * from './system.dto.js';
 export * from './attendance.dto.js';
+export * from './finance.dto.js';

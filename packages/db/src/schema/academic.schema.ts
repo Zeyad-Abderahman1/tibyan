@@ -14,6 +14,10 @@ import {
   LanguageTrack,
   MathBranch,
   PaymentType,
+  PaymentMethod,
+  DiscountType,
+  InvoiceStatus,
+  InvoiceItemType,
   StudentStatus,
   StudentNoteTag,
   SessionStatus,
@@ -268,6 +272,109 @@ export const academicAuditLog = sqliteTable(
   })
 );
 
+export const studentDiscounts = sqliteTable(
+  'student_discounts',
+  {
+    id: text('id').primaryKey(),
+    studentId: text('student_id')
+      .notNull()
+      .references(() => students.id, { onDelete: 'restrict' }),
+    groupId: text('group_id').references(() => groups.id, { onDelete: 'set null' }),
+    discountType: text('discount_type').$type<DiscountType>().notNull(),
+    discountValue: integer('discount_value').notNull(),
+    reason: text('reason').notNull(),
+    status: text('status', { enum: ['ACTIVE', 'INACTIVE'] }).notNull().default('ACTIVE'),
+    appliedByUserId: text('applied_by_user_id'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    chkDiscountValue: check('chk_discounts_value', sql`"discount_value" > 0`),
+    idxDiscountsStudent: index('idx_discounts_student').on(t.studentId),
+    idxDiscountsStatus: index('idx_discounts_status').on(t.status),
+  })
+);
+
+export const payments = sqliteTable(
+  'payments',
+  {
+    id: text('id').primaryKey(),
+    receiptNumber: text('receipt_number').notNull().unique(),
+    studentId: text('student_id')
+      .notNull()
+      .references(() => students.id, { onDelete: 'restrict' }),
+    groupId: text('group_id').references(() => groups.id, { onDelete: 'set null' }),
+    amountCents: integer('amount_cents').notNull(),
+    paymentMethod: text('payment_method').$type<PaymentMethod>().notNull().default('CASH'),
+    paymentDate: text('payment_date').notNull(), // YYYY-MM-DD
+    periodMonth: text('period_month'), // YYYY-MM
+    notes: text('notes'),
+    recordedByUserId: text('recorded_by_user_id').notNull(),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    chkPaymentAmount: check('chk_payments_amount', sql`"amount_cents" > 0`),
+    idxPaymentsReceipt: uniqueIndex('idx_payments_receipt').on(t.receiptNumber),
+    idxPaymentsStudent: index('idx_payments_student').on(t.studentId),
+    idxPaymentsDate: index('idx_payments_date').on(t.paymentDate),
+  })
+);
+
+export const invoices = sqliteTable(
+  'invoices',
+  {
+    id: text('id').primaryKey(),
+    invoiceNumber: text('invoice_number').notNull().unique(),
+    studentId: text('student_id')
+      .notNull()
+      .references(() => students.id, { onDelete: 'restrict' }),
+    groupId: text('group_id').references(() => groups.id, { onDelete: 'set null' }),
+    issueDate: text('issue_date').notNull(),
+    dueDate: text('due_date'),
+    periodMonth: text('period_month'),
+    subtotalCents: integer('subtotal_cents').notNull(),
+    discountCents: integer('discount_cents').notNull().default(0),
+    totalCents: integer('total_cents').notNull(),
+    paidCents: integer('paid_cents').notNull().default(0),
+    remainingCents: integer('remaining_cents').notNull().default(0),
+    status: text('status').$type<InvoiceStatus>().notNull().default('UNPAID'),
+    notes: text('notes'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    chkInvoiceSubtotal: check('chk_invoices_subtotal', sql`"subtotal_cents" >= 0`),
+    chkInvoiceTotal: check('chk_invoices_total', sql`"total_cents" >= 0`),
+    chkInvoicePaid: check('chk_invoices_paid', sql`"paid_cents" >= 0`),
+    idxInvoicesNumber: uniqueIndex('idx_invoices_number').on(t.invoiceNumber),
+    idxInvoicesStudent: index('idx_invoices_student').on(t.studentId),
+    idxInvoicesStatus: index('idx_invoices_status').on(t.status),
+  })
+);
+
+export const invoiceItems = sqliteTable(
+  'invoice_items',
+  {
+    id: text('id').primaryKey(),
+    invoiceId: text('invoice_id')
+      .notNull()
+      .references(() => invoices.id, { onDelete: 'cascade' }),
+    description: text('description').notNull(),
+    itemType: text('item_type').$type<InvoiceItemType>().notNull().default('CUSTOM'),
+    quantity: integer('quantity').notNull().default(1),
+    unitPriceCents: integer('unit_price_cents').notNull(),
+    amountCents: integer('amount_cents').notNull(),
+    sessionId: text('session_id').references(() => sessions.id, { onDelete: 'set null' }),
+  },
+  (t) => ({
+    chkItemQuantity: check('chk_invoice_items_quantity', sql`"quantity" > 0`),
+    chkItemUnitPrice: check('chk_invoice_items_unit_price', sql`"unit_price_cents" >= 0`),
+    chkItemAmount: check('chk_invoice_items_amount', sql`"amount_cents" >= 0`),
+    idxInvoiceItemsInvoice: index('idx_invoice_items_invoice').on(t.invoiceId),
+  })
+);
+
 export type StudentRow = typeof students.$inferSelect;
 export type NewStudentRow = typeof students.$inferInsert;
 export type StudentNoteRow = typeof studentNotes.$inferSelect;
@@ -286,3 +393,11 @@ export type AttendanceFollowUpRow = typeof attendanceFollowUps.$inferSelect;
 export type NewAttendanceFollowUpRow = typeof attendanceFollowUps.$inferInsert;
 export type AcademicAuditLogRow = typeof academicAuditLog.$inferSelect;
 export type NewAcademicAuditLogRow = typeof academicAuditLog.$inferInsert;
+export type StudentDiscountRow = typeof studentDiscounts.$inferSelect;
+export type NewStudentDiscountRow = typeof studentDiscounts.$inferInsert;
+export type PaymentRow = typeof payments.$inferSelect;
+export type NewPaymentRow = typeof payments.$inferInsert;
+export type InvoiceRow = typeof invoices.$inferSelect;
+export type NewInvoiceRow = typeof invoices.$inferInsert;
+export type InvoiceItemRow = typeof invoiceItems.$inferSelect;
+export type NewInvoiceItemRow = typeof invoiceItems.$inferInsert;

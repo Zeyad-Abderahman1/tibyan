@@ -43,6 +43,13 @@
       "when": 1789759456150,
       "tag": "0005_rainy_silvermane",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1789824859147,
+      "tag": "0006_parched_xavin",
+      "breakpoints": true
     }
   ]
 }

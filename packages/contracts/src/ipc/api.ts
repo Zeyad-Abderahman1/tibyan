@@ -64,6 +64,17 @@ import {
   SwitchAcademicYearInput,
   UpdateThemeSettingInput,
 } from '../models/system.dto.js';
+import {
+  PaymentDto,
+  RecordPaymentInput,
+  StudentDiscountDto,
+  ApplyDiscountInput,
+  InvoiceDto,
+  CreateInvoiceInput,
+  StudentFinancialSummaryDto,
+  OverallFinanceKpiDto,
+} from '../models/finance.dto.js';
+import { FinancialStatus } from '../enums/payment.js';
 
 export interface TibyanApi {
   auth: {
@@ -133,6 +144,20 @@ export interface TibyanApi {
     createAcademicYear(input: CreateAcademicYearInput): Promise<IpcResult<AcademicYearDto>>;
     switchAcademicYear(input: SwitchAcademicYearInput): Promise<IpcResult<void>>;
     openWhatsApp(input: { phone: string; message: string }): Promise<IpcResult<void>>;
+  };
+  finance: {
+    recordPayment(input: RecordPaymentInput): Promise<IpcResult<PaymentDto>>;
+    listStudentPayments(studentId: string): Promise<IpcResult<PaymentDto[]>>;
+    getStudentSummary(studentId: string): Promise<IpcResult<StudentFinancialSummaryDto>>;
+    listAllSummaries(filter?: { groupId?: string; status?: FinancialStatus; search?: string }): Promise<IpcResult<StudentFinancialSummaryDto[]>>;
+    getOverallKpi(): Promise<IpcResult<OverallFinanceKpiDto>>;
+    createInvoice(input: CreateInvoiceInput): Promise<IpcResult<InvoiceDto>>;
+    getInvoice(invoiceId: string): Promise<IpcResult<InvoiceDto>>;
+    listInvoices(studentId?: string): Promise<IpcResult<InvoiceDto[]>>;
+    applyDiscount(input: ApplyDiscountInput): Promise<IpcResult<StudentDiscountDto>>;
+    listDiscounts(studentId: string): Promise<IpcResult<StudentDiscountDto[]>>;
+    printInvoice(invoiceId: string): Promise<IpcResult<void>>;
+    exportInvoicePdf(input: { invoiceId: string; defaultFilename?: string; targetPath?: string }): Promise<IpcResult<{ canceled: boolean; filePath: string }>>;
   };
 }
 

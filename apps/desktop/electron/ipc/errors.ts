@@ -12,6 +12,7 @@ import {
   SessionError,
   DashboardError,
   BackupError,
+  FinanceError,
 } from '@tibyan/core';
 
 /**
@@ -69,6 +70,11 @@ export function mapErrorToIpcResult(err: unknown): IpcResult<never> {
 
   // 8. Backup errors
   if (err instanceof BackupError) {
+    return errorResult(err.code, err.message);
+  }
+
+  // 9. Finance errors
+  if (err instanceof FinanceError) {
     return errorResult(err.code, err.message);
   }
 

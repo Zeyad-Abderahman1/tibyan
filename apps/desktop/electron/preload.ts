@@ -52,6 +52,15 @@ import {
   type CreateAcademicYearInput,
   type SwitchAcademicYearInput,
   type UpdateThemeSettingInput,
+  type PaymentDto,
+  type RecordPaymentInput,
+  type StudentDiscountDto,
+  type ApplyDiscountInput,
+  type InvoiceDto,
+  type CreateInvoiceInput,
+  type StudentFinancialSummaryDto,
+  type OverallFinanceKpiDto,
+  type FinancialStatus,
 } from '@tibyan/contracts';
 
 /**
@@ -233,6 +242,45 @@ export const tibyanApi: TibyanApi = {
     },
     openWhatsApp(input: { phone: string; message: string }): Promise<IpcResult<void>> {
       return ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_OPEN_WHATSAPP, input);
+    },
+  },
+
+  finance: {
+    recordPayment(input: RecordPaymentInput): Promise<IpcResult<PaymentDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.FINANCE_RECORD_PAYMENT, input);
+    },
+    listStudentPayments(studentId: string): Promise<IpcResult<PaymentDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.FINANCE_LIST_STUDENT_PAYMENTS, studentId);
+    },
+    getStudentSummary(studentId: string): Promise<IpcResult<StudentFinancialSummaryDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.FINANCE_GET_STUDENT_SUMMARY, studentId);
+    },
+    listAllSummaries(filter?: { groupId?: string; status?: FinancialStatus; search?: string }): Promise<IpcResult<StudentFinancialSummaryDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.FINANCE_LIST_ALL_SUMMARIES, filter);
+    },
+    getOverallKpi(): Promise<IpcResult<OverallFinanceKpiDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.FINANCE_GET_OVERALL_KPI);
+    },
+    createInvoice(input: CreateInvoiceInput): Promise<IpcResult<InvoiceDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.FINANCE_CREATE_INVOICE, input);
+    },
+    getInvoice(invoiceId: string): Promise<IpcResult<InvoiceDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.FINANCE_GET_INVOICE, invoiceId);
+    },
+    listInvoices(studentId?: string): Promise<IpcResult<InvoiceDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.FINANCE_LIST_INVOICES, studentId);
+    },
+    applyDiscount(input: ApplyDiscountInput): Promise<IpcResult<StudentDiscountDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.FINANCE_APPLY_DISCOUNT, input);
+    },
+    listDiscounts(studentId: string): Promise<IpcResult<StudentDiscountDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.FINANCE_LIST_DISCOUNTS, studentId);
+    },
+    printInvoice(invoiceId: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.FINANCE_PRINT_INVOICE, invoiceId);
+    },
+    exportInvoicePdf(input: { invoiceId: string; defaultFilename?: string; targetPath?: string }): Promise<IpcResult<{ canceled: boolean; filePath: string }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.FINANCE_EXPORT_INVOICE_PDF, input);
     },
   },
 };
