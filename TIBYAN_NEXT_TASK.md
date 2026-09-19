@@ -61,17 +61,21 @@
 
 ## 2. Immediate Next Task: Phase 2 — Task 4 of 5
 
-**Phase 2 — Task 4 of 5: Finance & Subscriptions**
+**Phase 2 — Task 4 of 5: Finance, Payments, Subscriptions, Discounts & Invoicing**
 
 - **Scope & Core Objectives:**
-  1. **Financial Ledger & Fee Structures:**
-     - Group pricing models (per-session, monthly subscription, package).
-     - Student payment tracking and enrollment fee status.
-  2. **Subscription Management & Payment Recording:**
-     - Recording student payments, issuing receipts, partial payments, and discounts.
-     - Audit logging for all financial mutations.
-  3. **Thermal Receipt Generation:**
-     - 80mm / 58mm thermal receipt layout with teacher branding, transaction details, and scannable receipt identifier.
-  4. **Financial Reporting & Outstanding Balances:**
-     - Unpaid balance tracking per student and group.
-     - Session revenue summary and teacher cashflow ledger.
+  1. **Payments & Ledger:**
+     - Record student payments with strict academic-year and student scoping.
+     - Prevent negative or invalid payment amounts.
+     - Maintain immutable, auditable payment history with atomic audit logging.
+  2. **Subscriptions & Pricing Models:**
+     - Support existing Tibyan billing models (per-session and subscription-style monthly charging).
+     - Compute amount due, amount paid, and outstanding balance clearly.
+     - Respect enrollment, session, and academic-year boundaries.
+  3. **Discounts:**
+     - Controlled fixed amount and/or percentage discounts without creating negative balances.
+     - Auditable discount applications.
+  4. **Invoicing:**
+     - Generate local invoices with deterministic invoice numbering.
+     - Printable and PDF-friendly invoice preview (A4 / standard print).
+     - NOTE: Thermal Receipts & ESC/POS Printing belongs exclusively to Phase 2 — Task 5 of 5.
