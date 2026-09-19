@@ -17,8 +17,7 @@
   },
   "dependencies": {
     "barcode-detector": "3.2.2",
-    "better-sqlite3": "12.11.1",
-    "zxing-wasm": "3.1.4"
+    "better-sqlite3": "12.11.1"
   },
   "devDependencies": {
     "@tanstack/react-query": "^5.66.0",
