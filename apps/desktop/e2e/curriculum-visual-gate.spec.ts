@@ -11,8 +11,7 @@ test.describe('Phase 3 — Task 1: Curriculum Hierarchy & Visual Gate Spec', () 
   let testDataDir: string;
   let electronApp: ElectronApplication;
   let page: Page;
-  const artifactDir = 'C:\\Users\\zeyad mohamed\\.gemini\\antigravity-ide\\brain\\663ec3c7-19df-4ba5-911d-cbc9242f0a0d';
-  const screenshotsDir = path.join(artifactDir, 'screenshots');
+  const screenshotsDir = path.resolve(__dirname, '../test-results/curriculum-visual-gate');
 
   test.beforeAll(() => {
     testDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tibyan-curriculum-gate-'));

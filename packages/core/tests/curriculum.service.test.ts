@@ -1141,4 +1141,194 @@ describe('CurriculumService (Core Domain & Invariants)', () => {
       /CATALOG_INTEGRITY_ERROR/
     );
   });
+
+  it('20. Requires complete authenticated actor (userId, fullName, role) for protected methods', () => {
+    // Incomplete actor: missing userId
+    const incompleteActor1 = { fullName: 'أحمد', role: 'OWNER' as const, permissions: [] };
+    expect(() =>
+      curriculumService.listCatalogs(undefined, incompleteActor1 as any)
+    ).toThrowError(/PERMISSION_DENIED.*Complete authenticated actor/);
+
+    // Incomplete actor: missing fullName
+    const incompleteActor2 = { userId: 'usr-1', role: 'OWNER' as const, permissions: [] };
+    expect(() =>
+      curriculumService.listCatalogs(undefined, incompleteActor2 as any)
+    ).toThrowError(/PERMISSION_DENIED.*Complete authenticated actor/);
+
+    // Incomplete actor: missing role
+    const incompleteActor3 = { userId: 'usr-1', fullName: 'أحمد', permissions: [] };
+    expect(() =>
+      curriculumService.listCatalogs(undefined, incompleteActor3 as any)
+    ).toThrowError(/PERMISSION_DENIED.*Complete authenticated actor/);
+  });
+
+  it('21. Preserves titleEn and metadataJson when cloning nodes in reviseCatalog', () => {
+    const cat = curriculumService.createCatalog(
+      {
+        code: 'CAT-CLONE-TEST',
+        title: 'منهج استنساخ الحقول',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'SEC_1',
+        languageTrack: 'LANG_ENGLISH',
+        mathBranch: null,
+      },
+      ownerActor
+    );
+
+    const unit = curriculumService.createNode(
+      {
+        catalogId: cat.id,
+        tier: 'UNIT',
+        code: 'U1',
+        titleAr: 'الوحدة الأولى',
+        titleEn: 'Unit One: Foundations',
+        metadataJson: JSON.stringify({ hours: 12 }),
+      },
+      ownerActor
+    );
+
+    const lesson = curriculumService.createNode(
+      {
+        catalogId: cat.id,
+        parentId: unit.id,
+        tier: 'LESSON',
+        code: 'L1',
+        titleAr: 'الدرس الأول',
+        titleEn: 'Lesson 1: Intro',
+        metadataJson: JSON.stringify({ difficulty: 'easy' }),
+      },
+      ownerActor
+    );
+
+    const concept = curriculumService.createNode(
+      {
+        catalogId: cat.id,
+        parentId: lesson.id,
+        tier: 'CONCEPT',
+        code: 'C1',
+        titleAr: 'المفهوم الأول',
+        titleEn: 'Concept 1',
+        metadataJson: null,
+      },
+      ownerActor
+    );
+
+    curriculumService.createNode(
+      {
+        catalogId: cat.id,
+        parentId: concept.id,
+        tier: 'SKILL',
+        code: 'S1',
+        titleAr: 'المهارة الأولى',
+        titleEn: 'Skill 1: Precision',
+        metadataJson: JSON.stringify({ points: 10 }),
+      },
+      ownerActor
+    );
+
+    // Publish then revise
+    curriculumService.publishCatalog(cat.id, ownerActor);
+    const revised = curriculumService.reviseCatalog(cat.id, ownerActor);
+    expect(revised.version).toBe(2);
+
+    const revisedTree = curriculumService.getTree(revised.id, ownerActor);
+    expect(revisedTree).toHaveLength(1);
+    const clonedUnit = revisedTree[0]!;
+    expect(clonedUnit.titleEn).toBe('Unit One: Foundations');
+    expect(clonedUnit.metadataJson).toBe(JSON.stringify({ hours: 12 }));
+
+    const clonedLesson = clonedUnit.children[0]!;
+    expect(clonedLesson.titleEn).toBe('Lesson 1: Intro');
+    expect(clonedLesson.metadataJson).toBe(JSON.stringify({ difficulty: 'easy' }));
+
+    const clonedConcept = clonedLesson.children[0]!;
+    expect(clonedConcept.titleEn).toBe('Concept 1');
+
+    const clonedSkill = clonedConcept.children[0]!;
+    expect(clonedSkill.titleEn).toBe('Skill 1: Precision');
+    expect(clonedSkill.metadataJson).toBe(JSON.stringify({ points: 10 }));
+  });
+
+  it('22. Publication validates complete reachability and rejects disconnected nodes or non-UNIT roots', () => {
+    const cat = curriculumService.createCatalog(
+      {
+        code: 'CAT-DISCONNECTED',
+        title: 'منهج غير مكتمل الشجرة',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_2',
+        languageTrack: 'ARABIC',
+      },
+      ownerActor
+    );
+
+    // Case A: Root node is NOT a unit
+    nodeRepo.create({
+      id: crypto.randomUUID(),
+      catalogId: cat.id,
+      parentId: null,
+      tier: 'LESSON',
+      titleAr: 'درس بدون وحدة جذرية',
+      code: 'ORPHAN-L',
+      orderIndex: 0,
+      createdAt: '2026-09-20T00:00:00.000Z',
+      updatedAt: '2026-09-20T00:00:00.000Z',
+    });
+
+    expect(() => curriculumService.publishCatalog(cat.id, ownerActor)).toThrowError(
+      /All root nodes must be UNIT tier/
+    );
+
+    // Clean up and test Case B: Valid tree exists + disconnected node
+    nodeRepo.deleteBatch(nodeRepo.findByCatalogId(cat.id).map((n) => n.id));
+
+    const u = curriculumService.createNode({ catalogId: cat.id, tier: 'UNIT', code: 'U1', titleAr: 'و1' }, ownerActor);
+    const l = curriculumService.createNode({ catalogId: cat.id, parentId: u.id, tier: 'LESSON', code: 'L1', titleAr: 'د1' }, ownerActor);
+    const c = curriculumService.createNode({ catalogId: cat.id, parentId: l.id, tier: 'CONCEPT', code: 'C1', titleAr: 'م1' }, ownerActor);
+    curriculumService.createNode({ catalogId: cat.id, parentId: c.id, tier: 'SKILL', code: 'S1', titleAr: 'مها1' }, ownerActor);
+
+    // Injected disconnected node with fake parentId
+    nodeRepo.create({
+      id: crypto.randomUUID(),
+      catalogId: cat.id,
+      parentId: 'fake-parent-id',
+      tier: 'SKILL',
+      titleAr: 'مهارة يتيمة',
+      code: 'ORPHAN-S',
+      orderIndex: 99,
+      createdAt: '2026-09-20T00:00:00.000Z',
+      updatedAt: '2026-09-20T00:00:00.000Z',
+    });
+
+    expect(() => curriculumService.publishCatalog(cat.id, ownerActor)).toThrowError(
+      /references a non-existent parent/
+    );
+  });
+
+  it('23. Reordering rejects order collisions with omitted unchanged siblings', () => {
+    const cat = curriculumService.createCatalog(
+      {
+        code: 'CAT-REORDER-SIBLING',
+        title: 'منهج اختبار تصادم الترتيب',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'PREP_3',
+        languageTrack: 'ARABIC',
+      },
+      ownerActor
+    );
+
+    const u1 = curriculumService.createNode({ catalogId: cat.id, tier: 'UNIT', code: 'U1', titleAr: 'و1', orderIndex: 0 }, ownerActor);
+    curriculumService.createNode({ catalogId: cat.id, tier: 'UNIT', code: 'U2', titleAr: 'و2', orderIndex: 1 }, ownerActor);
+    curriculumService.createNode({ catalogId: cat.id, tier: 'UNIT', code: 'U3', titleAr: 'و3', orderIndex: 2 }, ownerActor);
+
+    // Try to reorder only u1 to position 1 without moving u2. Position 1 is already occupied by u2!
+    expect(() =>
+      curriculumService.reorderNodes(
+        {
+          catalogId: cat.id,
+          items: [{ id: u1.id, orderIndex: 1 }],
+        },
+        ownerActor
+      )
+    ).toThrowError(/Reorder collision: position '1' would be occupied by multiple sibling nodes/);
+  });
 });

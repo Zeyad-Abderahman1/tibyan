@@ -20,7 +20,10 @@ export function AssignCatalogModal({
   currentCatalogId,
 }: AssignCatalogModalProps) {
   const [selectedCatalogId, setSelectedCatalogId] = useState<string>(currentCatalogId || '');
+  const [confirmResetProgress, setConfirmResetProgress] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const isReassignment = Boolean(currentCatalogId && selectedCatalogId && currentCatalogId !== selectedCatalogId);
 
   // Fetch only PUBLISHED catalogs matching the group's dimensions
   const { data: catalogs = [], isLoading } = useCurriculumCatalogs({
@@ -45,16 +48,25 @@ export function AssignCatalogModal({
       setErrorMsg('يرجى اختيار المنهج المراد ربطه');
       return;
     }
+    if (isReassignment && !confirmResetProgress) {
+      setErrorMsg('يرجى تأكيد الموافقة على إعادة تعيين وحذف التقدم السابق لإتمام تغيير المنهج');
+      return;
+    }
     setErrorMsg(null);
 
     try {
       await assignMutation.mutateAsync({
         groupId: group.id,
         catalogId: selectedCatalogId,
+        resetProgress: isReassignment ? confirmResetProgress : undefined,
       });
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || 'فشل ربط المنهج بالمجموعة');
+      if (err.message?.includes('REASSIGNMENT_REQUIRES_RESET_CONFIRMATION')) {
+        setErrorMsg('المجموعة تحتوي على تقدم مسجل؛ يلزم تأكيد خيار إعادة التعيين وحذف التقدم لتغيير المنهج.');
+      } else {
+        setErrorMsg(err.message || 'فشل ربط المنهج بالمجموعة');
+      }
     }
   };
 
@@ -108,6 +120,32 @@ export function AssignCatalogModal({
           )}
         </div>
 
+        {isReassignment && (
+          <div
+            className="p-3.5 rounded-lg border border-[var(--color-status-danger-border)] bg-[var(--color-status-danger-bg)] space-y-2.5 text-xs"
+            data-testid="warning-reassignment-destructive"
+          >
+            <div className="font-bold text-[var(--color-status-danger)] flex items-center gap-1.5">
+              <span>⚠️ تحذير: تغيير المنهج الدراسي للمجموعة</span>
+            </div>
+            <p className="text-[var(--color-status-danger)] leading-relaxed">
+              المجموعة مرتبطة بالفعل بمنهج سابق. اختيار منهج جديد سيؤدي إلى <strong>إلغاء وحذف كافة سجلات التقدم السابقة</strong> المسجلة لدروس ومهارات هذه المجموعة لضمان دقة الخطة الجديدة.
+            </p>
+            <label className="flex items-start gap-2 pt-1 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={confirmResetProgress}
+                onChange={(e) => setConfirmResetProgress(e.target.checked)}
+                className="mt-0.5 rounded border-[var(--color-border-bold)] text-[var(--color-status-danger)] focus:ring-[var(--color-status-danger)]"
+                data-testid="checkbox-confirm-reset-progress"
+              />
+              <span className="font-semibold text-[var(--color-text-primary)]">
+                أوافق وأؤكد رغبتي في تغيير المنهج وحذف أي تقدم سابق للمجموعة نهائياً
+              </span>
+            </label>
+          </div>
+        )}
+
         <div className="flex justify-end gap-2 pt-3 border-t border-[var(--color-border-subtle)]">
           <Button variant="secondary" onClick={onClose}>
             إلغاء
@@ -115,7 +153,7 @@ export function AssignCatalogModal({
           <Button
             variant="primary"
             onClick={handleAssign}
-            disabled={!selectedCatalogId || catalogOptions.length === 0}
+            disabled={!selectedCatalogId || catalogOptions.length === 0 || (isReassignment && !confirmResetProgress)}
             loading={assignMutation.isPending}
             data-testid="btn-confirm-assign-catalog"
           >

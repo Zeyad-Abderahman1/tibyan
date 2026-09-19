@@ -95,10 +95,10 @@ export class CurriculumService {
 
   private checkPermission(actor?: CurriculumActor, required?: PermissionCode): void {
     if (!required) return;
-    if (!actor || !actor.role) {
+    if (!actor || !actor.userId || !actor.fullName?.trim() || !actor.role) {
       throw new CurriculumError(
         'PERMISSION_DENIED',
-        'PERMISSION_DENIED: Authenticated actor with a valid role is required'
+        'PERMISSION_DENIED: Complete authenticated actor (userId, fullName, role) is required'
       );
     }
     try {
@@ -113,9 +113,13 @@ export class CurriculumService {
 
   private getActorSnapshot(actor?: CurriculumActor): string {
     const name = actor?.fullName?.trim() || actor?.nameSnapshot?.trim();
-    if (name) return name;
-    if (actor?.userId) return `User (${actor.userId})`;
-    return 'System Engine';
+    if (!name || !actor?.userId) {
+      throw new CurriculumError(
+        'PERMISSION_DENIED',
+        'PERMISSION_DENIED: Complete authenticated actor is required for audit snapshot'
+      );
+    }
+    return name;
   }
 
   // ==========================================
@@ -357,8 +361,10 @@ export class CurriculumService {
           parentId: clonedParentId,
           tier: node.tier,
           titleAr: node.titleAr,
+          titleEn: node.titleEn ?? null,
           code: node.code,
-          description: node.description,
+          description: node.description ?? null,
+          metadataJson: node.metadataJson ?? null,
           orderIndex: node.orderIndex,
           createdAt: now,
           updatedAt: now,
@@ -632,6 +638,27 @@ export class CurriculumService {
           'All nodes in a reorder batch must belong to the same parent node'
         );
       }
+    }
+
+    // Reject reorder collisions with omitted siblings
+    const siblings = allCatalogNodes.filter((n) => (n.parentId ?? null) === commonParentId);
+    const finalOrders = new Map<string, number>();
+    for (const s of siblings) {
+      finalOrders.set(s.id, s.orderIndex);
+    }
+    for (const item of validated.items) {
+      finalOrders.set(item.id, item.orderIndex);
+    }
+
+    const occupiedPositions = new Set<number>();
+    for (const [, pos] of finalOrders.entries()) {
+      if (occupiedPositions.has(pos)) {
+        throw new CurriculumError(
+          'INVALID_INPUT',
+          `Reorder collision: position '${pos}' would be occupied by multiple sibling nodes`
+        );
+      }
+      occupiedPositions.add(pos);
     }
 
     const now = new Date().toISOString();
@@ -1023,29 +1050,47 @@ export class CurriculumService {
       childrenMap.get(pid)!.push(node);
     }
 
+    // 1. Verify all non-root nodes reference an existing parent in this catalog
     for (const node of nodes) {
-      const visited = new Set<string>();
-      let curr: CurriculumNodeRow | undefined = node;
-      while (curr?.parentId) {
-        if (visited.has(curr.id)) {
-          throw new CurriculumError('INCOMPLETE_CATALOG', `Cyclic hierarchy detected at node '${curr.id}'`);
-        }
-        visited.add(curr.id);
-        curr = nodeMap.get(curr.parentId);
+      if (node.parentId !== null && !nodeMap.has(node.parentId)) {
+        throw new CurriculumError(
+          'INCOMPLETE_CATALOG',
+          `Node '${node.titleAr}' (${node.id}) references a non-existent parent '${node.parentId}'`
+        );
       }
     }
 
+    // 2. Verify root nodes exist and are all strictly UNIT tier
     const rootNodes = childrenMap.get('__ROOT__') ?? [];
-    const units = rootNodes.filter((n) => n.tier === 'UNIT');
-    if (units.length === 0) {
+    if (rootNodes.length === 0) {
       throw new CurriculumError(
         'INCOMPLETE_CATALOG',
         'Catalog must contain at least one root UNIT module before publishing'
       );
     }
 
-    for (const unit of units) {
-      const lessons = (childrenMap.get(unit.id) ?? []).filter((n) => n.tier === 'LESSON');
+    for (const root of rootNodes) {
+      if (root.tier !== 'UNIT') {
+        throw new CurriculumError(
+          'INCOMPLETE_CATALOG',
+          `Root node '${root.titleAr}' (${root.id}) has invalid tier '${root.tier}'. All root nodes must be UNIT tier.`
+        );
+      }
+    }
+
+    // 3. Traverse from root UNIT nodes down: UNIT -> LESSON -> CONCEPT -> SKILL
+    const visitedAll = new Set<string>();
+
+    for (const unit of rootNodes) {
+      if (visitedAll.has(unit.id)) {
+        throw new CurriculumError(
+          'INCOMPLETE_CATALOG',
+          `Duplicate root node '${unit.id}' encountered`
+        );
+      }
+      visitedAll.add(unit.id);
+
+      const lessons = childrenMap.get(unit.id) ?? [];
       if (lessons.length === 0) {
         throw new CurriculumError(
           'INCOMPLETE_CATALOG',
@@ -1054,7 +1099,21 @@ export class CurriculumService {
       }
 
       for (const lesson of lessons) {
-        const concepts = (childrenMap.get(lesson.id) ?? []).filter((n) => n.tier === 'CONCEPT');
+        if (lesson.tier !== 'LESSON') {
+          throw new CurriculumError(
+            'INCOMPLETE_CATALOG',
+            `Child of Unit '${unit.titleAr}' must be LESSON tier, got '${lesson.tier}'`
+          );
+        }
+        if (visitedAll.has(lesson.id)) {
+          throw new CurriculumError(
+            'INCOMPLETE_CATALOG',
+            `Cyclic or duplicate reachability detected at lesson '${lesson.id}'`
+          );
+        }
+        visitedAll.add(lesson.id);
+
+        const concepts = childrenMap.get(lesson.id) ?? [];
         if (concepts.length === 0) {
           throw new CurriculumError(
             'INCOMPLETE_CATALOG',
@@ -1063,15 +1122,61 @@ export class CurriculumService {
         }
 
         for (const concept of concepts) {
-          const skills = (childrenMap.get(concept.id) ?? []).filter((n) => n.tier === 'SKILL');
+          if (concept.tier !== 'CONCEPT') {
+            throw new CurriculumError(
+              'INCOMPLETE_CATALOG',
+              `Child of Lesson '${lesson.titleAr}' must be CONCEPT tier, got '${concept.tier}'`
+            );
+          }
+          if (visitedAll.has(concept.id)) {
+            throw new CurriculumError(
+              'INCOMPLETE_CATALOG',
+              `Cyclic or duplicate reachability detected at concept '${concept.id}'`
+            );
+          }
+          visitedAll.add(concept.id);
+
+          const skills = childrenMap.get(concept.id) ?? [];
           if (skills.length === 0) {
             throw new CurriculumError(
               'INCOMPLETE_CATALOG',
               `Concept '${concept.titleAr}' (${concept.code}) has no measurable SKILL items`
             );
           }
+
+          for (const skill of skills) {
+            if (skill.tier !== 'SKILL') {
+              throw new CurriculumError(
+                'INCOMPLETE_CATALOG',
+                `Child of Concept '${concept.titleAr}' must be SKILL tier, got '${skill.tier}'`
+              );
+            }
+            if (visitedAll.has(skill.id)) {
+              throw new CurriculumError(
+                'INCOMPLETE_CATALOG',
+                `Cyclic or duplicate reachability detected at skill '${skill.id}'`
+              );
+            }
+            visitedAll.add(skill.id);
+
+            const skillChildren = childrenMap.get(skill.id) ?? [];
+            if (skillChildren.length > 0) {
+              throw new CurriculumError(
+                'INCOMPLETE_CATALOG',
+                `Skill '${skill.titleAr}' (${skill.id}) cannot have child nodes (leaf tier)`
+              );
+            }
+          }
         }
       }
+    }
+
+    // 4. Verify that every node in the catalog was reached (no orphaned/disconnected subgraphs)
+    if (visitedAll.size !== nodes.length) {
+      throw new CurriculumError(
+        'INCOMPLETE_CATALOG',
+        `Catalog contains ${nodes.length - visitedAll.size} disconnected or orphaned node(s) not reachable from root UNITs`
+      );
     }
   }
 
