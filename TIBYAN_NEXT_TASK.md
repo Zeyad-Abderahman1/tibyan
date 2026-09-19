@@ -1,56 +1,77 @@
-# Phase 2 — Task 18 Complete & Task 19 Ready — تِبيان (Tibyan)
+# Phase 2 — Task 2 of 5 Complete & Task 3 of 5 Ready — تِبيان (Tibyan)
 
-> **Notice:** Phase 2 Task 18 (**Attendance Schema, Session Roster & Attendance Tracking Core**) is **100% COMPLETE**.  
+> **Notice:** Phase 2 — Task 2 of 5 (**Attendance UI, QR/Barcode Scanner & Parent Follow-up**) is **100% COMPLETE & APPROVED**.  
 > The canonical and authoritative source for architecture, database rules, security invariants, design tokens, and git ledger is **[TIBYAN_AI_HANDOFF.md](file:///F:/tebyan/TIBYAN_AI_HANDOFF.md)** and **[TIBYAN_AI_HANDOFF.json](file:///F:/tebyan/TIBYAN_AI_HANDOFF.json)**.
 >
-> **Canonical Phase 2 Baseline (Post-Task 18 Hardened & Dynamic UI Redesign):**
-> - **Tasks Completed:** 1 through 18 inclusive + Dynamic UI Redesign
-> - **Total Unit & Component Tests:** 553 passing across 26 test files
-> - **Playwright E2E Smoke Tests:** 1 passed (full packaged Electron lifecycle)
+> **Canonical Phase 2 Baseline (Post-Task 2 Final Hardening & Verification):**
+> - **Tasks Completed:** Tasks 1 through 19 inclusive (Phase 1 Tasks 1-17; Phase 2 Task 1; Phase 2 Task 2)
+> - **Total Unit & Component Tests:** 613 passing across 36 test files:
+>   - `@tibyan/contracts`: 56 tests (1 file)
+>   - `@tibyan/db`: 30 tests (2 files)
+>   - `@tibyan/core`: 229 tests (11 files)
+>   - `@tibyan/design-system`: 31 tests (1 file)
+>   - `@tibyan/desktop`: 267 tests (21 files)
+> - **Playwright E2E Tests:** 3 passed (smoke, Gate 1, visual-rescue)
+> - **Offline WASM Camera Decoder:** 100% offline verification in packaged `تِبيان.exe` (QR & Code128 decoded `TB-0042`, 0 network requests)
+> - **Bundled WASM Asset:** `apps/desktop/public/assets/wasm/zxing_reader.wasm` (SHA-256: `2EBDA08A93EEA3EFCD8399CDA6B276E6A0B1DE4FEC60B4D8988A047DE4C6D1BA`)
 > - **Typecheck:** 0 errors across 5 workspace packages
 > - **Schema Drift:** 0 (clean drizzle-kit generation)
 > - **Official Logo SHA-256:** `66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749`
-> - **Task 18 Baseline Code Commit:** `f2c1e8b`
-> - **Task 18 Hardening Fix Commit:** `6e61eac`
-> - **Dynamic UI Redesign Baseline Commit:** `512e22f`
-> - **Task 19 Status:** NOT_STARTED (Ready for implementation planning)
+> - **Phase 2 — Task 3 of 5 Status:** NOT_STARTED (Ready for implementation planning)
 
 ---
 
-## 1. Task 18 Accomplishments Summary
+## 1. Phase 2 — Task 2 Accomplishments Summary
 
-1. **Contracts & Validation:**
-   - Added `AttendanceStatus` enum: `'PRESENT'`, `'ABSENT'`, `'LATE'`, `'EXCUSED'`.
-   - Added DTOs: `AttendanceRecordDto`, `SessionRosterItemDto`, `SessionAttendanceRosterDto`, `EndOfDayFollowUpDto`, `EndOfDayFollowUpItemDto`.
-   - Added inputs: `RecordAttendanceInputSchema`, `BatchRecordAttendanceInputSchema`, `CompleteSessionInputSchema`.
-   - Registered IPC channels: `ATTENDANCE_GET_ROSTER`, `ATTENDANCE_RECORD`, `ATTENDANCE_BATCH_RECORD`, `ATTENDANCE_GET_END_OF_DAY`, `SESSIONS_COMPLETE`.
-2. **Database Schema, Migration & Repository:**
-   - Added `attendance_records` table to per-academic-year database schema with foreign keys to `sessions` and `students` (RESTRICT onDelete).
-   - Enforced unique index `idx_attendance_session_student` on `(session_id, student_id)` to prevent duplicate attendance rows.
-   - Generated Drizzle migration `0003_neat_krista_starr.sql` and registered in `migrator.ts`.
-   - Implemented `AttendanceRepository`: atomic upsert, batchUpsert, query by session, count by status, query by date with student/group joins.
-   - Implemented `SessionRepository.updateStatus` for marking sessions COMPLETED.
-3. **Core Domain Services:**
-   - Implemented `AttendanceService`:
-     - `getSessionRoster(actor, sessionId)` with alphabetical Arabic sorting and payment term inheritance.
-     - `recordAttendance(actor, input)` with atomic `academic_audit_log` audit entries.
-     - `batchRecordAttendance(actor, input)` for atomic multi-student check-in.
-     - `completeSession(actor, input)` marking session status as `COMPLETED`.
-     - `getEndOfDayFollowUp(actor, dateStr)` generating localized Arabic WhatsApp notification drafts for absent and late students.
-4. **Desktop Electron Main Process & Preload:**
-   - Added `apps/desktop/electron/ipc/attendance.ipc.ts` with sender validation and `ATTENDANCE_WRITE` / `GROUPS_READ` authorization.
-   - Added `sessions:complete` handler in `apps/desktop/electron/ipc/sessions.ipc.ts` with `SESSIONS_MANAGE` authorization.
-   - Exposed typed `window.tibyan.attendance` namespace and `window.tibyan.sessions.complete` in `apps/desktop/electron/preload.ts`.
+1. **Gate 1 — Attendance Main Workspace:**
+   - Real-time interactive session roster with Arabic alphabetical sorting.
+   - Quick attendance status toggling (`PRESENT`, `ABSENT`, `LATE`, `EXCUSED`) with immediate database upsert and audit logging.
+   - Financial payment status display per student (inherited from `GroupEnrollment`).
+   - Live attendance statistics counter cards (Total, Present, Late, Absent, Excused, Unrecorded).
+   - "Mark All Remaining as Present" bulk action.
+   - "Complete Session" modal with attendance summary and session state transition.
+
+2. **Gate 2 — Offline Camera Scanner & USB Hardware Integration:**
+   - Camera Scanner Modal with live video viewfinder and animated green targeting reticle.
+   - **100% Offline WebAssembly Barcode Decoding:**
+     - Uses `barcode-detector@3.2.2` with bundled offline `zxing-wasm@3.1.3` (`zxing_reader.wasm`).
+     - Zero external CDN requests (`file://` and local app asset loading only).
+     - Decodes both QR codes and Code128 barcodes deterministically.
+   - Hardware USB wedge barcode scanner hook (`useUsbScanner`):
+     - Keystroke buffer accumulation with inter-keystroke timing validation (20ms–70ms).
+     - Active text input protection: ignores scanner input when teacher is actively typing into search inputs or modals.
+     - Audio feedback via Web Audio API (success chime on valid scan, warning beep on unknown student).
+     - Toast notifications and rapid roster item highlight.
+
+3. **Gate 3 — Parent Follow-up Drawer & WhatsApp Integration:**
+   - Slide-over Parent Follow-up Drawer with filter tabs (All, Absent, Late, Excused).
+   - Real-time guardian contact cards with one-click WhatsApp web/app launch links (`https://wa.me/20...`).
+   - Localized Arabic message templates with student name, session date, and attendance status.
+   - Follow-up tracking persistence via `attendance_follow_ups` database table:
+     - Follow-up status (`PENDING`, `CONTACTED`, `RESOLVED`).
+     - Custom teacher notes per student follow-up.
+     - Atomic audit logging on every status update.
+
+4. **Security & Quality Hardening:**
+   - Fail-closed camera permission handling (graceful UI fallback when camera is denied or unavailable).
+   - Security isolation: `window.__tibyanCameraDecoder` exposes minimal read-only decoding without filesystem, database, shell, or IPC privilege.
+   - Clean dependency graph: eliminated redundant direct `zxing-wasm@3.1.4` dependency; aligned single runtime decoder engine to `3.1.3`.
 
 ---
 
-## 2. Immediate Next Task: Task 19
+## 2. Immediate Next Task: Phase 2 — Task 3 of 5
 
-**Task 19: Attendance Scanner & Rapid Check-In UI (Camera/Barcode & Manual Roster)**
-- **Scope:**
-  - Build interactive attendance check-in page in renderer.
-  - Implement rapid manual check-in roster (Present / Late / Absent / Excused quick buttons).
-  - Implement webcam QR scanner integration and physical USB barcode scanner event listener.
-  - Integrate with `window.tibyan.attendance` IPC APIs.
-  - Display real-time session attendance counters and financial status indicators.
-  - Provide WhatsApp draft copy / open link buttons for immediate guardian follow-up.
+**Phase 2 — Task 3 of 5: Student Cards, QR Tokens & Code128 Barcodes**
+
+- **Scope & Core Objectives:**
+  1. **Student Identity Token Generation:**
+     - Generate deterministic, tamper-resistant QR tokens containing student identity and verification payload.
+     - Generate standard Code128 barcodes representing student codes (`TB-XXXX`).
+  2. **Student ID Card Layout & Theming:**
+     - Design professional, printable student ID cards according to Tibyan brand guidelines.
+     - Dual-sided or single-sided layout with teacher branding, student name, code, academic year, group, and photo.
+     - High-contrast scannable QR and Code128 barcode placement.
+  3. **Print Engine & Batch Generation:**
+     - Print-ready A4 sheet grid layout (e.g. 8 or 10 cards per page).
+     - Batch generation for an entire group or selected students.
+     - Direct PDF export and Electron native print preview.

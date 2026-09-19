@@ -14,10 +14,10 @@
     "phaseName": "Phase 2 — Attendance, Operations & Student Identity",
     "totalTasks": 23
   },
-  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
+  "completedTasks": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
   "nextTask": {
-    "taskNumber": 19,
-    "taskName": "Attendance Scanner & Rapid Check-In UI (Camera/Barcode & Manual Roster)",
+    "taskNumber": 20,
+    "taskName": "Phase 2 — Task 3 of 5: Student Cards, QR Tokens & Code128 Barcodes",
     "isStarted": false
   },
   "taskStatus": {
@@ -38,7 +38,8 @@
     "15": "COMPLETE",
     "16": "COMPLETE",
     "17": "COMPLETE",
-    "18": "COMPLETE"
+    "18": "COMPLETE",
+    "19": "COMPLETE"
   },
   "stack": {
     "runtime": "Electron 34.2.0",
@@ -449,29 +450,29 @@
     }
   ],
   "testBaseline": {
-    "totalTestFiles": 26,
-    "totalTests": 553,
-    "e2eSmokeTests": 1,
+    "totalTestFiles": 36,
+    "totalTests": 613,
+    "e2eSmokeTests": 3,
     "packages": {
       "@tibyan/contracts": {
         "testFiles": 1,
-        "testsPassed": 53
+        "testsPassed": 56
       },
       "@tibyan/db": {
-        "testFiles": 1,
-        "testsPassed": 28
+        "testFiles": 2,
+        "testsPassed": 30
       },
       "@tibyan/core": {
         "testFiles": 11,
-        "testsPassed": 225
+        "testsPassed": 229
       },
       "@tibyan/design-system": {
         "testFiles": 1,
         "testsPassed": 31
       },
       "@tibyan/desktop": {
-        "testFiles": 12,
-        "testsPassed": 216
+        "testFiles": 21,
+        "testsPassed": 267
       }
     },
     "typecheckErrors": 0,
