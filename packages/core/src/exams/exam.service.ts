@@ -15,6 +15,7 @@ import {
 } from '@tibyan/db';
 import { validateExamBlueprint, selectBalancedQuestions } from './exam-balancer.js';
 import { buildExamVariants } from './exam-variants.js';
+import { ExamLayoutEngine } from './exam-layout-engine.js';
 import { requirePermission } from '../auth/permissions.js';
 import { type AuthActor } from '../sources/pdf-source.service.js';
 
@@ -282,4 +283,86 @@ export class ExamService {
       updatedAt: snapshot.exam.updatedAt,
     };
   }
+
+  /**
+   * Renders professional A4 printable HTML for student, teacher, or answer key.
+   * Supports deterministic version ordering A/B/C/D if versionLabel is requested.
+   */
+  renderPrintableHtml(
+    examId: string,
+    kind: 'STUDENT' | 'TEACHER' | 'ANSWER_KEY',
+    versionLabel?: 'A' | 'B' | 'C' | 'D'
+  ): string {
+    const snapshot = this.examRepo.findSnapshot(examId);
+    if (!snapshot) {
+      throw new Error(`الاختبار غير موجود: ${examId}`);
+    }
+
+    const dto = this.mapSnapshotToDto(snapshot);
+    const layoutEngine = new ExamLayoutEngine();
+
+    // Map content blocks to offline HTML fragments
+    const blockToHtml = (block: any): string => {
+      if (block.type === 'text') {
+        const text = String(block.content ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        return `<span class="text-block" dir="${block.direction ?? 'auto'}">${text}</span>`;
+      }
+      if (block.type === 'math') {
+        const latex = String(block.latex ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        return `<span class="math" dir="ltr">${latex}</span>`;
+      }
+      if (block.type === 'geometry' && block.svgPayload) {
+        return `<div class="geometry-container">${block.svgPayload}</div>`;
+      }
+      return '';
+    };
+
+    const docToHtml = (doc: any): string => {
+      if (!doc || !Array.isArray(doc.blocks)) return '';
+      return doc.blocks.map(blockToHtml).join(' ');
+    };
+
+    // If a specific version is requested, reorder questions accordingly
+    let placementOrder = dto.placements;
+    if (versionLabel) {
+      const version = dto.versions.find((v) => v.label === versionLabel);
+      if (version) {
+        const placementMap = new Map(dto.placements.map((p) => [p.id, p]));
+        const ordered = version.questionOrder
+          .map((id) => placementMap.get(id))
+          .filter((p): p is typeof dto.placements[number] => Boolean(p));
+        if (ordered.length > 0) {
+          placementOrder = ordered;
+        }
+      }
+    }
+
+    const printableExam = {
+      title: `${dto.title}${versionLabel ? ` - نموذج (${versionLabel})` : ''}`,
+      durationMinutes: dto.blueprint.durationMinutes,
+      totalMarks: dto.blueprint.totalMarks,
+      sections: dto.sections.map((section) => ({
+        title: section.title,
+        instructions: 'أجب عن جميع الأسئلة الآتية:',
+        questions: placementOrder
+          .filter((p) => !p.examSectionId || p.examSectionId === section.id)
+          .map((p, idx) => ({
+            number: idx + 1,
+            marks: p.marks,
+            bodyHtml: docToHtml(p.body),
+            answerHtml: p.modelAnswer ? docToHtml(p.modelAnswer) : null,
+            answerSpaceLines: p.answerSpaceLines,
+          })),
+      })),
+    };
+
+    return layoutEngine.render(printableExam, kind);
+  }
 }
+

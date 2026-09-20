@@ -148,7 +148,19 @@ export const IPC_CHANNELS = {
   QUESTION_BANK_COMMIT_BULK: 'questionBank:commitBulk',
   QUESTION_BANK_LINK_SOURCES: 'questionBank:linkSources',
   QUESTION_BANK_UNLINK_SOURCE: 'questionBank:unlinkSource',
+
+  // Exam Engine & AI Builder (Phase 4)
+  EXAMS_LIST: 'exams:list',
+  EXAMS_GET: 'exams:get',
+  EXAMS_PREVIEW_ASSEMBLY: 'exams:previewAssembly',
+  EXAMS_CONFIRM_ASSEMBLY: 'exams:confirmAssembly',
+  EXAMS_UNDO_LAST_MUTATION: 'exams:undoLastMutation',
+  EXAMS_PREVIEW_AI_CANDIDATES: 'exams:previewAiCandidates',
+  EXAMS_RENDER_LAYOUT: 'exams:renderLayout',
+  EXAMS_EXPORT_PDF: 'exams:exportPdf',
+  EXAMS_PRINT: 'exams:print',
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];
+
 

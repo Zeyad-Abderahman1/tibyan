@@ -24,6 +24,8 @@ import { CurriculumCatalogsPage } from '../features/curriculum/CurriculumCatalog
 import { MathEditorPage } from '../features/math/MathEditorPage.js';
 import { SourcesPage } from '../features/sources/SourcesPage.js';
 import { QuestionBankPage } from '../features/questions/QuestionBankPage.js';
+import { ExamBuilderPage } from '../features/exams/ExamBuilderPage.js';
+
 
 /**
  * Root Controller: Checks authoritative persisted SQLite setup state.
@@ -242,9 +244,14 @@ export const routes: RouteObject[] = [
         element: <QuestionBankPage />,
       },
       {
+        path: 'exams',
+        element: <ExamBuilderPage />,
+      },
+      {
         path: 'settings',
         element: <SettingsPage />,
       },
+
       {
         path: '*',
         element: <Navigate to="/" replace />,

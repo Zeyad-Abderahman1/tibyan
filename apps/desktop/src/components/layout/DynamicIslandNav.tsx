@@ -11,7 +11,9 @@ import {
   Sigma,
   FileText,
   HelpCircle,
+  FileCheck,
 } from 'lucide-react';
+
 import { cn } from '@tibyan/design-system';
 
 export interface NavItem {
@@ -64,7 +66,13 @@ export function DynamicIslandNav({ items = DEFAULT_NAV_ITEMS, className }: Dynam
       copy.splice(3, 0, { to: '/math-editor', label: 'محرر الرياضيات', icon: Sigma });
       return copy;
     }
+    if (location.pathname.startsWith('/exams')) {
+      const copy = [...DEFAULT_NAV_ITEMS];
+      copy.splice(3, 0, { to: '/exams', label: 'الاختبارات', icon: FileCheck });
+      return copy;
+    }
     return items;
+
   }, [items, location.pathname]);
 
   return (

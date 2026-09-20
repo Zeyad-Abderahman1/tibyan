@@ -36,8 +36,11 @@ import {
   PdfSourceService,
   QuestionBankService,
   GeminiCredentialService,
+  ExamService,
+  AiExamService,
   type AuthenticatedUser,
 } from '@tibyan/core';
+
 
 export interface RuntimePaths {
   appDataDir: string;
@@ -113,8 +116,11 @@ export class Runtime {
   public sessionReflectionService: SessionReflectionService | null = null;
   public pdfSourceService!: PdfSourceService;
   public questionBankService!: QuestionBankService;
+  public aiExamService!: AiExamService;
+  public examService: ExamService | null = null;
 
   constructor(options: RuntimeOptions = {}) {
+
     this.inMemory = options.inMemory ?? false;
     this.paths = resolveRuntimePaths(options.customAppDataDir, this.inMemory);
   }
@@ -169,6 +175,7 @@ export class Runtime {
     const sourcesDir = path.join(this.paths.appDataDir, 'sources');
     this.pdfSourceService = new PdfSourceService(this.systemDb.db, sourcesDir);
     this.questionBankService = new QuestionBankService(this.systemDb.db);
+    this.aiExamService = new AiExamService(this.geminiCredentialService);
 
     // 2. Discover active academic year
     const activeYear = this.academicYearRepo.findActive();
@@ -232,6 +239,7 @@ export class Runtime {
     this.curriculumService = new CurriculumService(this.systemDb.db, this.academicDb.db);
     this.lessonPlannerService = new LessonPlannerService(this.systemDb.db, this.academicDb.db);
     this.sessionReflectionService = new SessionReflectionService(this.academicDb.db);
+    this.examService = new ExamService(this.academicDb.db, this.systemDb.db);
   }
 
   /**
@@ -249,11 +257,13 @@ export class Runtime {
     this.curriculumService = null;
     this.lessonPlannerService = null;
     this.sessionReflectionService = null;
+    this.examService = null;
 
     closeAcademicDatabase();
     this.academicDb = null;
     this.activeAcademicYear = null;
   }
+
 
   /**
    * Returns authoritative session context for current user.
