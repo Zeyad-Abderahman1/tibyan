@@ -82,6 +82,23 @@ import {
   EscPosGenerateInput,
   EscPosNetworkPrintInput,
 } from '../models/thermal-receipt.dto.js';
+import {
+  CurriculumCatalogDto,
+  CreateCurriculumCatalogDto,
+  UpdateCurriculumCatalogDto,
+  CurriculumCatalogFilter,
+  CurriculumNodeDto,
+  CreateCurriculumNodeDto,
+  UpdateCurriculumNodeDto,
+  ReorderCurriculumNodesDto,
+  CurriculumTreeNodeDto,
+  GroupCurriculumOverviewDto,
+  GroupCurriculumAssignmentDto,
+  AssignGroupCatalogDto,
+  GroupNodeProgressDto,
+  UpdateGroupNodeProgressDto,
+} from '../models/curriculum.dto.js';
+import { CurriculumProgressStatus } from '../enums/curriculum.js';
 import { FinancialStatus } from '../enums/payment.js';
 
 export interface TibyanApi {
@@ -174,6 +191,23 @@ export interface TibyanApi {
     testPrint(input: TestPrintInput): Promise<IpcResult<{ success: boolean; message?: string }>>;
     generateEscpos(input: EscPosGenerateInput): Promise<IpcResult<{ base64: string; byteLength: number }>>;
     printEscposNetwork(input: EscPosNetworkPrintInput): Promise<IpcResult<{ success: boolean; message?: string }>>;
+  };
+  curriculum: {
+    listCatalogs(filter?: CurriculumCatalogFilter): Promise<IpcResult<CurriculumCatalogDto[]>>;
+    getCatalog(id: string): Promise<IpcResult<CurriculumCatalogDto>>;
+    createCatalog(input: CreateCurriculumCatalogDto): Promise<IpcResult<CurriculumCatalogDto>>;
+    updateCatalog(id: string, input: UpdateCurriculumCatalogDto): Promise<IpcResult<CurriculumCatalogDto>>;
+    publishCatalog(id: string): Promise<IpcResult<CurriculumCatalogDto>>;
+    reviseCatalog(id: string): Promise<IpcResult<CurriculumCatalogDto>>;
+    getTree(catalogId: string): Promise<IpcResult<CurriculumTreeNodeDto[]>>;
+    createNode(input: CreateCurriculumNodeDto): Promise<IpcResult<CurriculumNodeDto>>;
+    updateNode(id: string, input: UpdateCurriculumNodeDto): Promise<IpcResult<CurriculumNodeDto>>;
+    deleteNode(id: string): Promise<IpcResult<void>>;
+    reorderNodes(input: ReorderCurriculumNodesDto): Promise<IpcResult<void>>;
+    getGroupOverview(groupId: string): Promise<IpcResult<GroupCurriculumOverviewDto>>;
+    assignGroupCatalog(input: AssignGroupCatalogDto): Promise<IpcResult<GroupCurriculumAssignmentDto>>;
+    updateGroupProgress(input: UpdateGroupNodeProgressDto): Promise<IpcResult<GroupNodeProgressDto>>;
+    getGroupProgressMap(groupId: string): Promise<IpcResult<Record<string, CurriculumProgressStatus>>>;
   };
 }
 

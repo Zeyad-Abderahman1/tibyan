@@ -12,7 +12,7 @@ import {
   TableHead,
   TableCell,
 } from '@tibyan/design-system';
-import { Plus, BookOpen, Clock, Users, AlertCircle, ChevronLeft } from 'lucide-react';
+import { Plus, BookOpen, Clock, Users, AlertCircle, ChevronLeft, GraduationCap } from 'lucide-react';
 import { useGroupsList } from '../../hooks/useGroups.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { GroupCreateModal, WEEKDAY_LABELS } from './GroupCreateModal.js';
@@ -100,18 +100,31 @@ export function GroupsPage() {
           </p>
         </div>
 
-        {canWrite && (
+        <div className="flex items-center gap-2">
           <Button
-            variant="primary"
+            variant="secondary"
             size="md"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="gap-2 shrink-0 shadow-sm hover:shadow font-semibold text-sm px-4 py-2"
-            data-testid="btn-create-group"
+            onClick={() => navigate('/curriculum')}
+            className="gap-2 shrink-0 font-semibold text-sm px-4 py-2"
+            data-testid="btn-manage-curriculum"
           >
-            <Plus className="w-4 h-4" />
-            <span>إضافة مجموعة جديدة</span>
+            <GraduationCap className="w-4 h-4 text-[var(--color-brand-primary)]" />
+            <span>إدارة المناهج</span>
           </Button>
-        )}
+
+          {canWrite && (
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="gap-2 shrink-0 shadow-sm hover:shadow font-semibold text-sm px-4 py-2"
+              data-testid="btn-create-group"
+            >
+              <Plus className="w-4 h-4" />
+              <span>إضافة مجموعة جديدة</span>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Compact Working Toolbar: Search takes primary flex width, filters progressively sized */}

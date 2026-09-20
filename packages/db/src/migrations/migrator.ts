@@ -103,6 +103,56 @@ export const SYSTEM_MIGRATIONS: Migration[] = [
       END;
     `,
   },
+  {
+    id: '0002_overrated_naoko',
+    sql: `
+      CREATE TABLE IF NOT EXISTS \`curriculum_catalogs\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`code\` text NOT NULL,
+        \`title\` text NOT NULL,
+        \`education_system\` text NOT NULL,
+        \`grade_level\` text NOT NULL,
+        \`language_track\` text NOT NULL,
+        \`math_branch\` text,
+        \`version\` integer DEFAULT 1 NOT NULL,
+        \`status\` text DEFAULT 'DRAFT' NOT NULL,
+        \`published_at\` text,
+        \`description\` text,
+        \`created_at\` text NOT NULL,
+        \`updated_at\` text NOT NULL
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS \`idx_curriculum_catalog_scope_version\` ON \`curriculum_catalogs\` (\`education_system\`,\`grade_level\`,\`language_track\`,\`math_branch\`,\`version\`);
+      CREATE UNIQUE INDEX IF NOT EXISTS \`idx_curriculum_catalog_code_version\` ON \`curriculum_catalogs\` (\`code\`,\`version\`);
+      CREATE INDEX IF NOT EXISTS \`idx_curriculum_catalog_status\` ON \`curriculum_catalogs\` (\`status\`);
+
+      CREATE TABLE IF NOT EXISTS \`curriculum_nodes\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`catalog_id\` text NOT NULL,
+        \`parent_id\` text,
+        \`tier\` text NOT NULL,
+        \`title_ar\` text NOT NULL,
+        \`title_en\` text,
+        \`code\` text NOT NULL,
+        \`order_index\` integer DEFAULT 0 NOT NULL,
+        \`description\` text,
+        \`metadata_json\` text,
+        \`created_at\` text NOT NULL,
+        \`updated_at\` text NOT NULL,
+        FOREIGN KEY (\`catalog_id\`) REFERENCES \`curriculum_catalogs\`(\`id\`) ON UPDATE no action ON DELETE cascade
+      );
+      CREATE INDEX IF NOT EXISTS \`idx_curriculum_node_catalog_parent\` ON \`curriculum_nodes\` (\`catalog_id\`,\`parent_id\`);
+      CREATE INDEX IF NOT EXISTS \`idx_curriculum_node_catalog_order\` ON \`curriculum_nodes\` (\`catalog_id\`,\`order_index\`);
+      CREATE INDEX IF NOT EXISTS \`idx_curriculum_node_catalog_tier\` ON \`curriculum_nodes\` (\`catalog_id\`,\`tier\`);
+    `,
+  },
+  {
+    id: '0003_uneven_vengeance',
+    sql: `
+      DROP INDEX IF EXISTS \`idx_curriculum_catalog_scope_version\`;
+      CREATE UNIQUE INDEX IF NOT EXISTS \`idx_curriculum_catalog_scope_version_branch\` ON \`curriculum_catalogs\` (\`education_system\`,\`grade_level\`,\`language_track\`,\`math_branch\`,\`version\`) WHERE math_branch IS NOT NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS \`idx_curriculum_catalog_scope_version_nobranch\` ON \`curriculum_catalogs\` (\`education_system\`,\`grade_level\`,\`language_track\`,\`version\`) WHERE math_branch IS NULL;
+    `,
+  },
 ];
 
 export const ACADEMIC_MIGRATIONS: Migration[] = [
@@ -416,6 +466,43 @@ export const ACADEMIC_MIGRATIONS: Migration[] = [
         CONSTRAINT "chk_invoice_items_amount" CHECK("amount_cents" >= 0)
       );
       CREATE INDEX IF NOT EXISTS \`idx_invoice_items_invoice\` ON \`invoice_items\` (\`invoice_id\`);
+    `,
+  },
+  {
+    id: '0007_awesome_sunspot',
+    sql: `
+      CREATE TABLE IF NOT EXISTS \`group_curriculum_assignments\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`group_id\` text NOT NULL,
+        \`catalog_id\` text NOT NULL,
+        \`catalog_version\` integer NOT NULL,
+        \`assigned_at\` text NOT NULL,
+        \`assigned_by_user_id\` text,
+        \`assigned_name_snapshot\` text NOT NULL,
+        \`notes\` text,
+        \`created_at\` text NOT NULL,
+        \`updated_at\` text NOT NULL,
+        FOREIGN KEY (\`group_id\`) REFERENCES \`groups\`(\`id\`) ON UPDATE no action ON DELETE cascade
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS \`idx_group_curriculum_assignment_group\` ON \`group_curriculum_assignments\` (\`group_id\`);
+      CREATE INDEX IF NOT EXISTS \`idx_group_curriculum_assignment_catalog\` ON \`group_curriculum_assignments\` (\`catalog_id\`);
+
+      CREATE TABLE IF NOT EXISTS \`group_curriculum_progress\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`group_id\` text NOT NULL,
+        \`catalog_id\` text NOT NULL,
+        \`node_id\` text NOT NULL,
+        \`status\` text DEFAULT 'NOT_STARTED' NOT NULL,
+        \`completed_at\` text,
+        \`updated_by_user_id\` text,
+        \`updated_name_snapshot\` text NOT NULL,
+        \`notes\` text,
+        \`created_at\` text NOT NULL,
+        \`updated_at\` text NOT NULL,
+        FOREIGN KEY (\`group_id\`) REFERENCES \`groups\`(\`id\`) ON UPDATE no action ON DELETE cascade
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS \`idx_group_curriculum_progress_group_node\` ON \`group_curriculum_progress\` (\`group_id\`,\`node_id\`);
+      CREATE INDEX IF NOT EXISTS \`idx_group_curriculum_progress_group_status\` ON \`group_curriculum_progress\` (\`group_id\`,\`status\`);
     `,
   },
 ];

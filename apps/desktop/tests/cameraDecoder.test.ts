@@ -105,8 +105,8 @@ describe('Offline WASM Camera Decoder Suite (TDD)', () => {
   });
 
   it('verifies offline QR and Code128 fixtures exist on disk', () => {
-    const qrPath = path.resolve('tests/fixtures/qr-tb-0042.png');
-    const c128Path = path.resolve('tests/fixtures/code128-tb-0042.png');
+    const qrPath = path.resolve(__dirname, 'fixtures/qr-tb-0042.png');
+    const c128Path = path.resolve(__dirname, 'fixtures/code128-tb-0042.png');
     expect(fs.existsSync(qrPath)).toBe(true);
     expect(fs.existsSync(c128Path)).toBe(true);
     expect(fs.statSync(qrPath).size).toBeGreaterThan(100);
