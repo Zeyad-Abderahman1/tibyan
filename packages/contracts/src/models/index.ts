@@ -12,4 +12,7 @@ export * from './finance.dto.js';
 export * from './thermal-receipt.dto.js';
 export * from './curriculum.dto.js';
 export * from './math-rich-content.dto.js';
+export * from './lesson-plan.dto.js';
+export * from './session-reflection.dto.js';
+
 

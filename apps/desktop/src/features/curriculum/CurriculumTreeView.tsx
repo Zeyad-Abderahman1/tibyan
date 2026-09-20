@@ -17,12 +17,14 @@ import {
   Lightbulb,
   CheckCircle2,
   Lock,
+  BookOpen,
 } from 'lucide-react';
 import type {
   CurriculumTreeNodeDto,
   CurriculumNodeTier,
   CurriculumCatalogDto,
 } from '@tibyan/contracts';
+import { LessonPlanEditorModal } from './LessonPlanEditorModal.js';
 import {
   useCurriculumTree,
   useCreateNode,
@@ -102,6 +104,16 @@ export function CurriculumTreeView({ catalog, canWrite }: CurriculumTreeViewProp
     isOpen: false,
     nodeId: '',
     title: '',
+  });
+
+  const [lessonPlanModal, setLessonPlanModal] = useState<{
+    isOpen: boolean;
+    nodeId: string;
+    nodeTitle: string;
+  }>({
+    isOpen: false,
+    nodeId: '',
+    nodeTitle: '',
   });
 
   const [nodeTitleInput, setNodeTitleInput] = useState('');
@@ -242,8 +254,29 @@ export function CurriculumTreeView({ catalog, canWrite }: CurriculumTreeViewProp
             )}
           </div>
 
-          {allowEditing && (
-            <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1">
+            {node.tier === 'LESSON' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setLessonPlanModal({
+                    isOpen: true,
+                    nodeId: node.id,
+                    nodeTitle: node.titleAr,
+                  })
+                }
+                className="gap-1 text-[11px] text-purple-600 dark:text-purple-400 hover:bg-purple-500/10"
+                title="تحضير خطة الدرس"
+                data-testid={`btn-plan-lesson-${node.id}`}
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>خطة الدرس</span>
+              </Button>
+            )}
+
+            {allowEditing && (
+              <>
               {meta.nextTier && (
                 <Button
                   variant="ghost"
@@ -279,8 +312,9 @@ export function CurriculumTreeView({ catalog, canWrite }: CurriculumTreeViewProp
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </Button>
-            </div>
-          )}
+              </>
+            )}
+          </div>
         </div>
 
         {!isCollapsed && hasChildren && (
@@ -440,6 +474,16 @@ export function CurriculumTreeView({ catalog, canWrite }: CurriculumTreeViewProp
             </div>
           </form>
         </Modal>
+      )}
+
+      {/* Lesson Plan Editor Modal */}
+      {lessonPlanModal.isOpen && (
+        <LessonPlanEditorModal
+          isOpen={lessonPlanModal.isOpen}
+          onClose={() => setLessonPlanModal((prev) => ({ ...prev, isOpen: false }))}
+          curriculumNodeId={lessonPlanModal.nodeId}
+          curriculumNodeTitle={lessonPlanModal.nodeTitle}
+        />
       )}
     </div>
   );

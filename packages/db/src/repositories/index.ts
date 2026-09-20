@@ -15,3 +15,6 @@ export * from './academic/attendance-follow-up.repository.js';
 export * from './academic/academic-audit.repository.js';
 export * from './academic/finance.repository.js';
 export * from './academic/group-curriculum.repository.js';
+export * from './academic/lesson-plan.repository.js';
+export * from './academic/session-reflection.repository.js';
+

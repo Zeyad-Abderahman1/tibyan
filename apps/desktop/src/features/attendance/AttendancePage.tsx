@@ -11,6 +11,7 @@ import {
   Barcode,
   QrCode,
   MessageSquare,
+  Sparkles,
 } from 'lucide-react';
 import type { AttendanceStatus, TodayClassSlotDto } from '@tibyan/contracts';
 
@@ -29,6 +30,7 @@ import { AttendanceRosterTable } from './AttendanceRosterTable.js';
 import { CompleteSessionModal } from './CompleteSessionModal.js';
 import { CameraScannerModal } from './CameraScannerModal.js';
 import { ParentFollowUpDrawer } from './ParentFollowUpDrawer.js';
+import { SessionReflectionModal } from './SessionReflectionModal.js';
 
 export function AttendancePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -43,6 +45,7 @@ export function AttendancePage() {
 
   // Modals & Drawers State
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const [isReflectionModalOpen, setIsReflectionModalOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isFollowUpOpen, setIsFollowUpOpen] = useState(false);
   const [highlightedStudentId, setHighlightedStudentId] = useState<string | null>(null);
@@ -334,6 +337,21 @@ export function AttendancePage() {
             </Button>
           )}
 
+          {/* Session Reflection Button */}
+          {hasActiveSession && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsReflectionModalOpen(true)}
+              className="text-xs flex items-center gap-1.5 text-purple-700 dark:text-purple-300 border-purple-500/30 hover:bg-purple-50 dark:hover:bg-purple-950/30"
+              data-testid="btn-open-session-reflection"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>تأمل الحصة</span>
+            </Button>
+          )}
+
           {/* Complete Session Primary CTA */}
           {canManageSessions && !isCompleted && !isCancelled && (
             <Button
@@ -525,6 +543,18 @@ export function AttendancePage() {
         onClose={() => setIsFollowUpOpen(false)}
         sessionDate={currentSession?.scheduledDate || currentSession?.effectiveDate || new Date().toISOString().slice(0, 10)}
       />
+
+      {/* Session Reflection Modal */}
+      {selectedSessionId && (
+        <SessionReflectionModal
+          isOpen={isReflectionModalOpen}
+          onClose={() => setIsReflectionModalOpen(false)}
+          sessionId={selectedSessionId}
+          groupName={displayGroupName || 'المجموعة'}
+          sessionDate={currentSession?.scheduledDate || currentSession?.effectiveDate || new Date().toISOString().slice(0, 10)}
+          canWrite={canWrite}
+        />
+      )}
     </div>
   );
 }

@@ -17,4 +17,6 @@ export * from './finance/thermal-receipt.service.js';
 export * from './finance/escpos.builder.js';
 export * from './curriculum/index.js';
 export * from './content/index.js';
+export * from './lesson-planner/index.js';
+
 

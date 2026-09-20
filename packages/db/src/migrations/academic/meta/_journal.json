@@ -57,6 +57,13 @@
       "when": 1789851857111,
       "tag": "0007_awesome_sunspot",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1789909184289,
+      "tag": "0008_nifty_magus",
+      "breakpoints": true
     }
   ]
 }

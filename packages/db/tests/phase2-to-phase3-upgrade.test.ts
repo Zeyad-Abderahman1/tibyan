@@ -87,7 +87,7 @@ describe('Phase-2 to Phase-3 Database Upgrade Verification', () => {
 
     // 3. Upgrade to Phase 3 via migrator
     const newlyApplied = migrateAcademicDatabase(rawDb);
-    expect(newlyApplied).toEqual(['0007_awesome_sunspot']);
+    expect(newlyApplied).toEqual(['0007_awesome_sunspot', '0008_nifty_magus']);
     expect(getAppliedMigrations(rawDb)).toEqual([
       '0000_initial_schema',
       '0001_audit_triggers',
@@ -97,6 +97,7 @@ describe('Phase-2 to Phase-3 Database Upgrade Verification', () => {
       '0005_rainy_silvermane',
       '0006_parched_xavin',
       '0007_awesome_sunspot',
+      '0008_nifty_magus',
     ]);
 
     // 4. Verify Phase 2 data preserved
