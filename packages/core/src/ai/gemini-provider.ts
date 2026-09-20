@@ -24,7 +24,7 @@ export class GeminiExamProvider {
   constructor(private readonly fetchImpl: GeminiFetch = fetch) {}
 
   async preview(request: GeminiPreviewRequest) {
-    const response = await this.fetchImpl(
+    let response = await this.fetchImpl(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(request.model)}:generateContent`,
       {
         method: 'POST', signal: request.signal,
@@ -32,6 +32,12 @@ export class GeminiExamProvider {
         body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: request.prompt }] }], generationConfig: { responseMimeType: 'application/json' } }),
       }
     );
+    if (!response.ok && response.status >= 500) {
+      response = await this.fetchImpl(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(request.model)}:generateContent`,
+        { method: 'POST', signal: request.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': request.apiKey }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: request.prompt }] }], generationConfig: { responseMimeType: 'application/json' } }) }
+      );
+    }
     if (!response.ok) throw new Error('تعذر الاتصال بخدمة الذكاء الاصطناعي');
     const payload = await response.json();
     const text = payload?.candidates?.[0]?.content?.parts?.[0]?.text ?? payload;
