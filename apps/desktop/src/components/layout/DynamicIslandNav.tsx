@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, BookOpen, CalendarCheck, Settings, CreditCard, GraduationCap } from 'lucide-react';
+import { LayoutDashboard, Users, BookOpen, CalendarCheck, Settings, CreditCard, GraduationCap, Sigma } from 'lucide-react';
 import { cn } from '@tibyan/design-system';
 
 export interface NavItem {
@@ -36,6 +36,11 @@ export function DynamicIslandNav({ items = DEFAULT_NAV_ITEMS, className }: Dynam
     if (location.pathname.startsWith('/curriculum')) {
       const copy = [...DEFAULT_NAV_ITEMS];
       copy.splice(3, 0, { to: '/curriculum', label: 'المناهج', icon: GraduationCap });
+      return copy;
+    }
+    if (location.pathname.startsWith('/math-editor')) {
+      const copy = [...DEFAULT_NAV_ITEMS];
+      copy.splice(3, 0, { to: '/math-editor', label: 'محرر الرياضيات', icon: Sigma });
       return copy;
     }
     return items;

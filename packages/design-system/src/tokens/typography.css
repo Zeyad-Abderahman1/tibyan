@@ -9,6 +9,7 @@
 
 @import '@fontsource/cairo/index.css';
 @import '@fontsource/inter/index.css';
+@import 'katex/dist/katex.min.css';
 
 :root {
   /* Font Families */

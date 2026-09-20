@@ -17,3 +17,4 @@ export * from './components/Badge.js';
 export * from './components/Table.js';
 export * from './components/PinPad.js';
 export * from './components/Logo.js';
+export * from './components/math/index.js';
