@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ExamBlueprintSchema, ExamStatusSchema } from '../src/index.js';
+import { AiExamCandidateSchema, ExamBlueprintSchema, ExamStatusSchema } from '../src/index.js';
 
 const id = '123e4567-e89b-12d3-a456-426614174000';
 
@@ -30,5 +30,15 @@ describe('exam contracts', () => {
       difficultyDistribution: { EASY: 2, MEDIUM: 1, HARD: 0, ADVANCED: 0 },
       questionTypeDistribution: { MULTIPLE_CHOICE: 2 }, variantCount: 1,
     })).toThrow('يجب أن يساوي مجموع توزيع الصعوبة عدد الأسئلة');
+  });
+
+  it('accepts only ID-free AI proposals with canonical MathRichContent', () => {
+    const candidate = AiExamCandidateSchema.parse({
+      body: { version: 1, blocks: [{ id: 'text-1', type: 'text', content: 'أوجد قيمة س', direction: 'rtl' }] },
+      modelAnswer: null,
+      questionType: 'SHORT_ANSWER', difficulty: 'MEDIUM', marks: 2,
+    });
+    expect(candidate.questionType).toBe('SHORT_ANSWER');
+    expect(() => AiExamCandidateSchema.parse({ ...candidate, questionId: id })).toThrow();
   });
 });

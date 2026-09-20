@@ -33,6 +33,16 @@ export const ExamBlueprintSchema = z.object({
 });
 export type ExamBlueprint = z.infer<typeof ExamBlueprintSchema>;
 
+/** Untrusted provider proposal: intentionally has no database IDs, commands, or provenance authority. */
+export const AiExamCandidateSchema = z.object({
+  body: MathRichContentSchema,
+  modelAnswer: MathRichContentSchema.nullable(),
+  questionType: QuestionTypeSchema,
+  difficulty: QuestionDifficultySchema,
+  marks: z.number().int().positive().max(1000),
+}).strict();
+export type AiExamCandidate = z.infer<typeof AiExamCandidateSchema>;
+
 export const ExamPlacementSchema = z.object({
   id: z.string().uuid(),
   questionId: z.string().uuid().optional(),
