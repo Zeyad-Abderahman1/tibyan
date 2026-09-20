@@ -105,6 +105,21 @@ export const IPC_CHANNELS = {
   CURRICULUM_ASSIGN_GROUP_CATALOG: 'curriculum:assignGroupCatalog',
   CURRICULUM_UPDATE_GROUP_PROGRESS: 'curriculum:updateGroupProgress',
   CURRICULUM_GET_GROUP_PROGRESS_MAP: 'curriculum:getGroupProgressMap',
+
+  // Lesson Planner
+  LESSON_PLAN_CREATE: 'lessonPlanner:createPlan',
+  LESSON_PLAN_UPDATE: 'lessonPlanner:updatePlan',
+  LESSON_PLAN_GET: 'lessonPlanner:getPlan',
+  LESSON_PLAN_LIST_BY_NODE: 'lessonPlanner:listByNode',
+  LESSON_PLAN_LIST: 'lessonPlanner:list',
+  LESSON_PLAN_ARCHIVE: 'lessonPlanner:archivePlan',
+
+  // Session Reflection
+  SESSION_REFLECTION_CREATE: 'sessionReflection:create',
+  SESSION_REFLECTION_UPDATE: 'sessionReflection:update',
+  SESSION_REFLECTION_GET_BY_SESSION: 'sessionReflection:getBySession',
+  SESSION_REFLECTION_GET: 'sessionReflection:get',
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];
+

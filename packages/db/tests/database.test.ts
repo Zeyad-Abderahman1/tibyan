@@ -98,6 +98,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0005_rainy_silvermane',
       '0006_parched_xavin',
       '0007_awesome_sunspot',
+      '0008_nifty_magus',
     ]);
 
     expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance']);
@@ -110,6 +111,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0005_rainy_silvermane',
       '0006_parched_xavin',
       '0007_awesome_sunspot',
+      '0008_nifty_magus',
     ]);
 
     sysRaw.close();
@@ -141,6 +143,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0005_rainy_silvermane',
       '0006_parched_xavin',
       '0007_awesome_sunspot',
+      '0008_nifty_magus',
     ]);
 
     sysRaw.close();
@@ -980,8 +983,8 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     // 3. Run the normal migrator
     const appliedDuringUpgrade = migrateAcademicDatabase(rawDb);
 
-    // 4. Verify 0002, 0003, 0004, 0005, 0006, and 0007 are applied
-    expect(appliedDuringUpgrade).toEqual(['0002_glamorous_sunspot', '0003_neat_krista_starr', '0004_cold_bullseye', '0005_rainy_silvermane', '0006_parched_xavin', '0007_awesome_sunspot']);
+    // 4. Verify 0002, 0003, 0004, 0005, 0006, 0007, and 0008 are applied
+    expect(appliedDuringUpgrade).toEqual(['0002_glamorous_sunspot', '0003_neat_krista_starr', '0004_cold_bullseye', '0005_rainy_silvermane', '0006_parched_xavin', '0007_awesome_sunspot', '0008_nifty_magus']);
     const colsAfter = rawDb.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
     expect(colsAfter.map((c) => c.name)).toContain('cancellation_reason');
 
@@ -1015,6 +1018,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0005_rainy_silvermane',
       '0006_parched_xavin',
       '0007_awesome_sunspot',
+      '0008_nifty_magus',
     ]);
     const migrationRecords = rawDb
       .prepare("SELECT COUNT(*) as count FROM __tibyan_migrations WHERE id = '0002_glamorous_sunspot'")

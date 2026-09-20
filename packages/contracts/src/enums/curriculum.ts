@@ -16,3 +16,14 @@ export const CurriculumProjectionStatusSchema = z.enum([
   'UNREALISTIC_PACING',
 ]);
 export type CurriculumProjectionStatus = z.infer<typeof CurriculumProjectionStatusSchema>;
+
+export const LessonPlanStatusSchema = z.enum(['DRAFT', 'READY', 'ARCHIVED']);
+export type LessonPlanStatus = z.infer<typeof LessonPlanStatusSchema>;
+
+export const ReflectionCompletionStatusSchema = z.enum([
+  'COMPLETED',
+  'PARTIALLY_COMPLETED',
+  'POSTPONED',
+]);
+export type ReflectionCompletionStatus = z.infer<typeof ReflectionCompletionStatusSchema>;
+

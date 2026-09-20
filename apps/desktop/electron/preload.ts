@@ -82,6 +82,13 @@ import {
   type ReorderCurriculumNodesDto,
   type AssignGroupCatalogDto,
   type UpdateGroupNodeProgressDto,
+  type LessonPlanDto,
+  type CreateLessonPlanDto,
+  type UpdateLessonPlanDto,
+  type LessonPlanFilter,
+  type SessionReflectionDto,
+  type CreateSessionReflectionDto,
+  type UpdateSessionReflectionDto,
 } from '@tibyan/contracts';
 
 /**
@@ -369,6 +376,40 @@ export const tibyanApi: TibyanApi = {
     },
     getGroupProgressMap(groupId: string): Promise<IpcResult<Record<string, CurriculumProgressStatus>>> {
       return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_GET_GROUP_PROGRESS_MAP, groupId);
+    },
+  },
+  lessonPlanner: {
+    createLessonPlan(input: CreateLessonPlanDto): Promise<IpcResult<LessonPlanDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.LESSON_PLAN_CREATE, input);
+    },
+    updateLessonPlan(id: string, input: UpdateLessonPlanDto): Promise<IpcResult<LessonPlanDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.LESSON_PLAN_UPDATE, { id, input });
+    },
+    getLessonPlan(id: string): Promise<IpcResult<LessonPlanDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.LESSON_PLAN_GET, id);
+    },
+    listLessonPlansByNode(curriculumNodeId: string): Promise<IpcResult<LessonPlanDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.LESSON_PLAN_LIST_BY_NODE, curriculumNodeId);
+    },
+    listLessonPlans(filter?: LessonPlanFilter): Promise<IpcResult<LessonPlanDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.LESSON_PLAN_LIST, filter);
+    },
+    archiveLessonPlan(id: string): Promise<IpcResult<LessonPlanDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.LESSON_PLAN_ARCHIVE, id);
+    },
+  },
+  sessionReflection: {
+    createReflection(input: CreateSessionReflectionDto): Promise<IpcResult<SessionReflectionDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SESSION_REFLECTION_CREATE, input);
+    },
+    updateReflection(id: string, input: UpdateSessionReflectionDto): Promise<IpcResult<SessionReflectionDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SESSION_REFLECTION_UPDATE, { id, input });
+    },
+    getReflectionBySession(sessionId: string): Promise<IpcResult<SessionReflectionDto | null>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SESSION_REFLECTION_GET_BY_SESSION, sessionId);
+    },
+    getReflection(id: string): Promise<IpcResult<SessionReflectionDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SESSION_REFLECTION_GET, id);
     },
   },
 };

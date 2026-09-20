@@ -26,6 +26,8 @@ import {
   AttendanceStatus,
   FollowUpContactStatus,
   CurriculumProgressStatus,
+  LessonPlanStatus,
+  ReflectionCompletionStatus,
 } from '@tibyan/contracts';
 
 export const students = sqliteTable(
@@ -461,3 +463,57 @@ export type GroupCurriculumAssignmentRow = typeof groupCurriculumAssignments.$in
 export type NewGroupCurriculumAssignmentRow = typeof groupCurriculumAssignments.$inferInsert;
 export type GroupCurriculumProgressRow = typeof groupCurriculumProgress.$inferSelect;
 export type NewGroupCurriculumProgressRow = typeof groupCurriculumProgress.$inferInsert;
+
+export const lessonPlans = sqliteTable(
+  'lesson_plans',
+  {
+    id: text('id').primaryKey(),
+    curriculumNodeId: text('curriculum_node_id').notNull(),
+    title: text('title').notNull(),
+    targetDurationMinutes: integer('target_duration_minutes').notNull().default(60),
+    status: text('status', { enum: ['DRAFT', 'READY', 'ARCHIVED'] })
+      .$type<LessonPlanStatus>()
+      .notNull()
+      .default('DRAFT'),
+    version: integer('version').notNull().default(1),
+    sectionsJson: text('sections_json').notNull(),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    idxLessonPlansCurriculumNode: index('idx_lesson_plans_curriculum_node').on(t.curriculumNodeId),
+    idxLessonPlansStatus: index('idx_lesson_plans_status').on(t.status),
+  })
+);
+
+export const sessionReflections = sqliteTable(
+  'session_reflections',
+  {
+    id: text('id').primaryKey(),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => sessions.id, { onDelete: 'restrict' }),
+    lessonPlanId: text('lesson_plan_id'),
+    lessonPlanSnapshotJson: text('lesson_plan_snapshot_json'),
+    completionStatus: text('completion_status', {
+      enum: ['COMPLETED', 'PARTIALLY_COMPLETED', 'POSTPONED'],
+    })
+      .$type<ReflectionCompletionStatus>()
+      .notNull(),
+    uncompletedItems: text('uncompleted_items'),
+    topicsNeedingReview: text('topics_needing_review'),
+    quickNotes: text('quick_notes'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    idxSessionReflectionsSession: uniqueIndex('idx_session_reflections_session').on(t.sessionId),
+    idxSessionReflectionsStatus: index('idx_session_reflections_status').on(t.completionStatus),
+  })
+);
+
+export type LessonPlanRow = typeof lessonPlans.$inferSelect;
+export type NewLessonPlanRow = typeof lessonPlans.$inferInsert;
+export type SessionReflectionRow = typeof sessionReflections.$inferSelect;
+export type NewSessionReflectionRow = typeof sessionReflections.$inferInsert;
+

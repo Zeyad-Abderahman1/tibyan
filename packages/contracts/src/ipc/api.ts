@@ -98,6 +98,17 @@ import {
   GroupNodeProgressDto,
   UpdateGroupNodeProgressDto,
 } from '../models/curriculum.dto.js';
+import {
+  LessonPlanDto,
+  CreateLessonPlanDto,
+  UpdateLessonPlanDto,
+  LessonPlanFilter,
+} from '../models/lesson-plan.dto.js';
+import {
+  SessionReflectionDto,
+  CreateSessionReflectionDto,
+  UpdateSessionReflectionDto,
+} from '../models/session-reflection.dto.js';
 import { CurriculumProgressStatus } from '../enums/curriculum.js';
 import { FinancialStatus } from '../enums/payment.js';
 
@@ -208,6 +219,20 @@ export interface TibyanApi {
     assignGroupCatalog(input: AssignGroupCatalogDto): Promise<IpcResult<GroupCurriculumAssignmentDto>>;
     updateGroupProgress(input: UpdateGroupNodeProgressDto): Promise<IpcResult<GroupNodeProgressDto>>;
     getGroupProgressMap(groupId: string): Promise<IpcResult<Record<string, CurriculumProgressStatus>>>;
+  };
+  lessonPlanner: {
+    createLessonPlan(input: CreateLessonPlanDto): Promise<IpcResult<LessonPlanDto>>;
+    updateLessonPlan(id: string, input: UpdateLessonPlanDto): Promise<IpcResult<LessonPlanDto>>;
+    getLessonPlan(id: string): Promise<IpcResult<LessonPlanDto>>;
+    listLessonPlansByNode(curriculumNodeId: string): Promise<IpcResult<LessonPlanDto[]>>;
+    listLessonPlans(filter?: LessonPlanFilter): Promise<IpcResult<LessonPlanDto[]>>;
+    archiveLessonPlan(id: string): Promise<IpcResult<LessonPlanDto>>;
+  };
+  sessionReflection: {
+    createReflection(input: CreateSessionReflectionDto): Promise<IpcResult<SessionReflectionDto>>;
+    updateReflection(id: string, input: UpdateSessionReflectionDto): Promise<IpcResult<SessionReflectionDto>>;
+    getReflectionBySession(sessionId: string): Promise<IpcResult<SessionReflectionDto | null>>;
+    getReflection(id: string): Promise<IpcResult<SessionReflectionDto>>;
   };
 }
 

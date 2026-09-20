@@ -30,6 +30,8 @@ import {
   FinanceService,
   ThermalReceiptService,
   CurriculumService,
+  LessonPlannerService,
+  SessionReflectionService,
   type AuthenticatedUser,
 } from '@tibyan/core';
 
@@ -101,6 +103,8 @@ export class Runtime {
   public financeService: FinanceService | null = null;
   public thermalReceiptService: ThermalReceiptService | null = null;
   public curriculumService: CurriculumService | null = null;
+  public lessonPlannerService: LessonPlannerService | null = null;
+  public sessionReflectionService: SessionReflectionService | null = null;
 
   constructor(options: RuntimeOptions = {}) {
     this.inMemory = options.inMemory ?? false;
@@ -202,6 +206,8 @@ export class Runtime {
     this.financeService = new FinanceService(this.academicDb.db);
     this.thermalReceiptService = new ThermalReceiptService(this.academicDb.db);
     this.curriculumService = new CurriculumService(this.systemDb.db, this.academicDb.db);
+    this.lessonPlannerService = new LessonPlannerService(this.systemDb.db, this.academicDb.db);
+    this.sessionReflectionService = new SessionReflectionService(this.academicDb.db);
   }
 
   /**
@@ -217,6 +223,8 @@ export class Runtime {
     this.financeService = null;
     this.thermalReceiptService = null;
     this.curriculumService = null;
+    this.lessonPlannerService = null;
+    this.sessionReflectionService = null;
 
     closeAcademicDatabase();
     this.academicDb = null;
