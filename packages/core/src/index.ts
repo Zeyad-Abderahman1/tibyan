@@ -21,3 +21,4 @@ export * from './lesson-planner/index.js';
 export * from './sources/index.js';
 export * from './questions/index.js';
 export * from './exams/index.js';
+export * from './ai/index.js';
