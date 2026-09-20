@@ -30,15 +30,15 @@ export class GeminiExamProvider {
     const init: RequestInit = { method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': request.apiKey }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: request.prompt }] }], generationConfig: { responseMimeType: 'application/json' } }) };
     try {
       let response: Response | undefined;
-      for (let attempt = 0; attempt < 2; attempt++) {
+      for (let attempt = 0; attempt < 3; attempt++) {
         try {
           response = await this.fetchImpl(url, init);
         } catch {
           if (controller.signal.aborted) throw new Error(timedOut ? 'انتهت مهلة الاتصال بخدمة الذكاء الاصطناعي' : 'تم إلغاء طلب الذكاء الاصطناعي');
-          if (attempt === 0) { await this.delay(); continue; }
+          if (attempt < 2) { await this.delay(); continue; }
           throw new Error('تعذر الاتصال بخدمة الذكاء الاصطناعي');
         }
-        if (response.ok || attempt === 1 || response.status < 500) break;
+        if (response.ok || attempt === 2 || response.status < 500) break;
         await this.delay();
       }
       if (!response?.ok) throw new Error('تعذر الاتصال بخدمة الذكاء الاصطناعي');

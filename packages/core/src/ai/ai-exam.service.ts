@@ -22,7 +22,7 @@ export class AiExamService {
     options: AiExamServiceOptions = {}
   ) {
     this.provider = options.provider ?? new GeminiExamProvider();
-    this.model = options.model ?? 'gemini-2.5-flash';
+    this.model = options.model ?? 'gemini-flash-latest';
   }
 
   /**
