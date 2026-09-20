@@ -64,6 +64,13 @@
       "when": 1789909184289,
       "tag": "0008_nifty_magus",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1789925514054,
+      "tag": "0009_exotic_carmella_unuscione",
+      "breakpoints": true
     }
   ]
 }
