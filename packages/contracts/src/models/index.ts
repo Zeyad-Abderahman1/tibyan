@@ -14,5 +14,5 @@ export * from './curriculum.dto.js';
 export * from './math-rich-content.dto.js';
 export * from './lesson-plan.dto.js';
 export * from './session-reflection.dto.js';
-
-
+export * from './source-document.dto.js';
+export * from './question-bank.dto.js';

@@ -22,6 +22,8 @@ import { SettingsPage } from '../features/settings/SettingsPage.js';
 import { FinancePage } from '../features/finance/index.js';
 import { CurriculumCatalogsPage } from '../features/curriculum/CurriculumCatalogsPage.js';
 import { MathEditorPage } from '../features/math/MathEditorPage.js';
+import { SourcesPage } from '../features/sources/SourcesPage.js';
+import { QuestionBankPage } from '../features/questions/QuestionBankPage.js';
 
 /**
  * Root Controller: Checks authoritative persisted SQLite setup state.
@@ -230,6 +232,14 @@ export const routes: RouteObject[] = [
       {
         path: 'math-editor',
         element: <MathEditorPage />,
+      },
+      {
+        path: 'sources',
+        element: <SourcesPage />,
+      },
+      {
+        path: 'questions',
+        element: <QuestionBankPage />,
       },
       {
         path: 'settings',

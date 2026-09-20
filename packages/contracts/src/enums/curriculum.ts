@@ -26,4 +26,24 @@ export const ReflectionCompletionStatusSchema = z.enum([
   'POSTPONED',
 ]);
 export type ReflectionCompletionStatus = z.infer<typeof ReflectionCompletionStatusSchema>;
+export const SourceDocumentStatusSchema = z.enum(['INDEXED', 'PROCESSING', 'ERROR']);
+export type SourceDocumentStatus = z.infer<typeof SourceDocumentStatusSchema>;
 
+export const QuestionTypeSchema = z.enum([
+  'MULTIPLE_CHOICE',
+  'ESSAY',
+  'SHORT_ANSWER',
+  'TRUE_FALSE',
+]);
+export type QuestionType = z.infer<typeof QuestionTypeSchema>;
+
+export const QuestionDifficultySchema = z.enum([
+  'EASY',
+  'MEDIUM',
+  'HARD',
+  'ADVANCED',
+]);
+export type QuestionDifficulty = z.infer<typeof QuestionDifficultySchema>;
+
+export const QuestionStatusSchema = z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']);
+export type QuestionStatus = z.infer<typeof QuestionStatusSchema>;

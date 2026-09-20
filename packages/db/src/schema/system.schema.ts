@@ -10,6 +10,10 @@ import {
   MathBranch,
   CurriculumCatalogStatus,
   CurriculumNodeTier,
+  SourceDocumentStatus,
+  QuestionType,
+  QuestionDifficulty,
+  QuestionStatus,
 } from '@tibyan/contracts';
 
 export const users = sqliteTable('users', {
@@ -167,3 +171,141 @@ export type CurriculumCatalogRow = typeof curriculumCatalogs.$inferSelect;
 export type NewCurriculumCatalogRow = typeof curriculumCatalogs.$inferInsert;
 export type CurriculumNodeRow = typeof curriculumNodes.$inferSelect;
 export type NewCurriculumNodeRow = typeof curriculumNodes.$inferInsert;
+
+// Phase 3 — Task 4: Source Documents & Page References
+export const sourceDocuments = sqliteTable(
+  'source_documents',
+  {
+    id: text('id').primaryKey(),
+    title: text('title').notNull(),
+    author: text('author'),
+    publisher: text('publisher'),
+    editionYear: text('edition_year'),
+    curriculumCatalogId: text('curriculum_catalog_id').references(() => curriculumCatalogs.id, {
+      onDelete: 'set null',
+    }),
+    filePath: text('file_path').notNull(),
+    fileName: text('file_name').notNull(),
+    fileSizeBytes: integer('file_size_bytes').notNull(),
+    sha256Hash: text('sha256_hash').notNull(),
+    pageCount: integer('page_count').notNull(),
+    status: text('status', { enum: ['INDEXED', 'PROCESSING', 'ERROR'] })
+      .$type<SourceDocumentStatus>()
+      .notNull()
+      .default('INDEXED'),
+    metadataJson: text('metadata_json'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    idxSourceDocumentHash: uniqueIndex('idx_source_document_hash').on(t.sha256Hash),
+    idxSourceDocumentCatalog: index('idx_source_document_catalog').on(t.curriculumCatalogId),
+  })
+);
+
+export const sourceReferences = sqliteTable(
+  'source_references',
+  {
+    id: text('id').primaryKey(),
+    sourceDocumentId: text('source_document_id')
+      .notNull()
+      .references(() => sourceDocuments.id, { onDelete: 'cascade' }),
+    startPage: integer('start_page').notNull(),
+    endPage: integer('end_page').notNull(),
+    referenceLabel: text('reference_label').notNull(),
+    notes: text('notes'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    idxSourceRefDocument: index('idx_source_ref_document').on(t.sourceDocumentId),
+    idxSourceRefPages: index('idx_source_ref_pages').on(t.sourceDocumentId, t.startPage, t.endPage),
+  })
+);
+
+// Phase 3 — Task 5 & 6: Question Bank, Skill Tagging & Multi-Source Linking
+export const questions = sqliteTable(
+  'questions',
+  {
+    id: text('id').primaryKey(),
+    code: text('code').notNull(),
+    bodyJson: text('body_json').notNull(),
+    modelAnswerJson: text('model_answer_json'),
+    questionType: text('question_type', {
+      enum: ['MULTIPLE_CHOICE', 'ESSAY', 'SHORT_ANSWER', 'TRUE_FALSE'],
+    })
+      .$type<QuestionType>()
+      .notNull()
+      .default('MULTIPLE_CHOICE'),
+    difficulty: text('difficulty', {
+      enum: ['EASY', 'MEDIUM', 'HARD', 'ADVANCED'],
+    })
+      .$type<QuestionDifficulty>()
+      .notNull()
+      .default('MEDIUM'),
+    defaultMarks: integer('default_marks').notNull().default(1),
+    languageTrack: text('language_track').$type<LanguageTrack>().notNull().default('ARABIC'),
+    status: text('status', { enum: ['DRAFT', 'ACTIVE', 'ARCHIVED'] })
+      .$type<QuestionStatus>()
+      .notNull()
+      .default('ACTIVE'),
+    contentFingerprint: text('content_fingerprint').notNull(),
+    metadataJson: text('metadata_json'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    idxQuestionCode: uniqueIndex('idx_question_code').on(t.code),
+    idxQuestionFingerprint: index('idx_question_fingerprint').on(t.contentFingerprint),
+    idxQuestionTypeDiff: index('idx_question_type_diff').on(t.questionType, t.difficulty),
+    idxQuestionStatus: index('idx_question_status').on(t.status),
+  })
+);
+
+export const questionCurriculumTags = sqliteTable(
+  'question_curriculum_tags',
+  {
+    id: text('id').primaryKey(),
+    questionId: text('question_id')
+      .notNull()
+      .references(() => questions.id, { onDelete: 'cascade' }),
+    curriculumNodeId: text('curriculum_node_id')
+      .notNull()
+      .references(() => curriculumNodes.id, { onDelete: 'cascade' }),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => ({
+    idxQuestionNodeUnique: uniqueIndex('idx_question_node_unique').on(t.questionId, t.curriculumNodeId),
+    idxQuestionTagNode: index('idx_question_tag_node').on(t.curriculumNodeId),
+  })
+);
+
+export const questionSourceReferences = sqliteTable(
+  'question_source_references',
+  {
+    id: text('id').primaryKey(),
+    questionId: text('question_id')
+      .notNull()
+      .references(() => questions.id, { onDelete: 'cascade' }),
+    sourceReferenceId: text('source_reference_id')
+      .notNull()
+      .references(() => sourceReferences.id, { onDelete: 'cascade' }),
+    notes: text('notes'),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => ({
+    idxQuestionSourceUnique: uniqueIndex('idx_question_source_unique').on(t.questionId, t.sourceReferenceId),
+    idxQuestionSourceRef: index('idx_question_source_ref').on(t.sourceReferenceId),
+  })
+);
+
+export type SourceDocumentRow = typeof sourceDocuments.$inferSelect;
+export type NewSourceDocumentRow = typeof sourceDocuments.$inferInsert;
+export type SourceReferenceRow = typeof sourceReferences.$inferSelect;
+export type NewSourceReferenceRow = typeof sourceReferences.$inferInsert;
+export type QuestionRow = typeof questions.$inferSelect;
+export type NewQuestionRow = typeof questions.$inferInsert;
+export type QuestionCurriculumTagRow = typeof questionCurriculumTags.$inferSelect;
+export type NewQuestionCurriculumTagRow = typeof questionCurriculumTags.$inferInsert;
+export type QuestionSourceReferenceRow = typeof questionSourceReferences.$inferSelect;
+export type NewQuestionSourceReferenceRow = typeof questionSourceReferences.$inferInsert;
