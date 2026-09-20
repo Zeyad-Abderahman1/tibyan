@@ -109,6 +109,24 @@ import {
   CreateSessionReflectionDto,
   UpdateSessionReflectionDto,
 } from '../models/session-reflection.dto.js';
+import {
+  SourceDocumentDto,
+  ImportSourceDocumentDto,
+  UpdateSourceDocumentDto,
+  SourceReferenceDto,
+  CreateSourceReferenceDto,
+  UpdateSourceReferenceDto,
+} from '../models/source-document.dto.js';
+import {
+  QuestionDto,
+  CreateQuestionDto,
+  UpdateQuestionDto,
+  QuestionFilterDto,
+  DuplicateCheckResultDto,
+  BulkQuestionItemDto,
+  BulkImportReviewItemDto,
+  CommitBulkImportInputDto,
+} from '../models/question-bank.dto.js';
 import { CurriculumProgressStatus } from '../enums/curriculum.js';
 import { FinancialStatus } from '../enums/payment.js';
 
@@ -233,6 +251,31 @@ export interface TibyanApi {
     updateReflection(id: string, input: UpdateSessionReflectionDto): Promise<IpcResult<SessionReflectionDto>>;
     getReflectionBySession(sessionId: string): Promise<IpcResult<SessionReflectionDto | null>>;
     getReflection(id: string): Promise<IpcResult<SessionReflectionDto>>;
+  };
+  pdfSources: {
+    listSources(catalogId?: string): Promise<IpcResult<SourceDocumentDto[]>>;
+    getSource(id: string): Promise<IpcResult<SourceDocumentDto>>;
+    importSource(input: ImportSourceDocumentDto): Promise<IpcResult<SourceDocumentDto>>;
+    updateSource(id: string, input: UpdateSourceDocumentDto): Promise<IpcResult<SourceDocumentDto>>;
+    deleteSource(id: string): Promise<IpcResult<void>>;
+    listReferences(sourceDocumentId?: string): Promise<IpcResult<SourceReferenceDto[]>>;
+    createReference(input: CreateSourceReferenceDto): Promise<IpcResult<SourceReferenceDto>>;
+    updateReference(id: string, input: UpdateSourceReferenceDto): Promise<IpcResult<SourceReferenceDto>>;
+    deleteReference(id: string): Promise<IpcResult<void>>;
+    openDocument(id: string, page?: number): Promise<IpcResult<void>>;
+  };
+  questionBank: {
+    listQuestions(filter?: QuestionFilterDto): Promise<IpcResult<QuestionDto[]>>;
+    getQuestion(id: string): Promise<IpcResult<QuestionDto>>;
+    createQuestion(input: CreateQuestionDto): Promise<IpcResult<QuestionDto>>;
+    updateQuestion(id: string, input: UpdateQuestionDto): Promise<IpcResult<QuestionDto>>;
+    deleteQuestion(id: string): Promise<IpcResult<void>>;
+    archiveQuestion(id: string): Promise<IpcResult<void>>;
+    linkSources(questionId: string, sourceReferenceIds: string[]): Promise<IpcResult<void>>;
+    unlinkSource(questionId: string, sourceReferenceId: string): Promise<IpcResult<void>>;
+    checkDuplicate(body: unknown, excludeQuestionId?: string): Promise<IpcResult<DuplicateCheckResultDto>>;
+    previewBulk(items: BulkQuestionItemDto[]): Promise<IpcResult<BulkImportReviewItemDto[]>>;
+    commitBulk(input: CommitBulkImportInputDto): Promise<IpcResult<{ createdCount: number; linkedCount: number; dismissedCount: number }>>;
   };
 }
 

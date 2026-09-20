@@ -5,6 +5,9 @@ export * from './system/global-settings.repository.js';
 export * from './system/backup-record.repository.js';
 export * from './system/curriculum-catalog.repository.js';
 export * from './system/curriculum-node.repository.js';
+export * from './system/source-document.repository.js';
+export * from './system/source-reference.repository.js';
+export * from './system/question.repository.js';
 
 export * from './academic/student.repository.js';
 export * from './academic/group.repository.js';

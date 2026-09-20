@@ -32,6 +32,8 @@ import {
   CurriculumService,
   LessonPlannerService,
   SessionReflectionService,
+  PdfSourceService,
+  QuestionBankService,
   type AuthenticatedUser,
 } from '@tibyan/core';
 
@@ -105,6 +107,8 @@ export class Runtime {
   public curriculumService: CurriculumService | null = null;
   public lessonPlannerService: LessonPlannerService | null = null;
   public sessionReflectionService: SessionReflectionService | null = null;
+  public pdfSourceService!: PdfSourceService;
+  public questionBankService!: QuestionBankService;
 
   constructor(options: RuntimeOptions = {}) {
     this.inMemory = options.inMemory ?? false;
@@ -145,6 +149,10 @@ export class Runtime {
       academicYearRepo: this.academicYearRepo,
       systemAuditRepo: this.systemAuditRepo,
     });
+
+    const sourcesDir = path.join(this.paths.appDataDir, 'sources');
+    this.pdfSourceService = new PdfSourceService(this.systemDb.db, sourcesDir);
+    this.questionBankService = new QuestionBankService(this.systemDb.db);
 
     // 2. Discover active academic year
     const activeYear = this.academicYearRepo.findActive();

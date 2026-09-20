@@ -89,6 +89,20 @@ import {
   type SessionReflectionDto,
   type CreateSessionReflectionDto,
   type UpdateSessionReflectionDto,
+  type SourceDocumentDto,
+  type ImportSourceDocumentDto,
+  type UpdateSourceDocumentDto,
+  type SourceReferenceDto,
+  type CreateSourceReferenceDto,
+  type UpdateSourceReferenceDto,
+  type QuestionDto,
+  type CreateQuestionDto,
+  type UpdateQuestionDto,
+  type QuestionFilterDto,
+  type DuplicateCheckResultDto,
+  type BulkQuestionItemDto,
+  type BulkImportReviewItemDto,
+  type CommitBulkImportInputDto,
 } from '@tibyan/contracts';
 
 /**
@@ -410,6 +424,73 @@ export const tibyanApi: TibyanApi = {
     },
     getReflection(id: string): Promise<IpcResult<SessionReflectionDto>> {
       return ipcRenderer.invoke(IPC_CHANNELS.SESSION_REFLECTION_GET, id);
+    },
+  },
+  pdfSources: {
+    listSources(catalogId?: string): Promise<IpcResult<SourceDocumentDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.PDF_SOURCES_LIST, catalogId);
+    },
+    getSource(id: string): Promise<IpcResult<SourceDocumentDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.PDF_SOURCES_GET, id);
+    },
+    importSource(input: ImportSourceDocumentDto): Promise<IpcResult<SourceDocumentDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.PDF_SOURCES_IMPORT, input);
+    },
+    updateSource(id: string, input: UpdateSourceDocumentDto): Promise<IpcResult<SourceDocumentDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.PDF_SOURCES_UPDATE, { id, input });
+    },
+    deleteSource(id: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.PDF_SOURCES_DELETE, id);
+    },
+    listReferences(sourceDocumentId?: string): Promise<IpcResult<SourceReferenceDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.PDF_REFERENCES_LIST, sourceDocumentId);
+    },
+    createReference(input: CreateSourceReferenceDto): Promise<IpcResult<SourceReferenceDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.PDF_REFERENCES_CREATE, input);
+    },
+    updateReference(id: string, input: UpdateSourceReferenceDto): Promise<IpcResult<SourceReferenceDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.PDF_SOURCES_UPDATE, { id, input });
+    },
+    deleteReference(id: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.PDF_REFERENCES_DELETE, id);
+    },
+    openDocument(id: string, page?: number): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.PDF_SOURCES_OPEN, { id, page });
+    },
+  },
+  questionBank: {
+    listQuestions(filter?: QuestionFilterDto): Promise<IpcResult<QuestionDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.QUESTION_BANK_LIST, filter);
+    },
+    getQuestion(id: string): Promise<IpcResult<QuestionDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.QUESTION_BANK_GET, id);
+    },
+    createQuestion(input: CreateQuestionDto): Promise<IpcResult<QuestionDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.QUESTION_BANK_CREATE, input);
+    },
+    updateQuestion(id: string, input: UpdateQuestionDto): Promise<IpcResult<QuestionDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.QUESTION_BANK_UPDATE, { id, input });
+    },
+    deleteQuestion(id: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.QUESTION_BANK_DELETE, id);
+    },
+    archiveQuestion(id: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.QUESTION_BANK_ARCHIVE, id);
+    },
+    linkSources(questionId: string, sourceReferenceIds: string[]): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.QUESTION_BANK_LINK_SOURCES, { questionId, sourceReferenceIds });
+    },
+    unlinkSource(questionId: string, sourceReferenceId: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.QUESTION_BANK_UNLINK_SOURCE, { questionId, sourceReferenceId });
+    },
+    checkDuplicate(body: unknown, excludeQuestionId?: string): Promise<IpcResult<DuplicateCheckResultDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.QUESTION_BANK_CHECK_DUPLICATE, { body, excludeQuestionId });
+    },
+    previewBulk(items: BulkQuestionItemDto[]): Promise<IpcResult<BulkImportReviewItemDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.QUESTION_BANK_PREVIEW_BULK, items);
+    },
+    commitBulk(input: CommitBulkImportInputDto): Promise<IpcResult<{ createdCount: number; linkedCount: number; dismissedCount: number }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.QUESTION_BANK_COMMIT_BULK, input);
     },
   },
 };

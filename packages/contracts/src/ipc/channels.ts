@@ -119,6 +119,30 @@ export const IPC_CHANNELS = {
   SESSION_REFLECTION_UPDATE: 'sessionReflection:update',
   SESSION_REFLECTION_GET_BY_SESSION: 'sessionReflection:getBySession',
   SESSION_REFLECTION_GET: 'sessionReflection:get',
+
+  // PDF Sources & Page References (Phase 3 Task 4)
+  PDF_SOURCES_LIST: 'pdfSources:list',
+  PDF_SOURCES_GET: 'pdfSources:get',
+  PDF_SOURCES_IMPORT: 'pdfSources:import',
+  PDF_SOURCES_UPDATE: 'pdfSources:update',
+  PDF_SOURCES_DELETE: 'pdfSources:delete',
+  PDF_REFERENCES_LIST: 'pdfSources:listReferences',
+  PDF_REFERENCES_CREATE: 'pdfSources:createReference',
+  PDF_REFERENCES_DELETE: 'pdfSources:deleteReference',
+  PDF_SOURCES_OPEN: 'pdfSources:openDocument',
+
+  // Question Bank & Deduplication / Ingestion (Phase 3 Tasks 5 & 6)
+  QUESTION_BANK_LIST: 'questionBank:list',
+  QUESTION_BANK_GET: 'questionBank:get',
+  QUESTION_BANK_CREATE: 'questionBank:create',
+  QUESTION_BANK_UPDATE: 'questionBank:update',
+  QUESTION_BANK_DELETE: 'questionBank:delete',
+  QUESTION_BANK_ARCHIVE: 'questionBank:archive',
+  QUESTION_BANK_CHECK_DUPLICATE: 'questionBank:checkDuplicate',
+  QUESTION_BANK_PREVIEW_BULK: 'questionBank:previewBulk',
+  QUESTION_BANK_COMMIT_BULK: 'questionBank:commitBulk',
+  QUESTION_BANK_LINK_SOURCES: 'questionBank:linkSources',
+  QUESTION_BANK_UNLINK_SOURCE: 'questionBank:unlinkSource',
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];

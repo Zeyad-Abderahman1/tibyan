@@ -12,6 +12,8 @@ import { registerFinanceIpcHandlers, unregisterFinanceIpcHandlers } from './fina
 import { registerThermalIpcHandlers, unregisterThermalIpcHandlers } from './thermal.ipc.js';
 import { registerCurriculumIpcHandlers, unregisterCurriculumIpcHandlers } from './curriculum.ipc.js';
 import { registerLessonPlannerIpcHandlers, unregisterLessonPlannerIpcHandlers } from './lesson-planner.ipc.js';
+import { registerPdfSourceIpcHandlers, unregisterPdfSourceIpcHandlers } from './pdf-sources.ipc.js';
+import { registerQuestionBankIpcHandlers, unregisterQuestionBankIpcHandlers } from './question-bank.ipc.js';
 
 /**
  * Registers all typed IPC domain handlers against the electron ipcMain dispatcher.
@@ -29,6 +31,8 @@ export function registerAllIpcHandlers(runtime: Runtime, mainWindow: BrowserWind
   registerThermalIpcHandlers(runtime, mainWindow);
   registerCurriculumIpcHandlers(runtime, mainWindow);
   registerLessonPlannerIpcHandlers(runtime, mainWindow);
+  registerPdfSourceIpcHandlers(runtime, mainWindow);
+  registerQuestionBankIpcHandlers(runtime, mainWindow);
   registerDashboardIpcHandlers(runtime, mainWindow);
   registerBackupIpcHandlers(runtime, mainWindow);
   registerSystemIpcHandlers(runtime, mainWindow);
@@ -47,6 +51,8 @@ export function unregisterAllIpcHandlers(): void {
   unregisterThermalIpcHandlers();
   unregisterCurriculumIpcHandlers();
   unregisterLessonPlannerIpcHandlers();
+  unregisterPdfSourceIpcHandlers();
+  unregisterQuestionBankIpcHandlers();
   unregisterDashboardIpcHandlers();
   unregisterBackupIpcHandlers();
   unregisterSystemIpcHandlers();
@@ -58,6 +64,12 @@ export * from './students.ipc.js';
 export * from './groups.ipc.js';
 export * from './sessions.ipc.js';
 export * from './attendance.ipc.js';
+export * from './finance.ipc.js';
+export * from './thermal.ipc.js';
+export * from './curriculum.ipc.js';
+export * from './lesson-planner.ipc.js';
+export * from './pdf-sources.ipc.js';
+export * from './question-bank.ipc.js';
 export * from './finance.ipc.js';
 export * from './thermal.ipc.js';
 export * from './curriculum.ipc.js';
