@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderGeometrySvg } from '../src/geometry/geometry-renderer.js';
+import { renderGeometrySvg, createGeometryEnvelope } from '../src/geometry/geometry-renderer.js';
 
 describe('deterministic exam geometry renderer', () => {
   const scene = {
@@ -28,4 +28,14 @@ describe('deterministic exam geometry renderer', () => {
     expect(() => renderGeometrySvg({ ...scene, primitives: [{ type: 'annotation', x: 1, y: 1, text: '<script>x</script>' }] })).toThrow();
     expect(() => renderGeometrySvg({ ...scene, primitives: [{ type: 'segment', from: 'missing', to: 'A' }] })).toThrow();
   });
+
+  it('creates a validated GeometryEnvelopeBlock for MathRichContent', () => {
+    const envelope = createGeometryEnvelope('geo-1', scene, 'رسم بياني');
+    expect(envelope.id).toBe('geo-1');
+    expect(envelope.type).toBe('geometry');
+    expect(envelope.schemaVersion).toBe('v1');
+    expect(envelope.svgPayload).toContain('<svg');
+    expect(envelope.title).toBe('رسم بياني');
+  });
 });
+

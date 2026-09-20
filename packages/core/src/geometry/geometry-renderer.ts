@@ -54,3 +54,20 @@ export function renderGeometrySvg(input: GeometryScene): string {
   }).join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z"/></marker><style>.geo-stroke{fill:none;stroke:#0f172a;stroke-width:2}.geo-point{fill:#0f766e}.geo-label,.geo-coordinate{font-family:Arial,sans-serif;font-size:13px;direction:rtl;unicode-bidi:isolate}.geo-mark,.geo-dimension,.geo-axis{fill:none;stroke:#0f766e;stroke-width:1.5}</style></defs>${body}</svg>`;
 }
+
+/**
+ * Creates a validated GeometryEnvelopeBlock for MathRichContent integration.
+ */
+export function createGeometryEnvelope(id: string, scene: GeometryScene, title?: string) {
+  const svg = renderGeometrySvg(scene);
+  return {
+    id,
+    type: 'geometry' as const,
+    schemaVersion: 'v1' as const,
+    title: title ?? null,
+    width: scene.width,
+    height: scene.height,
+    svgPayload: svg,
+  };
+}
+

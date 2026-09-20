@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateExamBlueprint } from '../src/index.js';
+import { validateExamBlueprint, selectBalancedQuestions } from '../src/index.js';
 import type { ExamBlueprint } from '@tibyan/contracts';
 
 const blueprint: ExamBlueprint = {
@@ -18,4 +18,17 @@ describe('deterministic exam blueprint validation', () => {
     expect(result.valid).toBe(false);
     expect(result.conflicts).toContain('إجمالي درجات الأسئلة المتاحة لا يحقق الدرجة الكلية المطلوبة');
   });
+
+  it('deterministically selects balanced questions according to blueprint', () => {
+    const candidates = [
+      { id: 'q1', questionType: 'MULTIPLE_CHOICE' as const, difficulty: 'EASY' as const, defaultMarks: 2, curriculumTags: blueprint.curriculumNodeIds, sourceReferenceIds: [] },
+      { id: 'q2', questionType: 'SHORT_ANSWER' as const, difficulty: 'MEDIUM' as const, defaultMarks: 2, curriculumTags: blueprint.curriculumNodeIds, sourceReferenceIds: [] },
+      { id: 'q3', questionType: 'MULTIPLE_CHOICE' as const, difficulty: 'HARD' as const, defaultMarks: 2, curriculumTags: blueprint.curriculumNodeIds, sourceReferenceIds: [] },
+    ];
+    const { selected, conflicts } = selectBalancedQuestions(blueprint, candidates);
+    expect(conflicts).toHaveLength(0);
+    expect(selected).toHaveLength(2);
+    expect(selected.map((s) => s.id)).toEqual(['q1', 'q2']);
+  });
 });
+

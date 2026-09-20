@@ -43,8 +43,32 @@ export const AiExamCandidateSchema = z.object({
 }).strict();
 export type AiExamCandidate = z.infer<typeof AiExamCandidateSchema>;
 
+export const ExamSectionDtoSchema = z.object({
+  id: z.string().uuid(),
+  examId: z.string().uuid(),
+  title: z.string().min(1).max(200),
+  instructionsJson: z.string().default('[]'),
+  position: z.number().int().nonnegative(),
+  createdAt: z.string(),
+});
+export type ExamSectionDto = z.infer<typeof ExamSectionDtoSchema>;
+
+export const ExamVersionDtoSchema = z.object({
+  id: z.string().uuid(),
+  examId: z.string().uuid(),
+  label: z.enum(['A', 'B', 'C', 'D']),
+  questionOrder: z.array(z.string().uuid()),
+  answerKey: z.array(z.object({
+    placementId: z.string().uuid(),
+    answer: z.unknown(),
+  })),
+  createdAt: z.string(),
+});
+export type ExamVersionDto = z.infer<typeof ExamVersionDtoSchema>;
+
 export const ExamPlacementSchema = z.object({
   id: z.string().uuid(),
+  examSectionId: z.string().uuid().optional(),
   questionId: z.string().uuid().optional(),
   provenance: ExamProvenanceSchema,
   body: MathRichContentSchema,
@@ -59,10 +83,62 @@ export type ExamPlacement = z.infer<typeof ExamPlacementSchema>;
 
 export const ExamDtoSchema = z.object({
   id: z.string().uuid(),
+  title: z.string().min(1).max(200),
   blueprint: ExamBlueprintSchema,
   status: ExamStatusSchema,
+  sections: z.array(ExamSectionDtoSchema).default([]),
   placements: z.array(ExamPlacementSchema),
+  versions: z.array(ExamVersionDtoSchema).default([]),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
 export type ExamDto = z.infer<typeof ExamDtoSchema>;
+
+export const AssemblyPreviewResultSchema = z.object({
+  valid: z.boolean(),
+  conflicts: z.array(z.string()),
+  selectedQuestions: z.array(z.object({
+    questionId: z.string().uuid(),
+    marks: z.number().int().positive(),
+    curriculumNodeIds: z.array(z.string().uuid()),
+    sourceReferenceIds: z.array(z.string().uuid()),
+    questionType: QuestionTypeSchema,
+    difficulty: QuestionDifficultySchema,
+    body: MathRichContentSchema,
+    modelAnswer: MathRichContentSchema.nullable(),
+  })),
+  totalSelectedMarks: z.number().int().nonnegative(),
+  totalSelectedQuestions: z.number().int().nonnegative(),
+});
+export type AssemblyPreviewResult = z.infer<typeof AssemblyPreviewResultSchema>;
+
+export const ConfirmAssemblyInputSchema = z.object({
+  blueprint: ExamBlueprintSchema,
+  placements: z.array(z.object({
+    questionId: z.string().uuid().optional(),
+    provenance: ExamProvenanceSchema,
+    body: MathRichContentSchema,
+    modelAnswer: MathRichContentSchema.nullable().default(null),
+    marks: z.number().int().positive(),
+    answerSpaceLines: z.number().int().nonnegative().default(0),
+    curriculumNodeIds: z.array(z.string().uuid()),
+    sourceReferenceIds: z.array(z.string().uuid()).default([]),
+    position: z.number().int().nonnegative(),
+  })).min(1),
+  sectionTitle: z.string().min(1).max(200).default('القسم الرئيسي'),
+});
+export type ConfirmAssemblyInput = z.infer<typeof ConfirmAssemblyInputSchema>;
+
+export const AiGenerateCandidatesInputSchema = z.object({
+  topicOrStandard: z.string().min(1).max(500),
+  gradeLevel: GradeLevelSchema,
+  languageTrack: LanguageTrackSchema,
+  questionType: QuestionTypeSchema,
+  difficulty: QuestionDifficultySchema,
+  marks: z.number().int().positive().max(1000).default(1),
+  count: z.number().int().min(1).max(10).default(3),
+  curriculumNodeIds: z.array(z.string().uuid()).default([]),
+  sourceReferenceIds: z.array(z.string().uuid()).default([]),
+});
+export type AiGenerateCandidatesInput = z.infer<typeof AiGenerateCandidatesInputSchema>;
+

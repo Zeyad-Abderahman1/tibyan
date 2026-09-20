@@ -46,4 +46,22 @@ export class ExamRepository {
     const versions = this.db.select().from(examVersions).where(eq(examVersions.examId, examId)).orderBy(asc(examVersions.label)).all();
     return { exam, sections, questions, versions };
   }
+
+  list(): ExamRow[] {
+    return this.db.select().from(exams).orderBy(asc(exams.createdAt)).all();
+  }
+
+  delete(examId: string): void {
+    this.db.transaction((tx) => {
+      tx.delete(exams).where(eq(exams.id, examId)).run();
+    });
+  }
+
+  updateStatus(examId: string, status: 'DRAFT' | 'CONFIRMED' | 'ARCHIVED'): void {
+    this.db.update(exams)
+      .set({ status, updatedAt: new Date().toISOString() })
+      .where(eq(exams.id, examId))
+      .run();
+  }
 }
+

@@ -25,4 +25,15 @@ describe('Gemini exam provider', () => {
     await expect(provider.preview({ apiKey: 'secret-must-not-leak', prompt: 'draft', model: 'gemini-2.5-flash' }))
       .rejects.toThrow('انتهت مهلة الاتصال بخدمة الذكاء الاصطناعي');
   });
+
+  it('aborts an explicitly cancelled request with safe Arabic cancellation message', async () => {
+    const controller = new AbortController();
+    const provider = new GeminiExamProvider((_url, init) => new Promise((_resolve, reject) => {
+      init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+    }));
+    setTimeout(() => controller.abort(), 10);
+    await expect(provider.preview({ apiKey: 'secret', prompt: 'draft', model: 'gemini-2.5-flash', signal: controller.signal }))
+      .rejects.toThrow('تم إلغاء طلب الذكاء الاصطناعي');
+  });
 });
+
