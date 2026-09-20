@@ -1,6 +1,6 @@
 import path from 'path';
 import fs from 'fs';
-import { app } from 'electron';
+import { app, safeStorage } from 'electron';
 import type { UserSessionDto } from '@tibyan/contracts';
 import {
   openSystemDatabase,
@@ -13,6 +13,7 @@ import {
   AcademicYearRepository,
   BackupRecordRepository,
   SystemAuditRepository,
+  GlobalSettingsRepository,
   type AcademicYearRow,
 } from '@tibyan/db';
 import {
@@ -34,6 +35,7 @@ import {
   SessionReflectionService,
   PdfSourceService,
   QuestionBankService,
+  GeminiCredentialService,
   type AuthenticatedUser,
 } from '@tibyan/core';
 
@@ -90,6 +92,8 @@ export class Runtime {
   public academicYearRepo!: AcademicYearRepository;
   public backupRecordRepo!: BackupRecordRepository;
   public systemAuditRepo!: SystemAuditRepository;
+  public globalSettingsRepo!: GlobalSettingsRepository;
+  public geminiCredentialService!: GeminiCredentialService;
   public authService!: AuthService;
   public backupService!: BackupService;
 
@@ -136,6 +140,18 @@ export class Runtime {
     this.academicYearRepo = new AcademicYearRepository(this.systemDb.db);
     this.backupRecordRepo = new BackupRecordRepository(this.systemDb.db);
     this.systemAuditRepo = new SystemAuditRepository(this.systemDb.db);
+    this.globalSettingsRepo = new GlobalSettingsRepository(this.systemDb.db);
+    this.geminiCredentialService = new GeminiCredentialService(
+      {
+        get: (key) => this.globalSettingsRepo.get(key) ?? undefined,
+        set: (key, value) => this.globalSettingsRepo.set(key, value),
+      },
+      {
+        isEncryptionAvailable: () => safeStorage.isEncryptionAvailable(),
+        encryptString: (value) => safeStorage.encryptString(value).toString('base64'),
+        decryptString: (value) => safeStorage.decryptString(Buffer.from(value, 'base64')),
+      },
+    );
     this.authService = new AuthService(this.systemDb.db);
 
     this.backupService = new BackupService({

@@ -67,6 +67,11 @@ export const IPC_CHANNELS = {
   SYSTEM_SWITCH_ACADEMIC_YEAR: 'system:switchAcademicYear',
   SYSTEM_OPEN_WHATSAPP: 'system:openWhatsApp',
 
+  // Gemini configuration (credential material is accepted only by Main and never returned)
+  GEMINI_GET_STATUS: 'gemini:getStatus',
+  GEMINI_SET_CREDENTIAL: 'gemini:setCredential',
+  GEMINI_DELETE_CREDENTIAL: 'gemini:deleteCredential',
+
   // Finance
   FINANCE_RECORD_PAYMENT: 'finance:recordPayment',
   FINANCE_LIST_STUDENT_PAYMENTS: 'finance:listStudentPayments',

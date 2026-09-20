@@ -17,3 +17,4 @@ export * from './session-reflection.dto.js';
 export * from './source-document.dto.js';
 export * from './question-bank.dto.js';
 export * from './exam.dto.js';
+export * from './gemini-configuration.dto.js';

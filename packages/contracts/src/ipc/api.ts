@@ -64,6 +64,7 @@ import {
   SwitchAcademicYearInput,
   UpdateThemeSettingInput,
 } from '../models/system.dto.js';
+import { GeminiCredentialInput, GeminiConfigurationStatus } from '../models/gemini-configuration.dto.js';
 import {
   PaymentDto,
   RecordPaymentInput,
@@ -198,6 +199,11 @@ export interface TibyanApi {
     createAcademicYear(input: CreateAcademicYearInput): Promise<IpcResult<AcademicYearDto>>;
     switchAcademicYear(input: SwitchAcademicYearInput): Promise<IpcResult<void>>;
     openWhatsApp(input: { phone: string; message: string }): Promise<IpcResult<void>>;
+  };
+  gemini: {
+    getStatus(): Promise<IpcResult<GeminiConfigurationStatus>>;
+    setCredential(input: GeminiCredentialInput): Promise<IpcResult<void>>;
+    deleteCredential(): Promise<IpcResult<void>>;
   };
   finance: {
     recordPayment(input: RecordPaymentInput): Promise<IpcResult<PaymentDto>>;

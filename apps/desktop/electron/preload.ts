@@ -103,6 +103,8 @@ import {
   type BulkQuestionItemDto,
   type BulkImportReviewItemDto,
   type CommitBulkImportInputDto,
+  type GeminiCredentialInput,
+  type GeminiConfigurationStatus,
 } from '@tibyan/contracts';
 
 /**
@@ -284,6 +286,18 @@ export const tibyanApi: TibyanApi = {
     },
     openWhatsApp(input: { phone: string; message: string }): Promise<IpcResult<void>> {
       return ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_OPEN_WHATSAPP, input);
+    },
+  },
+
+  gemini: {
+    getStatus(): Promise<IpcResult<GeminiConfigurationStatus>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GEMINI_GET_STATUS);
+    },
+    setCredential(input: GeminiCredentialInput): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GEMINI_SET_CREDENTIAL, input);
+    },
+    deleteCredential(): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GEMINI_DELETE_CREDENTIAL);
     },
   },
 
