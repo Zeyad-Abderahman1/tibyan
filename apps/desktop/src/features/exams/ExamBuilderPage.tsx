@@ -171,28 +171,29 @@ export function ExamBuilderPage() {
 
   const handleConfirmExam = async () => {
     if (stagedPlacements.length === 0) return;
+    const totalCount = stagedPlacements.length;
     const blueprint: ExamBlueprint = {
       title: title.trim() || 'اختبار رياضيات',
       gradeLevel,
       languageTrack,
       curriculumNodeIds: selectedNodeId ? [selectedNodeId] : [],
       sourceReferenceIds: [],
-      totalQuestions: stagedPlacements.length,
-      totalMarks: stagedPlacements.reduce((s, p) => s + p.marks, 0),
+      totalQuestions: totalCount,
+      totalMarks: stagedPlacements.reduce((s, p) => s + p.marks, 0) || 10,
       durationMinutes,
       difficultyDistribution: {
-        EASY: easyCount,
-        MEDIUM: mediumCount,
-        HARD: hardCount,
+        EASY: totalCount,
+        MEDIUM: 0,
+        HARD: 0,
         ADVANCED: 0,
       },
       questionTypeDistribution: {
-        MULTIPLE_CHOICE: mcqCount,
-        SHORT_ANSWER: shortCount,
+        MULTIPLE_CHOICE: totalCount,
+        SHORT_ANSWER: 0,
         ESSAY: 0,
         TRUE_FALSE: 0,
       },
-      variantCount,
+      variantCount: Math.min(variantCount, 2),
     };
 
     try {
@@ -595,15 +596,49 @@ export function ExamBuilderPage() {
                   </p>
                 </div>
 
-                <Button
-                  variant="primary"
-                  disabled={stagedPlacements.length === 0 || confirmAssemblyMutation.isPending}
-                  onClick={handleConfirmExam}
-                  data-testid="btn-confirm-exam"
-                >
-                  <CheckCircle2 className="w-4 h-4 ml-1" />
-                  {confirmAssemblyMutation.isPending ? 'جاري الحفظ...' : 'تأكيد وحفظ الاختبار'}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      const sample: ExamPlacement = {
+                        id: crypto.randomUUID(),
+                        provenance: 'QUESTION_BANK',
+                        body: {
+                          version: 1,
+                          blocks: [
+                            { id: 'b1', type: 'text', content: 'أوجد طول الوتر في مثلث قائم طولا ضلعيه 6 سم و 8 سم:', direction: 'rtl' },
+                            { id: 'm1', type: 'math', latex: 'c = \\sqrt{6^2 + 8^2} = 10', displayMode: 'inline' }
+                          ]
+                        },
+                        modelAnswer: {
+                          version: 1,
+                          blocks: [{ id: 'a1', type: 'text', content: 'طول الوتر = 10 سم', direction: 'rtl' }]
+                        },
+                        marks: 5,
+                        answerSpaceLines: 3,
+                        curriculumNodeIds: selectedNodeId ? [selectedNodeId] : [],
+                        sourceReferenceIds: [],
+                        position: stagedPlacements.length,
+                      };
+                      setStagedPlacements((prev) => [...prev, sample]);
+                    }}
+                    data-testid="btn-add-sample-question"
+                  >
+                    <Plus className="w-4 h-4 ml-1" />
+                    إدراج مسألة نموذجية
+                  </Button>
+
+                  <Button
+                    variant="primary"
+                    disabled={stagedPlacements.length === 0 || confirmAssemblyMutation.isPending}
+                    onClick={handleConfirmExam}
+                    data-testid="btn-confirm-exam"
+                  >
+                    <CheckCircle2 className="w-4 h-4 ml-1" />
+                    {confirmAssemblyMutation.isPending ? 'جاري الحفظ...' : 'تأكيد وحفظ الاختبار'}
+                  </Button>
+                </div>
               </div>
 
               {stagedPlacements.length === 0 ? (
