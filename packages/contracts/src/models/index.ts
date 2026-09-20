@@ -11,3 +11,5 @@ export * from './attendance.dto.js';
 export * from './finance.dto.js';
 export * from './thermal-receipt.dto.js';
 export * from './curriculum.dto.js';
+export * from './math-rich-content.dto.js';
+
