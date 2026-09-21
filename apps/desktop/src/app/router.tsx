@@ -25,6 +25,10 @@ import { MathEditorPage } from '../features/math/MathEditorPage.js';
 import { SourcesPage } from '../features/sources/SourcesPage.js';
 import { QuestionBankPage } from '../features/questions/QuestionBankPage.js';
 import { ExamBuilderPage } from '../features/exams/ExamBuilderPage.js';
+import { CaptureSessionPage } from '../features/capture/CaptureSessionPage.js';
+import { CorrectionWorkspace } from '../features/grading/CorrectionWorkspace.js';
+import { AnalyticsDashboard } from '../features/analytics/AnalyticsDashboard.js';
+import { StudentResultPage } from '../features/analytics/StudentResultPage.js';
 
 
 /**
@@ -250,6 +254,26 @@ export const routes: RouteObject[] = [
       {
         path: 'settings',
         element: <SettingsPage />,
+      },
+      {
+        path: 'capture',
+        element: <CaptureSessionPage />,
+      },
+      {
+        path: 'capture/:sessionId/import',
+        element: <CaptureSessionPage />,
+      },
+      {
+        path: 'grading/:submissionId',
+        element: <CorrectionWorkspace />,
+      },
+      {
+        path: 'analytics',
+        element: <AnalyticsDashboard />,
+      },
+      {
+        path: 'student-result/:submissionId',
+        element: <StudentResultPage />,
       },
 
       {

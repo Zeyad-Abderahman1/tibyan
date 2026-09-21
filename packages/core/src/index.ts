@@ -23,3 +23,6 @@ export * from './questions/index.js';
 export * from './exams/index.js';
 export * from './ai/index.js';
 export * from './geometry/index.js';
+export * from './capture/index.js';
+export * from './grading/index.js';
+export * from './analytics/index.js';

@@ -5,3 +5,4 @@ export * from './student.js';
 export * from './session.js';
 export * from './attendance.js';
 export * from './curriculum.js';
+export * from './capture.js';

@@ -12,6 +12,7 @@ import {
   FileText,
   HelpCircle,
   FileCheck,
+  ClipboardCheck,
 } from 'lucide-react';
 
 import { cn } from '@tibyan/design-system';
@@ -65,6 +66,11 @@ export function DynamicIslandNav({ items = DEFAULT_NAV_ITEMS, className }: Dynam
     if (location.pathname.startsWith('/math-editor')) {
       const copy = [...DEFAULT_NAV_ITEMS];
       copy.splice(4, 0, { to: '/math-editor', label: 'محرر الرياضيات', icon: Sigma });
+      return copy;
+    }
+    if (location.pathname.startsWith('/capture') || location.pathname.startsWith('/grading') || location.pathname.startsWith('/analytics') || location.pathname.startsWith('/student-result')) {
+      const copy = [...DEFAULT_NAV_ITEMS];
+      copy.splice(3, 0, { to: '/capture', label: 'تصحيح الأوراق', icon: ClipboardCheck });
       return copy;
     }
     return items;

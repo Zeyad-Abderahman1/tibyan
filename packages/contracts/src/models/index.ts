@@ -18,3 +18,6 @@ export * from './source-document.dto.js';
 export * from './question-bank.dto.js';
 export * from './exam.dto.js';
 export * from './gemini-configuration.dto.js';
+export * from './capture.dto.js';
+export * from './grading.dto.js';
+export * from './analytics.dto.js';

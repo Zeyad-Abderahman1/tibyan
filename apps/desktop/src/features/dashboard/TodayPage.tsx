@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   FileCheck,
   Sparkles,
+  ClipboardCheck,
 } from 'lucide-react';
 import { useTodayDashboard } from '../../hooks/useDashboard.js';
 import { ClassScheduleCard } from './ClassScheduleCard.js';
@@ -208,6 +209,41 @@ export function TodayPage() {
         >
           <Sparkles className="w-4 h-4 ml-1.5" />
           فتح منشئ الاختبارات
+        </Button>
+      </Card>
+
+      {/* Phase 5 Featured Shortcut: Paper Correction & Analytics Banner */}
+      <Card
+        variant="default"
+        className="p-4 bg-gradient-to-r from-[#0B3D3D]/10 via-[#0B3D3D]/5 to-transparent dark:from-[#5CE1E6]/10 dark:via-[#5CE1E6]/5 border-[#0B3D3D]/30 dark:border-[#5CE1E6]/30 flex flex-col md:flex-row items-center justify-between gap-4"
+        data-testid="banner-paper-correction"
+      >
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-[#0B3D3D] dark:bg-[#5CE1E6] text-white flex items-center justify-center shrink-0 shadow-xs">
+            <ClipboardCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-[var(--color-text-primary)]">
+                تصحيح الأوراق والتحليلات
+              </h2>
+              <Badge variant="accent" size="sm">جديد</Badge>
+            </div>
+            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+              استيراد صور أوراق الاختبار، التصحيح التلقائي بالذكاء الاصطناعي، وعرض تحليلات الأداء.
+            </p>
+          </div>
+        </div>
+
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => navigate('/capture')}
+          data-testid="btn-open-capture-from-dashboard"
+          className="shrink-0"
+        >
+          <ClipboardCheck className="w-4 h-4 ml-1.5" />
+          فتح التصحيح
         </Button>
       </Card>
 

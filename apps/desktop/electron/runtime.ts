@@ -38,6 +38,9 @@ import {
   GeminiCredentialService,
   ExamService,
   AiExamService,
+  CaptureService,
+  GradingService,
+  AnalyticsService,
   injectKatex,
   type AuthenticatedUser,
 } from '@tibyan/core';
@@ -120,6 +123,9 @@ export class Runtime {
   public questionBankService!: QuestionBankService;
   public aiExamService!: AiExamService;
   public examService: ExamService | null = null;
+  public captureService: CaptureService | null = null;
+  public gradingService: GradingService | null = null;
+  public analyticsService: AnalyticsService | null = null;
 
   constructor(options: RuntimeOptions = {}) {
 
@@ -250,6 +256,9 @@ export class Runtime {
     this.lessonPlannerService = new LessonPlannerService(this.systemDb.db, this.academicDb.db);
     this.sessionReflectionService = new SessionReflectionService(this.academicDb.db);
     this.examService = new ExamService(this.academicDb.db, this.systemDb.db);
+    this.captureService = new CaptureService(this.academicDb.db, mediaDir);
+    this.gradingService = new GradingService(this.academicDb.db, this.systemDb.db, this.geminiCredentialService);
+    this.analyticsService = new AnalyticsService(this.academicDb.db, this.systemDb.db);
   }
 
   /**
@@ -268,6 +277,9 @@ export class Runtime {
     this.lessonPlannerService = null;
     this.sessionReflectionService = null;
     this.examService = null;
+    this.captureService = null;
+    this.gradingService = null;
+    this.analyticsService = null;
 
     closeAcademicDatabase();
     this.academicDb = null;
