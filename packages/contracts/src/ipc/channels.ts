@@ -206,6 +206,24 @@ export const IPC_CHANNELS = {
   ASSISTANT_CANCEL_ACTION: 'assistant:cancelAction',
   ASSISTANT_UNDO_ACTION: 'assistant:undoAction',
   ASSISTANT_GET_TOOLS: 'assistant:getTools',
+
+  // Slides (Phase 6)
+  SLIDES_LIST_DECKS: 'slides:listDecks',
+  SLIDES_GET_DECK: 'slides:getDeck',
+  SLIDES_CREATE_DECK: 'slides:createDeck',
+  SLIDES_UPDATE_DECK: 'slides:updateDeck',
+  SLIDES_DELETE_DECK: 'slides:deleteDeck',
+  SLIDES_ADD_SLIDE: 'slides:addSlide',
+  SLIDES_UPDATE_SLIDE: 'slides:updateSlide',
+  SLIDES_DELETE_SLIDE: 'slides:deleteSlide',
+  SLIDES_DUPLICATE_SLIDE: 'slides:duplicateSlide',
+  SLIDES_REORDER_SLIDES: 'slides:reorderSlides',
+  SLIDES_ADD_BLOCK: 'slides:addBlock',
+  SLIDES_UPDATE_BLOCK: 'slides:updateBlock',
+  SLIDES_DELETE_BLOCK: 'slides:deleteBlock',
+  SLIDES_REORDER_BLOCKS: 'slides:reorderBlocks',
+  SLIDES_MOVE_BLOCK: 'slides:moveBlock',
+  SLIDES_GET_PRESENTATION: 'slides:getPresentation',
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];

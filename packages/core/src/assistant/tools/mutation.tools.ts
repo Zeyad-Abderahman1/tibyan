@@ -130,4 +130,43 @@ export function registerMutationTools(): void {
     requiredPermissions: ['STUDENTS_WRITE'],
     category: 'students',
   });
+
+  registerTool({
+    name: 'create_slide_deck',
+    description: 'Create a new teaching slide deck',
+    descriptionAr: 'إنشاء عرض شرح جديد',
+    inputSchema: { title: 'string', description: 'string?', curriculumNodeId: 'string?' },
+    outputSchema: { id: 'string', title: 'string' },
+    riskLevel: 'low-risk',
+    confirmationPolicy: 'required',
+    undoCapability: 'none',
+    requiredPermissions: ['GROUPS_WRITE'],
+    category: 'slides',
+  });
+
+  registerTool({
+    name: 'add_slide_to_deck',
+    description: 'Add a new slide to an existing deck',
+    descriptionAr: 'إضافة شريحة جديدة لعرض شرح',
+    inputSchema: { deckId: 'string', title: 'string?' },
+    outputSchema: { id: 'string', deckId: 'string', position: 'number' },
+    riskLevel: 'low-risk',
+    confirmationPolicy: 'required',
+    undoCapability: 'none',
+    requiredPermissions: ['GROUPS_WRITE'],
+    category: 'slides',
+  });
+
+  registerTool({
+    name: 'add_block_to_slide',
+    description: 'Add a content block (text, math, image, geometry, question) to a slide',
+    descriptionAr: 'إضافة كتلة محتوى (نص، صيغة رياضية، صورة، شكل هندسي، سؤال) إلى شريحة',
+    inputSchema: { slideId: 'string', blockType: 'string', contentJson: 'string' },
+    outputSchema: { id: 'string', slideId: 'string', blockType: 'string' },
+    riskLevel: 'low-risk',
+    confirmationPolicy: 'required',
+    undoCapability: 'none',
+    requiredPermissions: ['GROUPS_WRITE'],
+    category: 'slides',
+  });
 }

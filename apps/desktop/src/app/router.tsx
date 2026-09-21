@@ -21,7 +21,7 @@ import { AttendancePage } from '../features/attendance/AttendancePage.js';
 import { SettingsPage } from '../features/settings/SettingsPage.js';
 import { FinancePage } from '../features/finance/index.js';
 import { CurriculumCatalogsPage } from '../features/curriculum/CurriculumCatalogsPage.js';
-import { MathEditorPage } from '../features/math/MathEditorPage.js';
+
 import { SourcesPage } from '../features/sources/SourcesPage.js';
 import { QuestionBankPage } from '../features/questions/QuestionBankPage.js';
 import { ExamBuilderPage } from '../features/exams/ExamBuilderPage.js';
@@ -30,6 +30,7 @@ import { CorrectionWorkspace } from '../features/grading/CorrectionWorkspace.js'
 import { AnalyticsDashboard } from '../features/analytics/AnalyticsDashboard.js';
 import { StudentResultPage } from '../features/analytics/StudentResultPage.js';
 import { AssistantPage } from '../features/assistant/AssistantPage.js';
+import { SlidesPage } from '../features/slides/SlidesPage.js';
 
 
 /**
@@ -237,10 +238,6 @@ export const routes: RouteObject[] = [
         element: <CurriculumCatalogsPage />,
       },
       {
-        path: 'math-editor',
-        element: <MathEditorPage />,
-      },
-      {
         path: 'sources',
         element: <SourcesPage />,
       },
@@ -279,6 +276,10 @@ export const routes: RouteObject[] = [
       {
         path: 'assistant',
         element: <AssistantPage />,
+      },
+      {
+        path: 'slides',
+        element: <SlidesPage />,
       },
 
       {

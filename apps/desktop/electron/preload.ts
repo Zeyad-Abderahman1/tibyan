@@ -142,6 +142,20 @@ import {
   type ConfirmationInput,
   type UndoInput,
   type ExecutionReceipt,
+  type SlideDeckDto,
+  type SlideDeckWithSlides,
+  type CreateSlideDeckInput,
+  type UpdateSlideDeckInput,
+  type SlideDto,
+  type CreateSlideInput,
+  type UpdateSlideInput,
+  type ReorderSlidesInput,
+  type SlideBlockDto,
+  type CreateSlideBlockInput,
+  type UpdateSlideBlockInput,
+  type ReorderSlideBlocksInput,
+  type MoveSlideBlockInput,
+  type SlidePresentation,
 } from '@tibyan/contracts';
 
 
@@ -702,6 +716,57 @@ export const tibyanApi: TibyanApi = {
     },
     getTools(): Promise<IpcResult<Array<{ name: string; description: string; riskLevel: string }>>> {
       return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_GET_TOOLS);
+    },
+  },
+
+  slides: {
+    listDecks(): Promise<IpcResult<SlideDeckDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_LIST_DECKS);
+    },
+    getDeck(id: string): Promise<IpcResult<SlideDeckWithSlides>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_GET_DECK, id);
+    },
+    createDeck(input: CreateSlideDeckInput): Promise<IpcResult<SlideDeckDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_CREATE_DECK, input);
+    },
+    updateDeck(id: string, input: UpdateSlideDeckInput): Promise<IpcResult<SlideDeckDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_UPDATE_DECK, { id, input });
+    },
+    deleteDeck(id: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_DELETE_DECK, id);
+    },
+    addSlide(input: CreateSlideInput): Promise<IpcResult<SlideDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_ADD_SLIDE, input);
+    },
+    updateSlide(id: string, input: UpdateSlideInput): Promise<IpcResult<SlideDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_UPDATE_SLIDE, { id, input });
+    },
+    deleteSlide(id: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_DELETE_SLIDE, id);
+    },
+    duplicateSlide(id: string): Promise<IpcResult<SlideDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_DUPLICATE_SLIDE, id);
+    },
+    reorderSlides(input: ReorderSlidesInput): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_REORDER_SLIDES, input);
+    },
+    addBlock(input: CreateSlideBlockInput): Promise<IpcResult<SlideBlockDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_ADD_BLOCK, input);
+    },
+    updateBlock(id: string, input: UpdateSlideBlockInput): Promise<IpcResult<SlideBlockDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_UPDATE_BLOCK, { id, input });
+    },
+    deleteBlock(id: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_DELETE_BLOCK, id);
+    },
+    reorderBlocks(input: ReorderSlideBlocksInput): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_REORDER_BLOCKS, input);
+    },
+    moveBlock(input: MoveSlideBlockInput): Promise<IpcResult<SlideBlockDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_MOVE_BLOCK, input);
+    },
+    getPresentation(deckId: string): Promise<IpcResult<SlidePresentation>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_GET_PRESENTATION, deckId);
     },
   },
 };

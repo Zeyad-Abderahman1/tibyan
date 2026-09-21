@@ -8,12 +8,12 @@ import {
   Settings,
   CreditCard,
   GraduationCap,
-  Sigma,
   FileText,
   HelpCircle,
   FileCheck,
   ClipboardCheck,
   Bot,
+  Presentation,
 } from 'lucide-react';
 
 import { cn } from '@tibyan/design-system';
@@ -30,6 +30,7 @@ export const DEFAULT_NAV_ITEMS: NavItem[] = [
   { to: '/students', label: 'الطلاب', icon: Users },
   { to: '/groups', label: 'المجموعات', icon: BookOpen },
   { to: '/exams', label: 'الاختبارات', icon: FileCheck },
+  { to: '/slides', label: 'الشرائح', icon: Presentation },
   { to: '/finance', label: 'المالية', icon: CreditCard },
   { to: '/assistant', label: 'المساعد', icon: Bot },
   { to: '/settings', label: 'الإعدادات', icon: Settings },
@@ -63,11 +64,6 @@ export function DynamicIslandNav({ items = DEFAULT_NAV_ITEMS, className }: Dynam
     if (location.pathname.startsWith('/sources')) {
       const copy = [...DEFAULT_NAV_ITEMS];
       copy.splice(3, 0, { to: '/sources', label: 'المصادر', icon: FileText });
-      return copy;
-    }
-    if (location.pathname.startsWith('/math-editor')) {
-      const copy = [...DEFAULT_NAV_ITEMS];
-      copy.splice(4, 0, { to: '/math-editor', label: 'محرر الرياضيات', icon: Sigma });
       return copy;
     }
     if (location.pathname.startsWith('/capture') || location.pathname.startsWith('/grading') || location.pathname.startsWith('/analytics') || location.pathname.startsWith('/student-result')) {

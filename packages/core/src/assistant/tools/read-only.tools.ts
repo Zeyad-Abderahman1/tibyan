@@ -143,4 +143,30 @@ export function registerReadOnlyTools(): void {
     requiredPermissions: [],
     category: 'dashboard',
   });
+
+  registerTool({
+    name: 'list_slide_decks',
+    description: 'List all teaching slide decks',
+    descriptionAr: 'عرض جميع عروض الشرح والشرائح',
+    inputSchema: {},
+    outputSchema: { type: 'array', items: { id: 'string', title: 'string', slideCount: 'number' } },
+    riskLevel: 'read-only',
+    confirmationPolicy: 'none',
+    undoCapability: 'none',
+    requiredPermissions: ['GROUPS_READ'],
+    category: 'slides',
+  });
+
+  registerTool({
+    name: 'get_slide_deck',
+    description: 'Get a slide deck with all its slides and content blocks',
+    descriptionAr: 'عرض عرض شرح مع جميع شرائحه وكتل المحتوى',
+    inputSchema: { deckId: 'string' },
+    outputSchema: { id: 'string', title: 'string', slides: 'array' },
+    riskLevel: 'read-only',
+    confirmationPolicy: 'none',
+    undoCapability: 'none',
+    requiredPermissions: ['GROUPS_READ'],
+    category: 'slides',
+  });
 }

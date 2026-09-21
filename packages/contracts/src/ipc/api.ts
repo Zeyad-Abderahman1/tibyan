@@ -175,6 +175,22 @@ import {
   UndoInput,
   ExecutionReceipt,
 } from '../models/assistant.dto.js';
+import {
+  SlideDeckDto,
+  SlideDeckWithSlides,
+  CreateSlideDeckInput,
+  UpdateSlideDeckInput,
+  SlideDto,
+  CreateSlideInput,
+  UpdateSlideInput,
+  ReorderSlidesInput,
+  SlideBlockDto,
+  CreateSlideBlockInput,
+  UpdateSlideBlockInput,
+  ReorderSlideBlocksInput,
+  MoveSlideBlockInput,
+  SlidePresentation,
+} from '../models/slide.dto.js';
 
 import { CurriculumProgressStatus } from '../enums/curriculum.js';
 import { FinancialStatus } from '../enums/payment.js';
@@ -388,6 +404,24 @@ export interface TibyanApi {
     cancelAction(previewId: string): Promise<IpcResult<void>>;
     undoAction(input: UndoInput): Promise<IpcResult<ExecutionReceipt>>;
     getTools(): Promise<IpcResult<Array<{ name: string; description: string; riskLevel: string }>>>;
+  };
+  slides: {
+    listDecks(): Promise<IpcResult<SlideDeckDto[]>>;
+    getDeck(id: string): Promise<IpcResult<SlideDeckWithSlides>>;
+    createDeck(input: CreateSlideDeckInput): Promise<IpcResult<SlideDeckDto>>;
+    updateDeck(id: string, input: UpdateSlideDeckInput): Promise<IpcResult<SlideDeckDto>>;
+    deleteDeck(id: string): Promise<IpcResult<void>>;
+    addSlide(input: CreateSlideInput): Promise<IpcResult<SlideDto>>;
+    updateSlide(id: string, input: UpdateSlideInput): Promise<IpcResult<SlideDto>>;
+    deleteSlide(id: string): Promise<IpcResult<void>>;
+    duplicateSlide(id: string): Promise<IpcResult<SlideDto>>;
+    reorderSlides(input: ReorderSlidesInput): Promise<IpcResult<void>>;
+    addBlock(input: CreateSlideBlockInput): Promise<IpcResult<SlideBlockDto>>;
+    updateBlock(id: string, input: UpdateSlideBlockInput): Promise<IpcResult<SlideBlockDto>>;
+    deleteBlock(id: string): Promise<IpcResult<void>>;
+    reorderBlocks(input: ReorderSlideBlocksInput): Promise<IpcResult<void>>;
+    moveBlock(input: MoveSlideBlockInput): Promise<IpcResult<SlideBlockDto>>;
+    getPresentation(deckId: string): Promise<IpcResult<SlidePresentation>>;
   };
 }
 

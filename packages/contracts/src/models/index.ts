@@ -22,3 +22,4 @@ export * from './capture.dto.js';
 export * from './grading.dto.js';
 export * from './analytics.dto.js';
 export * from './assistant.dto.js';
+export * from './slide.dto.js';

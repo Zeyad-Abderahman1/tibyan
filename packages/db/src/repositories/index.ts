@@ -24,4 +24,5 @@ export * from './academic/session-reflection.repository.js';
 export * from './academic/exam.repository.js';
 export * from './academic/capture.repository.js';
 export * from './academic/grading.repository.js';
+export * from './academic/slide.repository.js';
 

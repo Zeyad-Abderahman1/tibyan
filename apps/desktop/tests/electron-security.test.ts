@@ -229,6 +229,7 @@ describe('Task 10 — Preload Bridge Surface & Isolation Verification', () => {
       'questionBank',
       'sessionReflection',
       'sessions',
+      'slides',
       'students',
       'system',
       'thermal',

@@ -20,6 +20,7 @@ import { registerCaptureIpcHandlers, unregisterCaptureIpcHandlers } from './capt
 import { registerGradingIpcHandlers, unregisterGradingIpcHandlers } from './grading.ipc.js';
 import { registerAnalyticsIpcHandlers, unregisterAnalyticsIpcHandlers } from './analytics.ipc.js';
 import { registerAssistantIpcHandlers, unregisterAssistantIpcHandlers } from './assistant.ipc.js';
+import { registerSlideIpcHandlers, unregisterSlideIpcHandlers } from './slides.ipc.js';
 
 /**
  * Registers all typed IPC domain handlers against the electron ipcMain dispatcher.
@@ -48,6 +49,7 @@ export function registerAllIpcHandlers(runtime: Runtime, mainWindow: BrowserWind
   registerGradingIpcHandlers(runtime, mainWindow);
   registerAnalyticsIpcHandlers(runtime, mainWindow);
   registerAssistantIpcHandlers(runtime, mainWindow);
+  registerSlideIpcHandlers(runtime, mainWindow);
 }
 
 /**
@@ -74,6 +76,7 @@ export function unregisterAllIpcHandlers(): void {
   unregisterGradingIpcHandlers();
   unregisterAnalyticsIpcHandlers();
   unregisterAssistantIpcHandlers();
+  unregisterSlideIpcHandlers();
 }
 
 export * from './errors.js';
@@ -97,5 +100,6 @@ export * from './capture.ipc.js';
 export * from './grading.ipc.js';
 export * from './analytics.ipc.js';
 export * from './assistant.ipc.js';
+export * from './slides.ipc.js';
 
 
