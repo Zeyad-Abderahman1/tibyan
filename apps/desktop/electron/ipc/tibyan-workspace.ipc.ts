@@ -1,6 +1,6 @@
 import { ipcMain, type BrowserWindow } from 'electron';
 import { z } from 'zod';
-import { IPC_CHANNELS, SourceGenerationRequestSchema, ExamGenerationRequestSchema, SlidesGenerationRequestSchema, ReviewGenerationRequestSchema, NotesGenerationRequestSchema } from '@tibyan/contracts';
+import { IPC_CHANNELS, ExamGenerationRequestSchema, SlidesGenerationRequestSchema, ReviewGenerationRequestSchema, NotesGenerationRequestSchema } from '@tibyan/contracts';
 import { SlideService, ReviewService, NotesService } from '@tibyan/core';
 import type { Runtime } from '../runtime.js';
 import { safeIpcCall } from './errors.js';
