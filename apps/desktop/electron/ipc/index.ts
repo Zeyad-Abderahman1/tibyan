@@ -16,6 +16,9 @@ import { registerPdfSourceIpcHandlers, unregisterPdfSourceIpcHandlers } from './
 import { registerQuestionBankIpcHandlers, unregisterQuestionBankIpcHandlers } from './question-bank.ipc.js';
 import { registerGeminiIpcHandlers, unregisterGeminiIpcHandlers } from './gemini.ipc.js';
 import { registerExamIpcHandlers, unregisterExamIpcHandlers } from './exam.ipc.js';
+import { registerCaptureIpcHandlers, unregisterCaptureIpcHandlers } from './capture.ipc.js';
+import { registerGradingIpcHandlers, unregisterGradingIpcHandlers } from './grading.ipc.js';
+import { registerAnalyticsIpcHandlers, unregisterAnalyticsIpcHandlers } from './analytics.ipc.js';
 
 /**
  * Registers all typed IPC domain handlers against the electron ipcMain dispatcher.
@@ -40,6 +43,9 @@ export function registerAllIpcHandlers(runtime: Runtime, mainWindow: BrowserWind
   registerSystemIpcHandlers(runtime, mainWindow);
   registerGeminiIpcHandlers(runtime, mainWindow);
   registerExamIpcHandlers(runtime, mainWindow);
+  registerCaptureIpcHandlers(runtime, mainWindow);
+  registerGradingIpcHandlers(runtime, mainWindow);
+  registerAnalyticsIpcHandlers(runtime, mainWindow);
 }
 
 /**
@@ -62,6 +68,9 @@ export function unregisterAllIpcHandlers(): void {
   unregisterSystemIpcHandlers();
   unregisterGeminiIpcHandlers();
   unregisterExamIpcHandlers();
+  unregisterCaptureIpcHandlers();
+  unregisterGradingIpcHandlers();
+  unregisterAnalyticsIpcHandlers();
 }
 
 export * from './errors.js';
@@ -81,5 +90,8 @@ export * from './backup.ipc.js';
 export * from './system.ipc.js';
 export * from './gemini.ipc.js';
 export * from './exam.ipc.js';
+export * from './capture.ipc.js';
+export * from './grading.ipc.js';
+export * from './analytics.ipc.js';
 
 

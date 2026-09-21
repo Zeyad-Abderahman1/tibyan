@@ -123,6 +123,8 @@ For active work:
 ## Current Project Boundary
 
 - Phase 2: COMPLETE.
-- Phase 3: STARTED.
-- Current Phase 3 kickoff/review channel: GitHub Issue #3.
-- Do not expand into Phase 4 without explicit user approval.
+- Phase 3: COMPLETE.
+- Phase 4: COMPLETE (PR #11 merged).
+- Phase 5: IN PROGRESS.
+- Current Phase 5 branch: `opencode/phase5-paper-correction-analytics`.
+- Do not expand into Phase 6 without explicit user approval.

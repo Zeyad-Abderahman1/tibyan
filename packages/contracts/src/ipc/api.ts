@@ -136,6 +136,35 @@ import {
   AiGenerateCandidatesInput,
   AiExamCandidate,
 } from '../models/exam.dto.js';
+import {
+  CaptureSessionDto,
+  CreateCaptureSessionDto,
+  CaptureSubmissionDto,
+  CapturePageDto,
+  ImportCaptureFilesInput,
+  AssociateSubmissionInput,
+  ReassignPageInput,
+  ExcludePageInput,
+  RotatePageInput,
+} from '../models/capture.dto.js';
+import {
+  GradingDecisionDto,
+  GradingRunDto,
+  ExtractedAnswerDto,
+  GradeSubmissionInput,
+  OverrideGradingDecisionInput,
+  ReviewExtractedAnswerInput,
+  FinalizeSubmissionInput,
+  RegradeSubmissionInput,
+} from '../models/grading.dto.js';
+import { type SubmissionStatus } from '../enums/capture.js';
+import {
+  ExamAnalyticsSummaryDto,
+  ScoreDistributionDto,
+  QuestionPerformanceDto,
+  SkillPerformanceDto,
+  StudentExamResultDto,
+} from '../models/analytics.dto.js';
 
 import { CurriculumProgressStatus } from '../enums/curriculum.js';
 import { FinancialStatus } from '../enums/payment.js';
@@ -302,6 +331,41 @@ export interface TibyanApi {
     renderLayout(input: { examId: string; kind: 'STUDENT' | 'TEACHER' | 'ANSWER_KEY'; versionLabel?: 'A' | 'B' | 'C' | 'D' }): Promise<IpcResult<string>>;
     exportPdf(input: { examId: string; kind: 'STUDENT' | 'TEACHER' | 'ANSWER_KEY'; versionLabel?: 'A' | 'B' | 'C' | 'D'; defaultFilename?: string }): Promise<IpcResult<{ canceled: boolean; filePath: string }>>;
     print(input: { examId: string; kind: 'STUDENT' | 'TEACHER' | 'ANSWER_KEY'; versionLabel?: 'A' | 'B' | 'C' | 'D' }): Promise<IpcResult<{ success: boolean; message?: string }>>;
+  };
+  capture: {
+    createSession(input: CreateCaptureSessionDto): Promise<IpcResult<CaptureSessionDto>>;
+    listSessions(): Promise<IpcResult<CaptureSessionDto[]>>;
+    getSession(id: string): Promise<IpcResult<CaptureSessionDto>>;
+    deleteSession(id: string): Promise<IpcResult<void>>;
+    importFiles(input: ImportCaptureFilesInput): Promise<IpcResult<{ pages: CapturePageDto[]; duplicates: Array<{ isDuplicate: boolean; existingPageId?: string; existingSubmissionId?: string }> }>>;
+    listSubmissions(sessionId: string): Promise<IpcResult<CaptureSubmissionDto[]>>;
+    getSubmission(id: string): Promise<IpcResult<CaptureSubmissionDto>>;
+    associateSubmission(input: AssociateSubmissionInput): Promise<IpcResult<CaptureSubmissionDto>>;
+    listPages(submissionId: string): Promise<IpcResult<CapturePageDto[]>>;
+    rotatePage(input: RotatePageInput): Promise<IpcResult<CapturePageDto>>;
+    excludePage(input: ExcludePageInput): Promise<IpcResult<CapturePageDto>>;
+    reassignPage(input: ReassignPageInput): Promise<IpcResult<CapturePageDto>>;
+    checkDuplicate(fingerprintSha256: string): Promise<IpcResult<{ isDuplicate: boolean; existingPageId?: string; existingSubmissionId?: string }>>;
+  };
+  grading: {
+    extractAnswers(submissionId: string): Promise<IpcResult<ExtractedAnswerDto[]>>;
+    gradeSubmission(input: GradeSubmissionInput): Promise<IpcResult<GradingRunDto>>;
+    gradeSubmissionAi(input: GradeSubmissionInput): Promise<IpcResult<GradingRunDto>>;
+    getDecisions(submissionId: string): Promise<IpcResult<GradingDecisionDto[]>>;
+    overrideDecision(input: OverrideGradingDecisionInput): Promise<IpcResult<GradingDecisionDto>>;
+    reviewAnswer(input: ReviewExtractedAnswerInput): Promise<IpcResult<ExtractedAnswerDto>>;
+    finalize(input: FinalizeSubmissionInput): Promise<IpcResult<void>>;
+    regrade(input: RegradeSubmissionInput): Promise<IpcResult<GradingRunDto>>;
+    getRuns(submissionId: string): Promise<IpcResult<GradingRunDto[]>>;
+    getSubmissionStatus(submissionId: string): Promise<IpcResult<{ status: SubmissionStatus; totalAwarded: number; totalMax: number }>>;
+  };
+  analytics: {
+    getExamSummary(examId: string): Promise<IpcResult<ExamAnalyticsSummaryDto>>;
+    getScoreDistribution(examId: string): Promise<IpcResult<ScoreDistributionDto>>;
+    getQuestionPerformance(examId: string): Promise<IpcResult<QuestionPerformanceDto[]>>;
+    getSkillPerformance(examId: string): Promise<IpcResult<SkillPerformanceDto[]>>;
+    getStudentResult(submissionId: string): Promise<IpcResult<StudentExamResultDto>>;
+    listStudentResults(examId: string): Promise<IpcResult<StudentExamResultDto[]>>;
   };
 }
 

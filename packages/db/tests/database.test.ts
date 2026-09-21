@@ -100,6 +100,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0007_awesome_sunspot',
       '0008_nifty_magus',
       '0009_exotic_carmella_unuscione',
+      '0010_phase5_capture_grading_analytics',
     ]);
 
     expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris']);
@@ -114,6 +115,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0007_awesome_sunspot',
       '0008_nifty_magus',
       '0009_exotic_carmella_unuscione',
+      '0010_phase5_capture_grading_analytics',
     ]);
 
     sysRaw.close();
@@ -147,6 +149,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0007_awesome_sunspot',
       '0008_nifty_magus',
       '0009_exotic_carmella_unuscione',
+      '0010_phase5_capture_grading_analytics',
     ]);
 
     sysRaw.close();
@@ -987,7 +990,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     const appliedDuringUpgrade = migrateAcademicDatabase(rawDb);
 
     // 4. Verify every later migration, including the Phase 4 exam schema, is applied.
-    expect(appliedDuringUpgrade).toEqual(['0002_glamorous_sunspot', '0003_neat_krista_starr', '0004_cold_bullseye', '0005_rainy_silvermane', '0006_parched_xavin', '0007_awesome_sunspot', '0008_nifty_magus', '0009_exotic_carmella_unuscione']);
+    expect(appliedDuringUpgrade).toEqual(['0002_glamorous_sunspot', '0003_neat_krista_starr', '0004_cold_bullseye', '0005_rainy_silvermane', '0006_parched_xavin', '0007_awesome_sunspot', '0008_nifty_magus', '0009_exotic_carmella_unuscione', '0010_phase5_capture_grading_analytics']);
     const colsAfter = rawDb.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
     expect(colsAfter.map((c) => c.name)).toContain('cancellation_reason');
 
@@ -1023,6 +1026,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0007_awesome_sunspot',
       '0008_nifty_magus',
       '0009_exotic_carmella_unuscione',
+      '0010_phase5_capture_grading_analytics',
     ]);
     const migrationRecords = rawDb
       .prepare("SELECT COUNT(*) as count FROM __tibyan_migrations WHERE id = '0002_glamorous_sunspot'")

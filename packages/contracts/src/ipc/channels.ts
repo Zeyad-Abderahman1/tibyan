@@ -159,6 +159,41 @@ export const IPC_CHANNELS = {
   EXAMS_RENDER_LAYOUT: 'exams:renderLayout',
   EXAMS_EXPORT_PDF: 'exams:exportPdf',
   EXAMS_PRINT: 'exams:print',
+
+  // Paper Capture (Phase 5)
+  CAPTURE_CREATE_SESSION: 'capture:createSession',
+  CAPTURE_LIST_SESSIONS: 'capture:listSessions',
+  CAPTURE_GET_SESSION: 'capture:getSession',
+  CAPTURE_DELETE_SESSION: 'capture:deleteSession',
+  CAPTURE_IMPORT_FILES: 'capture:importFiles',
+  CAPTURE_LIST_SUBMISSIONS: 'capture:listSubmissions',
+  CAPTURE_GET_SUBMISSION: 'capture:getSubmission',
+  CAPTURE_ASSOCIATE_SUBMISSION: 'capture:associateSubmission',
+  CAPTURE_LIST_PAGES: 'capture:listPages',
+  CAPTURE_ROTATE_PAGE: 'capture:rotatePage',
+  CAPTURE_EXCLUDE_PAGE: 'capture:excludePage',
+  CAPTURE_REASSIGN_PAGE: 'capture:reassignPage',
+  CAPTURE_CHECK_DUPLICATE: 'capture:checkDuplicate',
+
+  // Grading (Phase 5)
+  GRADING_EXTRACT_ANSWERS: 'grading:extractAnswers',
+  GRADE_SUBMISSION: 'grading:gradeSubmission',
+  GRADE_SUBMISSION_AI: 'grading:gradeSubmissionAi',
+  GRADE_GET_DECISIONS: 'grading:getDecisions',
+  GRADE_OVERRIDE_DECISION: 'grading:overrideDecision',
+  GRADE_REVIEW_ANSWER: 'grading:reviewAnswer',
+  GRADE_FINALIZE: 'grading:finalize',
+  GRADE_REGRADE: 'grading:regrade',
+  GRADE_GET_RUNS: 'grading:getRuns',
+  GRADE_GET_SUBMISSION_STATUS: 'grading:getSubmissionStatus',
+
+  // Analytics (Phase 5)
+  ANALYTICS_GET_EXAM_SUMMARY: 'analytics:getExamSummary',
+  ANALYTICS_GET_SCORE_DISTRIBUTION: 'analytics:getScoreDistribution',
+  ANALYTICS_GET_QUESTION_PERFORMANCE: 'analytics:getQuestionPerformance',
+  ANALYTICS_GET_SKILL_PERFORMANCE: 'analytics:getSkillPerformance',
+  ANALYTICS_GET_STUDENT_RESULT: 'analytics:getStudentResult',
+  ANALYTICS_LIST_STUDENT_RESULTS: 'analytics:listStudentResults',
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];

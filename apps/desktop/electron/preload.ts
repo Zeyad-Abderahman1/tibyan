@@ -111,6 +111,29 @@ import {
   type AssemblyPreviewResult,
   type AiGenerateCandidatesInput,
   type AiExamCandidate,
+  type CaptureSessionDto,
+  type CreateCaptureSessionDto,
+  type CaptureSubmissionDto,
+  type CapturePageDto,
+  type ImportCaptureFilesInput,
+  type AssociateSubmissionInput,
+  type ReassignPageInput,
+  type ExcludePageInput,
+  type RotatePageInput,
+  type GradingDecisionDto,
+  type GradingRunDto,
+  type ExtractedAnswerDto,
+  type GradeSubmissionInput,
+  type OverrideGradingDecisionInput,
+  type ReviewExtractedAnswerInput,
+  type FinalizeSubmissionInput,
+  type RegradeSubmissionInput,
+  type SubmissionStatus,
+  type ExamAnalyticsSummaryDto,
+  type ScoreDistributionDto,
+  type QuestionPerformanceDto,
+  type SkillPerformanceDto,
+  type StudentExamResultDto,
 } from '@tibyan/contracts';
 
 
@@ -542,6 +565,102 @@ export const tibyanApi: TibyanApi = {
     },
     print(input: { examId: string; kind: 'STUDENT' | 'TEACHER' | 'ANSWER_KEY'; versionLabel?: 'A' | 'B' | 'C' | 'D' }): Promise<IpcResult<{ success: boolean; message?: string }>> {
       return ipcRenderer.invoke(IPC_CHANNELS.EXAMS_PRINT, input);
+    },
+  },
+
+  capture: {
+    createSession(input: CreateCaptureSessionDto): Promise<IpcResult<CaptureSessionDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_CREATE_SESSION, input);
+    },
+    listSessions(): Promise<IpcResult<CaptureSessionDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_LIST_SESSIONS);
+    },
+    getSession(id: string): Promise<IpcResult<CaptureSessionDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_GET_SESSION, id);
+    },
+    deleteSession(id: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_DELETE_SESSION, id);
+    },
+    importFiles(input: ImportCaptureFilesInput): Promise<IpcResult<{ pages: CapturePageDto[]; duplicates: Array<{ isDuplicate: boolean; existingPageId?: string; existingSubmissionId?: string }> }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_IMPORT_FILES, input);
+    },
+    listSubmissions(sessionId: string): Promise<IpcResult<CaptureSubmissionDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_LIST_SUBMISSIONS, sessionId);
+    },
+    getSubmission(id: string): Promise<IpcResult<CaptureSubmissionDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_GET_SUBMISSION, id);
+    },
+    associateSubmission(input: AssociateSubmissionInput): Promise<IpcResult<CaptureSubmissionDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_ASSOCIATE_SUBMISSION, input);
+    },
+    listPages(submissionId: string): Promise<IpcResult<CapturePageDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_LIST_PAGES, submissionId);
+    },
+    rotatePage(input: RotatePageInput): Promise<IpcResult<CapturePageDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_ROTATE_PAGE, input);
+    },
+    excludePage(input: ExcludePageInput): Promise<IpcResult<CapturePageDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_EXCLUDE_PAGE, input);
+    },
+    reassignPage(input: ReassignPageInput): Promise<IpcResult<CapturePageDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_REASSIGN_PAGE, input);
+    },
+    checkDuplicate(fingerprintSha256: string): Promise<IpcResult<{ isDuplicate: boolean; existingPageId?: string; existingSubmissionId?: string }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CAPTURE_CHECK_DUPLICATE, fingerprintSha256);
+    },
+  },
+
+  grading: {
+    extractAnswers(submissionId: string): Promise<IpcResult<ExtractedAnswerDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GRADING_EXTRACT_ANSWERS, submissionId);
+    },
+    gradeSubmission(input: GradeSubmissionInput): Promise<IpcResult<GradingRunDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GRADE_SUBMISSION, input);
+    },
+    gradeSubmissionAi(input: GradeSubmissionInput): Promise<IpcResult<GradingRunDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GRADE_SUBMISSION_AI, input);
+    },
+    getDecisions(submissionId: string): Promise<IpcResult<GradingDecisionDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GRADE_GET_DECISIONS, submissionId);
+    },
+    overrideDecision(input: OverrideGradingDecisionInput): Promise<IpcResult<GradingDecisionDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GRADE_OVERRIDE_DECISION, input);
+    },
+    reviewAnswer(input: ReviewExtractedAnswerInput): Promise<IpcResult<ExtractedAnswerDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GRADE_REVIEW_ANSWER, input);
+    },
+    finalize(input: FinalizeSubmissionInput): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GRADE_FINALIZE, input);
+    },
+    regrade(input: RegradeSubmissionInput): Promise<IpcResult<GradingRunDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GRADE_REGRADE, input);
+    },
+    getRuns(submissionId: string): Promise<IpcResult<GradingRunDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GRADE_GET_RUNS, submissionId);
+    },
+    getSubmissionStatus(submissionId: string): Promise<IpcResult<{ status: SubmissionStatus; totalAwarded: number; totalMax: number }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GRADE_GET_SUBMISSION_STATUS, submissionId);
+    },
+  },
+
+  analytics: {
+    getExamSummary(examId: string): Promise<IpcResult<ExamAnalyticsSummaryDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_GET_EXAM_SUMMARY, examId);
+    },
+    getScoreDistribution(examId: string): Promise<IpcResult<ScoreDistributionDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_GET_SCORE_DISTRIBUTION, examId);
+    },
+    getQuestionPerformance(examId: string): Promise<IpcResult<QuestionPerformanceDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_GET_QUESTION_PERFORMANCE, examId);
+    },
+    getSkillPerformance(examId: string): Promise<IpcResult<SkillPerformanceDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_GET_SKILL_PERFORMANCE, examId);
+    },
+    getStudentResult(submissionId: string): Promise<IpcResult<StudentExamResultDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_GET_STUDENT_RESULT, submissionId);
+    },
+    listStudentResults(examId: string): Promise<IpcResult<StudentExamResultDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_LIST_STUDENT_RESULTS, examId);
     },
   },
 };

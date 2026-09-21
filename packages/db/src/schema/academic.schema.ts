@@ -28,6 +28,11 @@ import {
   CurriculumProgressStatus,
   LessonPlanStatus,
   ReflectionCompletionStatus,
+  CaptureSessionStatus,
+  CapturePageStatus,
+  SubmissionStatus,
+  GradingMethod,
+  ExtractionStatus,
 } from '@tibyan/contracts';
 
 export const students = sqliteTable(
@@ -589,4 +594,164 @@ export type ExamQuestionRow = typeof examQuestions.$inferSelect;
 export type NewExamQuestionRow = typeof examQuestions.$inferInsert;
 export type ExamVersionRow = typeof examVersions.$inferSelect;
 export type NewExamVersionRow = typeof examVersions.$inferInsert;
+
+// ============================================================================
+// Phase 5: Paper Capture, Grading, and Analytics
+// ============================================================================
+
+export const captureSessions = sqliteTable(
+  'capture_sessions',
+  {
+    id: text('id').primaryKey(),
+    examId: text('exam_id').notNull().references(() => exams.id, { onDelete: 'cascade' }),
+    examFormLabel: text('exam_form_label').notNull(),
+    status: text('status').$type<CaptureSessionStatus>().notNull().default('COLLECTING'),
+    totalSubmissions: integer('total_submissions').notNull().default(0),
+    completedSubmissions: integer('completed_submissions').notNull().default(0),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    idxCaptureSessionsExam: index('idx_capture_sessions_exam').on(t.examId),
+    idxCaptureSessionsStatus: index('idx_capture_sessions_status').on(t.status),
+  })
+);
+
+export const captureSubmissions = sqliteTable(
+  'capture_submissions',
+  {
+    id: text('id').primaryKey(),
+    sessionId: text('session_id').notNull().references(() => captureSessions.id, { onDelete: 'cascade' }),
+    studentId: text('student_id').references(() => students.id, { onDelete: 'set null' }),
+    studentNameSnapshot: text('student_name_snapshot'),
+    studentCodeSnapshot: text('student_code_snapshot'),
+    associationMethod: text('association_method').notNull().default('UNASSOCIATED'),
+    status: text('status').$type<SubmissionStatus>().notNull().default('PENDING'),
+    pageCount: integer('page_count').notNull().default(0),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    idxCaptureSubmissionsSession: index('idx_capture_submissions_session').on(t.sessionId),
+    idxCaptureSubmissionsStudent: index('idx_capture_submissions_student').on(t.studentId),
+    idxCaptureSubmissionsStatus: index('idx_capture_submissions_status').on(t.status),
+  })
+);
+
+export const capturePages = sqliteTable(
+  'capture_pages',
+  {
+    id: text('id').primaryKey(),
+    submissionId: text('submission_id').notNull().references(() => captureSubmissions.id, { onDelete: 'cascade' }),
+    sessionId: text('session_id').notNull().references(() => captureSessions.id, { onDelete: 'cascade' }),
+    pageOrder: integer('page_order').notNull().default(0),
+    source: text('source').notNull().default('IMAGE'),
+    originalFilePath: text('original_file_path').notNull(),
+    originalFileName: text('original_file_name').notNull(),
+    originalFileSizeBytes: integer('original_file_size_bytes').notNull(),
+    fingerprintSha256: text('fingerprint_sha256').notNull(),
+    normalizedFilePath: text('normalized_file_path'),
+    status: text('status').$type<CapturePageStatus>().notNull().default('IMPORTED'),
+    rotationDegrees: integer('rotation_degrees').notNull().default(0),
+    excluded: integer('excluded', { mode: 'boolean' }).notNull().default(false),
+    failureReason: text('failure_reason'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    idxCapturePagesSubmission: index('idx_capture_pages_submission').on(t.submissionId),
+    idxCapturePagesSession: index('idx_capture_pages_session').on(t.sessionId),
+    idxCapturePagesFingerprint: index('idx_capture_pages_fingerprint').on(t.fingerprintSha256),
+    idxCapturePagesStatus: index('idx_capture_pages_status').on(t.status),
+  })
+);
+
+export const extractedAnswers = sqliteTable(
+  'extracted_answers',
+  {
+    id: text('id').primaryKey(),
+    submissionId: text('submission_id').notNull().references(() => captureSubmissions.id, { onDelete: 'cascade' }),
+    examQuestionId: text('exam_question_id').notNull().references(() => examQuestions.id, { onDelete: 'cascade' }),
+    examVersionLabel: text('exam_version_label'),
+    recognizedResponse: text('recognized_response'),
+    recognizedOptionLabel: text('recognized_option_label'),
+    extractionMethod: text('extraction_method').notNull().default('DETERMINISTIC'),
+    confidence: real('confidence'),
+    evidenceRefJson: text('evidence_ref_json'),
+    rawExtractionJson: text('raw_extraction_json'),
+    status: text('status').$type<ExtractionStatus>().notNull().default('PENDING'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    idxExtractedAnswersSubmission: index('idx_extracted_answers_submission').on(t.submissionId),
+    idxExtractedAnswersQuestion: index('idx_extracted_answers_question').on(t.examQuestionId),
+    idxExtractedAnswersStatus: index('idx_extracted_answers_status').on(t.status),
+  })
+);
+
+export const gradingRuns = sqliteTable(
+  'grading_runs',
+  {
+    id: text('id').primaryKey(),
+    submissionId: text('submission_id').notNull().references(() => captureSubmissions.id, { onDelete: 'cascade' }),
+    method: text('method').$type<GradingMethod>().notNull(),
+    triggeredByUserId: text('triggered_by_user_id'),
+    startedAt: text('started_at').notNull(),
+    completedAt: text('completed_at'),
+    questionCount: integer('question_count').notNull().default(0),
+    gradedCount: integer('graded_count').notNull().default(0),
+    failedCount: integer('failed_count').notNull().default(0),
+    status: text('status', { enum: ['RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED'] }).notNull().default('RUNNING'),
+  },
+  (t) => ({
+    idxGradingRunsSubmission: index('idx_grading_runs_submission').on(t.submissionId),
+    idxGradingRunsStatus: index('idx_grading_runs_status').on(t.status),
+  })
+);
+
+export const gradingDecisions = sqliteTable(
+  'grading_decisions',
+  {
+    id: text('id').primaryKey(),
+    submissionId: text('submission_id').notNull().references(() => captureSubmissions.id, { onDelete: 'cascade' }),
+    examQuestionId: text('exam_question_id').notNull().references(() => examQuestions.id, { onDelete: 'cascade' }),
+    questionPosition: integer('question_position').notNull(),
+    questionMarks: integer('question_marks').notNull(),
+    awardedMarks: integer('awarded_marks').notNull().default(0),
+    gradingMethod: text('grading_method').$type<GradingMethod>().notNull(),
+    rubricResultsJson: text('rubric_results_json'),
+    teacherOverride: integer('teacher_override', { mode: 'boolean' }).notNull().default(false),
+    teacherOverrideAt: text('teacher_override_at'),
+    aiProposalJson: text('ai_proposal_json'),
+    gradingRunId: text('grading_run_id').references(() => gradingRuns.id, { onDelete: 'set null' }),
+    status: text('status').$type<GradingDecisionStatus>().notNull().default('PENDING'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    chkGradingDecisionAwarded: check('chk_grading_decision_awarded', sql`"awarded_marks" >= 0`),
+    chkGradingDecisionQuestionMarks: check('chk_grading_decision_question_marks', sql`"question_marks" > 0`),
+    chkGradingDecisionAwardedMax: check('chk_grading_decision_awarded_max', sql`"awarded_marks" <= "question_marks"`),
+    idxGradingDecisionsSubmission: index('idx_grading_decisions_submission').on(t.submissionId),
+    idxGradingDecisionsQuestion: index('idx_grading_decisions_question').on(t.examQuestionId),
+    idxGradingDecisionsRun: index('idx_grading_decisions_run').on(t.gradingRunId),
+    idxGradingDecisionsStatus: index('idx_grading_decisions_status').on(t.status),
+  })
+);
+
+export type GradingDecisionStatus = 'PENDING' | 'GRADED' | 'REVIEWED' | 'FINALIZED' | 'OVERRIDDEN';
+
+export type CaptureSessionRow = typeof captureSessions.$inferSelect;
+export type NewCaptureSessionRow = typeof captureSessions.$inferInsert;
+export type CaptureSubmissionRow = typeof captureSubmissions.$inferSelect;
+export type NewCaptureSubmissionRow = typeof captureSubmissions.$inferInsert;
+export type CapturePageRow = typeof capturePages.$inferSelect;
+export type NewCapturePageRow = typeof capturePages.$inferInsert;
+export type ExtractedAnswerRow = typeof extractedAnswers.$inferSelect;
+export type NewExtractedAnswerRow = typeof extractedAnswers.$inferInsert;
+export type GradingRunRow = typeof gradingRuns.$inferSelect;
+export type NewGradingRunRow = typeof gradingRuns.$inferInsert;
+export type GradingDecisionRow = typeof gradingDecisions.$inferSelect;
+export type NewGradingDecisionRow = typeof gradingDecisions.$inferInsert;
 
