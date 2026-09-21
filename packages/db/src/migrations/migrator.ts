@@ -927,10 +927,36 @@ export function getAppliedMigrations(db: Database.Database): string[] {
   return rows.map((r) => r.id);
 }
 
+const LEGACY_MIGRATION_ALIASES: Record<string, string[]> = {
+  // Legacy interim Phase 6 build used 0011_curriculum_library_metadata
+  // which performed the same ALTER TABLE statements now in 0006_curriculum_library_metadata.
+  // If the legacy ID was already applied, mark the canonical ID as also applied
+  // to prevent duplicate ALTER TABLE ADD COLUMN crashes.
+  '0006_curriculum_library_metadata': ['0011_curriculum_library_metadata'],
+};
+
+function reconcileLegacyMigrations(db: Database.Database, applied: Set<string>): void {
+  const insertStmt = db.prepare('INSERT OR IGNORE INTO __tibyan_migrations (id, applied_at) VALUES (?, ?)');
+  const now = new Date().toISOString();
+
+  for (const [canonicalId, legacyIds] of Object.entries(LEGACY_MIGRATION_ALIASES)) {
+    if (!applied.has(canonicalId)) {
+      const legacyFound = legacyIds.some((lid) => applied.has(lid));
+      if (legacyFound) {
+        insertStmt.run(canonicalId, now);
+        applied.add(canonicalId);
+      }
+    }
+  }
+}
+
 export function runMigrations(db: Database.Database, migrations: Migration[]): string[] {
   initMigrationTrackingTable(db);
   const applied = new Set(getAppliedMigrations(db));
   const newlyApplied: string[] = [];
+
+  // Reconcile legacy migration IDs before running new migrations
+  reconcileLegacyMigrations(db, applied);
 
   for (const migration of migrations) {
     if (!applied.has(migration.id)) {

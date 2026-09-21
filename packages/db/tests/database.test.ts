@@ -15,6 +15,7 @@ import {
   getAppliedMigrations,
   runMigrations,
   ACADEMIC_MIGRATIONS,
+  SYSTEM_MIGRATIONS,
 } from '../src/migrations/migrator.js';
 import {
   UserRepository,
@@ -1394,6 +1395,91 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
         VALUES (?, ?, 'UNCONTACTED', ?, ?)
       `).run(crypto.randomUUID(), 'non-existent-record-id', new Date().toISOString(), new Date().toISOString());
     }).toThrow(/FOREIGN KEY constraint failed/i);
+  });
+
+  it('Legacy Phase 6 System DB with 0011_curriculum_library_metadata upgrades safely without duplicate columns', () => {
+    const rawDb = createRawDatabase(':memory:');
+
+    // 1. Apply base migrations 0000-0004 only (not via migrateSystemDatabase to avoid reconciliation)
+    const prePhase6Migrations = SYSTEM_MIGRATIONS.filter((m) =>
+      ['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris'].includes(m.id)
+    );
+    const initialApplied = runMigrations(rawDb, prePhase6Migrations);
+    expect(initialApplied).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris']);
+
+    // 2. Simulate legacy 0011 being applied — add columns directly and record legacy migration ID
+    rawDb.exec(`
+      ALTER TABLE source_documents ADD COLUMN grade_level text;
+      ALTER TABLE source_documents ADD COLUMN education_system text;
+      ALTER TABLE source_documents ADD COLUMN subject text;
+      ALTER TABLE source_documents ADD COLUMN description text;
+      ALTER TABLE source_documents ADD COLUMN academic_year_id text;
+      ALTER TABLE source_documents ADD COLUMN import_source text DEFAULT 'MANUAL' NOT NULL;
+    `);
+    rawDb.prepare('INSERT INTO __tibyan_migrations (id, applied_at) VALUES (?, ?)').run('0011_curriculum_library_metadata', new Date().toISOString());
+
+    // 3. Also manually record 0005_assistant_tables and create assistant tables (without running reconciliation)
+    const assistantMigration = SYSTEM_MIGRATIONS.find((m) => m.id === '0005_assistant_tables')!;
+    rawDb.exec(assistantMigration.sql);
+    rawDb.prepare('INSERT INTO __tibyan_migrations (id, applied_at) VALUES (?, ?)').run('0005_assistant_tables', new Date().toISOString());
+
+    // 4. Verify the legacy state: 0011 applied, 0006 NOT applied
+    const allApplied = rawDb.prepare('SELECT id FROM __tibyan_migrations ORDER BY applied_at ASC').all() as Array<{ id: string }>;
+    const appliedIds = allApplied.map((r) => r.id);
+    expect(appliedIds).toContain('0011_curriculum_library_metadata');
+    expect(appliedIds).not.toContain('0006_curriculum_library_metadata');
+
+    // Verify columns already exist
+    const cols = rawDb.prepare('PRAGMA table_info(source_documents)').all() as Array<{ name: string }>;
+    expect(cols.map((c) => c.name)).toContain('grade_level');
+    expect(cols.map((c) => c.name)).toContain('education_system');
+    expect(cols.map((c) => c.name)).toContain('subject');
+    expect(cols.map((c) => c.name)).toContain('description');
+    expect(cols.map((c) => c.name)).toContain('academic_year_id');
+    expect(cols.map((c) => c.name)).toContain('import_source');
+
+    // 5. Run the current Phase 6 migrator — must NOT throw
+    expect(() => migrateSystemDatabase(rawDb)).not.toThrow();
+
+    // 6. Verify 0006 was reconciled and marked as applied
+    const finalApplied = rawDb.prepare('SELECT id FROM __tibyan_migrations ORDER BY applied_at ASC').all() as Array<{ id: string }>;
+    const finalIds = finalApplied.map((r) => r.id);
+    expect(finalIds).toContain('0006_curriculum_library_metadata');
+
+    // 7. Verify columns still exist (no duplicate, no corruption)
+    const colsAfter = rawDb.prepare('PRAGMA table_info(source_documents)').all() as Array<{ name: string }>;
+    expect(colsAfter.map((c) => c.name)).toContain('grade_level');
+    expect(colsAfter.map((c) => c.name)).toContain('education_system');
+    expect(colsAfter.map((c) => c.name)).toContain('subject');
+    expect(colsAfter.map((c) => c.name)).toContain('description');
+    expect(colsAfter.map((c) => c.name)).toContain('academic_year_id');
+    expect(colsAfter.map((c) => c.name)).toContain('import_source');
+
+    // 8. Verify assistant tables are preserved
+    const tables = rawDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'assistant%'").all() as Array<{ name: string }>;
+    expect(tables.map((t) => t.name)).toContain('assistant_sessions');
+    expect(tables.map((t) => t.name)).toContain('assistant_messages');
+    expect(tables.map((t) => t.name)).toContain('assistant_audit_log');
+    expect(tables.map((t) => t.name)).toContain('assistant_confirmations');
+
+    // 9. Verify idempotency — second run does nothing
+    const secondRun = migrateSystemDatabase(rawDb);
+    expect(secondRun).toEqual([]);
+
+    rawDb.close();
+  });
+
+  it('Fresh System DB still applies all migrations correctly after legacy alias addition', () => {
+    const rawDb = createRawDatabase(':memory:');
+
+    const applied = migrateSystemDatabase(rawDb);
+    expect(applied).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris', '0005_assistant_tables', '0006_curriculum_library_metadata']);
+
+    const allApplied = getAppliedMigrations(rawDb);
+    expect(allApplied).toContain('0006_curriculum_library_metadata');
+    expect(allApplied).not.toContain('0011_curriculum_library_metadata');
+
+    rawDb.close();
   });
 });
 
