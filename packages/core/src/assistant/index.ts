@@ -12,3 +12,5 @@ export { executeConfirmedAction } from './execute-audit.js';
 export type { ExecutionReceiptRecord, AuditRecord } from './execute-audit.js';
 export { executeUndo } from './undo-layer.js';
 export { registerAllAssistantTools } from './tools/index.js';
+export { AiContentService } from './ai-content.service.js';
+export type { AiContentProvider, ContentGenerationRequest, GeneratedContent } from './ai-content.service.js';
