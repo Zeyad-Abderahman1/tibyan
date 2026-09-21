@@ -53,4 +53,10 @@ describe('AI source generation boundary', () => {
     const result = await context.load(source.id);
     expect(result.pages).toEqual([{ page: 1, text: 'Velocity changes with time' }]);
   });
+
+  it('rejects a provider response that does not meet exact MCQ and written counts', async () => {
+    const context = new SourceContextService(() => source, async () => ({ data: pdf, mimeType: 'application/pdf' }));
+    const service = new AiContentService({ generate: async () => ({ questions: [{ body: 'Q', type: 'SHORT_ANSWER', correctAnswer: 'A', marks: 1, sourcePage: 1 }] }) }, context);
+    await expect(service.generateExamFromSource({ sourceDocumentId: source.id }, { mcqCount: 5, writtenCount: 3, questionCount: 8 })).rejects.toThrow('تعذر توليد العدد المطلوب');
+  });
 });

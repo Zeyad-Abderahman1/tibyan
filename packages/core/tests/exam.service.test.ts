@@ -208,6 +208,23 @@ describe('ExamService workflow: preview -> confirm -> audit -> undo', () => {
     expect(service.listExams()).toHaveLength(0);
   });
 
+  it('persists a draft status and renders its saved A4 layout after reopening', () => {
+    const preview = service.previewAssembly(validBlueprint);
+    const exam = service.confirmAssembly({
+      blueprint: validBlueprint,
+      status: 'DRAFT',
+      placements: preview.selectedQuestions.map((q, idx) => ({
+        questionId: q.questionId, provenance: 'QUESTION_BANK' as const, body: q.body,
+        modelAnswer: q.modelAnswer, marks: q.marks, answerSpaceLines: 3,
+        curriculumNodeIds: q.curriculumNodeIds, sourceReferenceIds: q.sourceReferenceIds, position: idx,
+      })),
+    }, actor);
+    expect(exam.status).toBe('DRAFT');
+    const reopened = service.getExam(exam.id);
+    expect(reopened?.placements).toHaveLength(2);
+    expect(service.renderPrintableHtml(exam.id, 'STUDENT')).toContain('اختبار');
+  });
+
   it('renders mathematical expressions using offline KaTeX and avoids leaking raw LaTeX commands', () => {
     const mathExam = service.confirmAssembly(
       {

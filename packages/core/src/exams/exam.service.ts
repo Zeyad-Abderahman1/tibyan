@@ -142,7 +142,7 @@ export class ExamService {
         title: validated.blueprint.title,
         blueprintJson: JSON.stringify(validated.blueprint),
         layoutJson: JSON.stringify({ pageSize: 'A4', orientation: 'PORTRAIT' }),
-        status: 'CONFIRMED',
+        status: validated.status,
         createdAt: now,
         updatedAt: now,
       },

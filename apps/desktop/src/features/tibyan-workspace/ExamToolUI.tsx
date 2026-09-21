@@ -6,7 +6,7 @@ import { createTextBlock, type MathRichContent } from '@tibyan/contracts';
 
 interface ExamQuestion {
   id: string;
-  type: 'MULTIPLE_CHOICE' | 'SHORT_ANSWER' | 'TRUE_FALSE';
+  type: 'MULTIPLE_CHOICE' | 'SHORT_ANSWER' | 'WRITTEN' | 'TRUE_FALSE';
   body: string;
   options?: string[];
   correctAnswer: string;
@@ -94,6 +94,8 @@ export function ExamToolUI() {
           type = 'TRUE_FALSE';
         } else if (q.type === 'MULTIPLE_CHOICE') {
           type = 'MULTIPLE_CHOICE';
+        } else if (q.type === 'WRITTEN') {
+          type = 'WRITTEN';
         }
         const body = q.body;
         let options = q.options;
@@ -219,6 +221,7 @@ export function ExamToolUI() {
         blueprint,
         placements,
         sectionTitle: 'القسم الرئيسي',
+        status: 'DRAFT',
       });
 
       if (result.success) {

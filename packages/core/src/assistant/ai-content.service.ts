@@ -24,8 +24,16 @@ export class AiContentService {
   generateSlides(request: ContentGenerationRequest): Promise<GeneratedSlidesContent> {
     return this.generate('slides', request, SlidesGenerationResultSchema);
   }
-  generateExamFromSource(request: ContentGenerationRequest, config: { questionCount?: number; difficulty?: string; types?: string[] } = {}): Promise<GeneratedExamContent> {
-    return this.generate('exam', request, ExamGenerationResultSchema, config);
+  async generateExamFromSource(request: ContentGenerationRequest, config: { questionCount?: number; difficulty?: string; types?: string[]; mcqCount?: number; writtenCount?: number } = {}): Promise<GeneratedExamContent> {
+    const result = await this.generate('exam', request, ExamGenerationResultSchema, config) as GeneratedExamContent;
+    const mcqCount = config.mcqCount ?? 0;
+    const writtenCount = config.writtenCount ?? Math.max(0, (config.questionCount ?? result.data.questions.length) - mcqCount);
+    const actualMcq = result.data.questions.filter((question) => question.type === 'MULTIPLE_CHOICE').length;
+    const actualWritten = result.data.questions.filter((question) => question.type === 'WRITTEN' || question.type === 'SHORT_ANSWER').length;
+    if (actualMcq !== mcqCount || actualWritten !== writtenCount || result.data.questions.length !== mcqCount + writtenCount) {
+      throw new Error(`تعذر توليد العدد المطلوب: المطلوب ${mcqCount} اختيار من متعدد و${writtenCount} أسئلة كتابية`);
+    }
+    return result;
   }
 
   private async generate<T extends 'exam' | 'slides' | 'review' | 'notes'>(
