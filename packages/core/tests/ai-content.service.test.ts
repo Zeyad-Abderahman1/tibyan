@@ -59,4 +59,16 @@ describe('AI source generation boundary', () => {
     const service = new AiContentService({ generate: async () => ({ questions: [{ body: 'Q', type: 'SHORT_ANSWER', correctAnswer: 'A', marks: 1, sourcePage: 1 }] }) }, context);
     await expect(service.generateExamFromSource({ sourceDocumentId: source.id }, { mcqCount: 5, writtenCount: 3, questionCount: 8 })).rejects.toThrow('تعذر توليد العدد المطلوب');
   });
+
+  it('accepts exactly five MCQ and three written questions', async () => {
+    const context = new SourceContextService(() => source, async () => ({ data: pdf, mimeType: 'application/pdf' }));
+    const questions = [
+      ...Array.from({ length: 5 }, (_, index) => ({ body: `MCQ ${index}`, type: 'MULTIPLE_CHOICE', options: ['A', 'B', 'C', 'D'], correctAnswer: 'A', marks: 1, sourcePage: 1 })),
+      ...Array.from({ length: 3 }, (_, index) => ({ body: `Written ${index}`, type: 'WRITTEN', correctAnswer: 'Answer', marks: 1, sourcePage: 1 })),
+    ];
+    const service = new AiContentService({ generate: async () => ({ questions }) }, context);
+    const result = await service.generateExamFromSource({ sourceDocumentId: source.id }, { mcqCount: 5, writtenCount: 3, questionCount: 8 });
+    expect(result.data.questions).toHaveLength(8);
+    expect(result.data.questions.filter((question) => question.type === 'MULTIPLE_CHOICE')).toHaveLength(5);
+  });
 });
