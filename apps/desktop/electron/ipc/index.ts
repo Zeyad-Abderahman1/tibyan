@@ -21,6 +21,7 @@ import { registerGradingIpcHandlers, unregisterGradingIpcHandlers } from './grad
 import { registerAnalyticsIpcHandlers, unregisterAnalyticsIpcHandlers } from './analytics.ipc.js';
 import { registerAssistantIpcHandlers, unregisterAssistantIpcHandlers } from './assistant.ipc.js';
 import { registerSlideIpcHandlers, unregisterSlideIpcHandlers } from './slides.ipc.js';
+import { registerCurriculumLibraryIpcHandlers, unregisterCurriculumLibraryIpcHandlers } from './curriculum-library.ipc.js';
 
 /**
  * Registers all typed IPC domain handlers against the electron ipcMain dispatcher.
@@ -50,6 +51,7 @@ export function registerAllIpcHandlers(runtime: Runtime, mainWindow: BrowserWind
   registerAnalyticsIpcHandlers(runtime, mainWindow);
   registerAssistantIpcHandlers(runtime, mainWindow);
   registerSlideIpcHandlers(runtime, mainWindow);
+  registerCurriculumLibraryIpcHandlers(runtime, mainWindow);
 }
 
 /**
@@ -77,6 +79,7 @@ export function unregisterAllIpcHandlers(): void {
   unregisterAnalyticsIpcHandlers();
   unregisterAssistantIpcHandlers();
   unregisterSlideIpcHandlers();
+  unregisterCurriculumLibraryIpcHandlers();
 }
 
 export * from './errors.js';

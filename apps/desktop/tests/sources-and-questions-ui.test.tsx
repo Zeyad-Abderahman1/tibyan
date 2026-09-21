@@ -24,6 +24,7 @@ const mockSources: SourceDocumentDto[] = [
     sha256Hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
     pageCount: 150,
     status: 'INDEXED',
+    importSource: 'MANUAL',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },

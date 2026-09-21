@@ -156,6 +156,10 @@ import {
   type ReorderSlideBlocksInput,
   type MoveSlideBlockInput,
   type SlidePresentation,
+  type ImportCurriculumLibraryInput,
+  type UpdateCurriculumLibraryInput,
+  type CurriculumGradeGroup,
+  type CurriculumLibraryFilter,
 } from '@tibyan/contracts';
 
 
@@ -767,6 +771,66 @@ export const tibyanApi: TibyanApi = {
     },
     getPresentation(deckId: string): Promise<IpcResult<SlidePresentation>> {
       return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_GET_PRESENTATION, deckId);
+    },
+  },
+
+  curriculumLibrary: {
+    list(filter?: CurriculumLibraryFilter): Promise<IpcResult<SourceDocumentDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_LIST, filter);
+    },
+    listGrouped(): Promise<IpcResult<CurriculumGradeGroup[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_LIST_GROUPED);
+    },
+    import(input: ImportCurriculumLibraryInput): Promise<IpcResult<SourceDocumentDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_IMPORT, input);
+    },
+    update(input: UpdateCurriculumLibraryInput): Promise<IpcResult<SourceDocumentDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_UPDATE, input);
+    },
+    delete(id: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_DELETE, id);
+    },
+    get(id: string): Promise<IpcResult<SourceDocumentDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_GET, id);
+    },
+    viewPdf(request: { id: string; page?: number }): Promise<IpcResult<{ filePath: string; pageCount: number }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_VIEW_PDF, request);
+    },
+    openExternal(id: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_OPEN_EXTERNAL, id);
+    },
+  },
+
+  tibyan: {
+    createTaskSession(input: { taskType: string; title?: string }): Promise<IpcResult<AssistantSession>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.TIBYAN_CREATE_TASK_SESSION, input);
+    },
+    listHistory(): Promise<IpcResult<AssistantSession[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.TIBYAN_LIST_HISTORY);
+    },
+    getHistoryItem(sessionId: string): Promise<IpcResult<ConversationHistory>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.TIBYAN_GET_HISTORY_ITEM, sessionId);
+    },
+    deleteHistoryItem(sessionId: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.TIBYAN_DELETE_HISTORY_ITEM, sessionId);
+    },
+    renameHistoryItem(sessionId: string, title: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.TIBYAN_RENAME_HISTORY_ITEM, { sessionId, title });
+    },
+  },
+
+  ai: {
+    generateReview(input: { sourceId: string; scope?: string }): Promise<IpcResult<AssistantResponse>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_REVIEW, input);
+    },
+    generateNotes(input: { sourceId: string; scope?: string }): Promise<IpcResult<AssistantResponse>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_NOTES, input);
+    },
+    generateSlides(input: { sourceId: string; scope?: string }): Promise<IpcResult<AssistantResponse>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_SLIDES, input);
+    },
+    generateExam(input: { sourceId: string; config: Record<string, unknown> }): Promise<IpcResult<AssistantResponse>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_EXAM, input);
     },
   },
 };

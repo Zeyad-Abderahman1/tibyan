@@ -31,6 +31,7 @@ import {
   FinanceService,
   ThermalReceiptService,
   CurriculumService,
+  CurriculumLibraryService,
   LessonPlannerService,
   SessionReflectionService,
   PdfSourceService,
@@ -126,6 +127,7 @@ export class Runtime {
   public captureService: CaptureService | null = null;
   public gradingService: GradingService | null = null;
   public analyticsService: AnalyticsService | null = null;
+  public curriculumLibraryService!: CurriculumLibraryService;
 
   constructor(options: RuntimeOptions = {}) {
 
@@ -182,6 +184,7 @@ export class Runtime {
 
     const sourcesDir = path.join(this.paths.appDataDir, 'sources');
     this.pdfSourceService = new PdfSourceService(this.systemDb.db, sourcesDir);
+    this.curriculumLibraryService = new CurriculumLibraryService(this.systemDb.db, sourcesDir);
     this.questionBankService = new QuestionBankService(this.systemDb.db);
     this.aiExamService = new AiExamService(this.geminiCredentialService);
 
