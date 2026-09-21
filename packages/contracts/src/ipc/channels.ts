@@ -224,6 +224,29 @@ export const IPC_CHANNELS = {
   SLIDES_REORDER_BLOCKS: 'slides:reorderBlocks',
   SLIDES_MOVE_BLOCK: 'slides:moveBlock',
   SLIDES_GET_PRESENTATION: 'slides:getPresentation',
+
+  // Curriculum Library (Phase 6 redesign)
+  CURRICULUM_LIBRARY_LIST: 'curriculumLibrary:list',
+  CURRICULUM_LIBRARY_LIST_GROUPED: 'curriculumLibrary:listGrouped',
+  CURRICULUM_LIBRARY_IMPORT: 'curriculumLibrary:import',
+  CURRICULUM_LIBRARY_UPDATE: 'curriculumLibrary:update',
+  CURRICULUM_LIBRARY_DELETE: 'curriculumLibrary:delete',
+  CURRICULUM_LIBRARY_GET: 'curriculumLibrary:get',
+  CURRICULUM_LIBRARY_VIEW_PDF: 'curriculumLibrary:viewPdf',
+  CURRICULUM_LIBRARY_OPEN_EXTERNAL: 'curriculumLibrary:openExternal',
+
+  // Tibyan Workspace (Phase 6 central AI)
+  TIBYAN_CREATE_TASK_SESSION: 'tibyan:createTaskSession',
+  TIBYAN_LIST_HISTORY: 'tibyan:listHistory',
+  TIBYAN_GET_HISTORY_ITEM: 'tibyan:getHistoryItem',
+  TIBYAN_DELETE_HISTORY_ITEM: 'tibyan:deleteHistoryItem',
+  TIBYAN_RENAME_HISTORY_ITEM: 'tibyan:renameHistoryItem',
+
+  // AI Content Generation
+  AI_GENERATE_REVIEW: 'ai:generateReview',
+  AI_GENERATE_NOTES: 'ai:generateNotes',
+  AI_GENERATE_SLIDES: 'ai:generateSlides',
+  AI_GENERATE_EXAM: 'ai:generateExam',
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];

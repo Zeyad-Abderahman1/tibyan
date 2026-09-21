@@ -176,6 +176,12 @@ import {
   ExecutionReceipt,
 } from '../models/assistant.dto.js';
 import {
+  CurriculumGradeGroup,
+  ImportCurriculumLibraryInput,
+  UpdateCurriculumLibraryInput,
+  CurriculumLibraryFilter,
+} from '../models/curriculum-library.dto.js';
+import {
   SlideDeckDto,
   SlideDeckWithSlides,
   CreateSlideDeckInput,
@@ -422,6 +428,29 @@ export interface TibyanApi {
     reorderBlocks(input: ReorderSlideBlocksInput): Promise<IpcResult<void>>;
     moveBlock(input: MoveSlideBlockInput): Promise<IpcResult<SlideBlockDto>>;
     getPresentation(deckId: string): Promise<IpcResult<SlidePresentation>>;
+  };
+  curriculumLibrary: {
+    list(filter?: CurriculumLibraryFilter): Promise<IpcResult<SourceDocumentDto[]>>;
+    listGrouped(): Promise<IpcResult<CurriculumGradeGroup[]>>;
+    import(input: ImportCurriculumLibraryInput): Promise<IpcResult<SourceDocumentDto>>;
+    update(input: UpdateCurriculumLibraryInput): Promise<IpcResult<SourceDocumentDto>>;
+    delete(id: string): Promise<IpcResult<void>>;
+    get(id: string): Promise<IpcResult<SourceDocumentDto>>;
+    viewPdf(request: { id: string; page?: number }): Promise<IpcResult<{ filePath: string; pageCount: number }>>;
+    openExternal(id: string): Promise<IpcResult<void>>;
+  };
+  tibyan: {
+    createTaskSession(input: { taskType: string; title?: string }): Promise<IpcResult<AssistantSession>>;
+    listHistory(): Promise<IpcResult<AssistantSession[]>>;
+    getHistoryItem(sessionId: string): Promise<IpcResult<ConversationHistory>>;
+    deleteHistoryItem(sessionId: string): Promise<IpcResult<void>>;
+    renameHistoryItem(sessionId: string, title: string): Promise<IpcResult<void>>;
+  };
+  ai: {
+    generateReview(input: { sourceId: string; scope?: string }): Promise<IpcResult<AssistantResponse>>;
+    generateNotes(input: { sourceId: string; scope?: string }): Promise<IpcResult<AssistantResponse>>;
+    generateSlides(input: { sourceId: string; scope?: string }): Promise<IpcResult<AssistantResponse>>;
+    generateExam(input: { sourceId: string; config: Record<string, unknown> }): Promise<IpcResult<AssistantResponse>>;
   };
 }
 
