@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { Card, Button, Badge } from '@tibyan/design-system';
 import {
   Calendar,
@@ -7,12 +8,15 @@ import {
   AlertCircle,
   RefreshCw,
   CheckCircle2,
+  FileCheck,
+  Sparkles,
 } from 'lucide-react';
 import { useTodayDashboard } from '../../hooks/useDashboard.js';
 import { ClassScheduleCard } from './ClassScheduleCard.js';
 import { NeedsAttentionCard } from './NeedsAttentionCard.js';
 
 export function TodayPage() {
+  const navigate = useNavigate();
   const {
     data: dashboard,
     isLoading,
@@ -171,6 +175,41 @@ export function TodayPage() {
           </div>
         </Card>
       </div>
+
+      {/* Phase 4 Featured Shortcut: AI Exam Builder Banner */}
+      <Card
+        variant="default"
+        className="p-4 bg-gradient-to-r from-[var(--color-brand-primary)]/10 via-[var(--color-brand-primary)]/5 to-transparent border-[var(--color-brand-primary)]/30 flex flex-col md:flex-row items-center justify-between gap-4"
+        data-testid="banner-exam-builder"
+      >
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-[var(--color-brand-primary)] text-white flex items-center justify-center shrink-0 shadow-xs">
+            <FileCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-[var(--color-text-primary)]">
+                منشئ الاختبارات الذكي (Exam Builder)
+              </h2>
+              <Badge variant="accent" size="sm">جديد</Badge>
+            </div>
+            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
+              بناء وتنسيق نماذج الاختبارات A/B/C/D استناداً لبنك الأسئلة ومساعد الذكاء الاصطناعي، وتصديرها بصيغة A4 جاهزة للطباعة.
+            </p>
+          </div>
+        </div>
+
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => navigate('/exams')}
+          data-testid="btn-open-exams-from-dashboard"
+          className="shrink-0"
+        >
+          <Sparkles className="w-4 h-4 ml-1.5" />
+          فتح منشئ الاختبارات
+        </Button>
+      </Card>
 
       {/* Main Content: Schedule & Needs Attention */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

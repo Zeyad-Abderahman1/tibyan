@@ -216,7 +216,9 @@ describe('Task 10 — Preload Bridge Surface & Isolation Verification', () => {
       'curriculum',
       'dashboard',
       'enrollments',
+      'exams',
       'finance',
+      'gemini',
       'groups',
       'lessonPlanner',
       'pdfSources',
@@ -228,6 +230,7 @@ describe('Task 10 — Preload Bridge Surface & Isolation Verification', () => {
       'thermal',
     ].sort());
   });
+
 
   it('verifies preload source does not import better-sqlite3 or @tibyan/db', () => {
     const preloadSource = fs.readFileSync(path.join(__dirname, '../electron/preload.ts'), 'utf-8');

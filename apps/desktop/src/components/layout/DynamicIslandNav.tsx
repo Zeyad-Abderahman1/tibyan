@@ -11,7 +11,9 @@ import {
   Sigma,
   FileText,
   HelpCircle,
+  FileCheck,
 } from 'lucide-react';
+
 import { cn } from '@tibyan/design-system';
 
 export interface NavItem {
@@ -25,6 +27,7 @@ export const DEFAULT_NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'اليوم', icon: LayoutDashboard },
   { to: '/students', label: 'الطلاب', icon: Users },
   { to: '/groups', label: 'المجموعات', icon: BookOpen },
+  { to: '/exams', label: 'الاختبارات', icon: FileCheck },
   { to: '/finance', label: 'المالية', icon: CreditCard },
   { to: '/settings', label: 'الإعدادات', icon: Settings },
 ];
@@ -61,10 +64,11 @@ export function DynamicIslandNav({ items = DEFAULT_NAV_ITEMS, className }: Dynam
     }
     if (location.pathname.startsWith('/math-editor')) {
       const copy = [...DEFAULT_NAV_ITEMS];
-      copy.splice(3, 0, { to: '/math-editor', label: 'محرر الرياضيات', icon: Sigma });
+      copy.splice(4, 0, { to: '/math-editor', label: 'محرر الرياضيات', icon: Sigma });
       return copy;
     }
     return items;
+
   }, [items, location.pathname]);
 
   return (
@@ -86,6 +90,7 @@ export function DynamicIslandNav({ items = DEFAULT_NAV_ITEMS, className }: Dynam
             key={item.to}
             to={item.to}
             end={item.to === '/'}
+            data-testid={`nav-item-${item.to.replace('/', '') || 'today'}`}
             data-active={isActive ? 'true' : undefined}
             className={({ isActive: navActive }) =>
               cn(

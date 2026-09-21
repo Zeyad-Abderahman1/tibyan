@@ -1,3 +1,4 @@
+import path from 'path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import electron from 'vite-plugin-electron';
@@ -9,6 +10,11 @@ export default defineConfig({
       {
         entry: 'electron/main.ts',
         vite: {
+          resolve: {
+            alias: {
+              katex: path.resolve(__dirname, '../../node_modules/.pnpm/katex@0.18.7/node_modules/katex/dist/katex.js'),
+            },
+          },
           build: {
             rollupOptions: {
               external: ['better-sqlite3'],
@@ -33,6 +39,11 @@ export default defineConfig({
       },
     ]),
   ],
+  resolve: {
+    alias: {
+      katex: path.resolve(__dirname, '../../node_modules/.pnpm/katex@0.18.7/node_modules/katex/dist/katex.js'),
+    },
+  },
   test: {
     include: ['tests/**/*.test.{ts,tsx}'],
   },

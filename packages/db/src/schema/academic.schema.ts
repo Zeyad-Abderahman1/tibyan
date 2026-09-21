@@ -512,8 +512,81 @@ export const sessionReflections = sqliteTable(
   })
 );
 
+// Phase 4: Exam documents are Academic DB records. Question-bank IDs are stored
+// as opaque snapshots because the bank belongs to the separate System DB.
+export const exams = sqliteTable(
+  'exams',
+  {
+    id: text('id').primaryKey(),
+    title: text('title').notNull(),
+    blueprintJson: text('blueprint_json').notNull(),
+    layoutJson: text('layout_json').notNull(),
+    status: text('status', { enum: ['DRAFT', 'CONFIRMED', 'ARCHIVED'] }).notNull().default('DRAFT'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({ idxExamsStatus: index('idx_exams_status').on(t.status) })
+);
+
+export const examSections = sqliteTable(
+  'exam_sections',
+  {
+    id: text('id').primaryKey(),
+    examId: text('exam_id').notNull().references(() => exams.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    instructionsJson: text('instructions_json').notNull(),
+    position: integer('position').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => ({ idxExamSectionsOrder: uniqueIndex('idx_exam_sections_order').on(t.examId, t.position) })
+);
+
+export const examQuestions = sqliteTable(
+  'exam_questions',
+  {
+    id: text('id').primaryKey(),
+    examSectionId: text('exam_section_id').notNull().references(() => examSections.id, { onDelete: 'cascade' }),
+    questionIdSnapshot: text('question_id_snapshot'),
+    provenance: text('provenance').notNull(),
+    contentJson: text('content_json').notNull(),
+    answerJson: text('answer_json'),
+    curriculumNodeIdsJson: text('curriculum_node_ids_json').notNull(),
+    sourceReferenceIdsJson: text('source_reference_ids_json').notNull(),
+    marks: integer('marks').notNull(),
+    answerSpaceLines: integer('answer_space_lines').notNull().default(0),
+    position: integer('position').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => ({
+    chkExamQuestionMarks: check('chk_exam_question_marks', sql`${t.marks} > 0`),
+    chkExamQuestionSpace: check('chk_exam_question_space', sql`${t.answerSpaceLines} >= 0`),
+    idxExamQuestionsOrder: uniqueIndex('idx_exam_questions_order').on(t.examSectionId, t.position),
+  })
+);
+
+export const examVersions = sqliteTable(
+  'exam_versions',
+  {
+    id: text('id').primaryKey(),
+    examId: text('exam_id').notNull().references(() => exams.id, { onDelete: 'cascade' }),
+    label: text('label').notNull(),
+    questionOrderJson: text('question_order_json').notNull(),
+    answerKeyJson: text('answer_key_json').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => ({ idxExamVersionsLabel: uniqueIndex('idx_exam_versions_label').on(t.examId, t.label) })
+);
+
 export type LessonPlanRow = typeof lessonPlans.$inferSelect;
 export type NewLessonPlanRow = typeof lessonPlans.$inferInsert;
 export type SessionReflectionRow = typeof sessionReflections.$inferSelect;
 export type NewSessionReflectionRow = typeof sessionReflections.$inferInsert;
+export type ExamRow = typeof exams.$inferSelect;
+export type NewExamRow = typeof exams.$inferInsert;
+export type ExamSectionRow = typeof examSections.$inferSelect;
+export type NewExamSectionRow = typeof examSections.$inferInsert;
+export type ExamQuestionRow = typeof examQuestions.$inferSelect;
+export type NewExamQuestionRow = typeof examQuestions.$inferInsert;
+export type ExamVersionRow = typeof examVersions.$inferSelect;
+export type NewExamVersionRow = typeof examVersions.$inferInsert;
 

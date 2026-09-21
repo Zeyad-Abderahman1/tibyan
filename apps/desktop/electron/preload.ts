@@ -103,7 +103,16 @@ import {
   type BulkQuestionItemDto,
   type BulkImportReviewItemDto,
   type CommitBulkImportInputDto,
+  type GeminiCredentialInput,
+  type GeminiConfigurationStatus,
+  type ExamDto,
+  type ExamBlueprint,
+  type ConfirmAssemblyInput,
+  type AssemblyPreviewResult,
+  type AiGenerateCandidatesInput,
+  type AiExamCandidate,
 } from '@tibyan/contracts';
+
 
 /**
  * Concrete implementation of the canonical TibyanApi.
@@ -284,6 +293,18 @@ export const tibyanApi: TibyanApi = {
     },
     openWhatsApp(input: { phone: string; message: string }): Promise<IpcResult<void>> {
       return ipcRenderer.invoke(IPC_CHANNELS.SYSTEM_OPEN_WHATSAPP, input);
+    },
+  },
+
+  gemini: {
+    getStatus(): Promise<IpcResult<GeminiConfigurationStatus>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GEMINI_GET_STATUS);
+    },
+    setCredential(input: GeminiCredentialInput): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GEMINI_SET_CREDENTIAL, input);
+    },
+    deleteCredential(): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GEMINI_DELETE_CREDENTIAL);
     },
   },
 
@@ -493,7 +514,38 @@ export const tibyanApi: TibyanApi = {
       return ipcRenderer.invoke(IPC_CHANNELS.QUESTION_BANK_COMMIT_BULK, input);
     },
   },
+
+  exams: {
+    list(): Promise<IpcResult<ExamDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.EXAMS_LIST);
+    },
+    get(id: string): Promise<IpcResult<ExamDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.EXAMS_GET, id);
+    },
+    previewAssembly(blueprint: ExamBlueprint): Promise<IpcResult<AssemblyPreviewResult>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.EXAMS_PREVIEW_ASSEMBLY, blueprint);
+    },
+    confirmAssembly(input: ConfirmAssemblyInput): Promise<IpcResult<ExamDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.EXAMS_CONFIRM_ASSEMBLY, input);
+    },
+    undoLastMutation(examId: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.EXAMS_UNDO_LAST_MUTATION, examId);
+    },
+    previewAiCandidates(input: AiGenerateCandidatesInput): Promise<IpcResult<{ candidates: AiExamCandidate[] }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.EXAMS_PREVIEW_AI_CANDIDATES, input);
+    },
+    renderLayout(input: { examId: string; kind: 'STUDENT' | 'TEACHER' | 'ANSWER_KEY'; versionLabel?: 'A' | 'B' | 'C' | 'D' }): Promise<IpcResult<string>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.EXAMS_RENDER_LAYOUT, input);
+    },
+    exportPdf(input: { examId: string; kind: 'STUDENT' | 'TEACHER' | 'ANSWER_KEY'; versionLabel?: 'A' | 'B' | 'C' | 'D'; defaultFilename?: string }): Promise<IpcResult<{ canceled: boolean; filePath: string }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.EXAMS_EXPORT_PDF, input);
+    },
+    print(input: { examId: string; kind: 'STUDENT' | 'TEACHER' | 'ANSWER_KEY'; versionLabel?: 'A' | 'B' | 'C' | 'D' }): Promise<IpcResult<{ success: boolean; message?: string }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.EXAMS_PRINT, input);
+    },
+  },
 };
+
 
 // Safely expose exclusively under the 'tibyan' namespace in the isolated renderer world
 try {

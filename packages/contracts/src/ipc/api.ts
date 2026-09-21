@@ -64,6 +64,7 @@ import {
   SwitchAcademicYearInput,
   UpdateThemeSettingInput,
 } from '../models/system.dto.js';
+import { GeminiCredentialInput, GeminiConfigurationStatus } from '../models/gemini-configuration.dto.js';
 import {
   PaymentDto,
   RecordPaymentInput,
@@ -127,6 +128,15 @@ import {
   BulkImportReviewItemDto,
   CommitBulkImportInputDto,
 } from '../models/question-bank.dto.js';
+import {
+  ExamDto,
+  ExamBlueprint,
+  ConfirmAssemblyInput,
+  AssemblyPreviewResult,
+  AiGenerateCandidatesInput,
+  AiExamCandidate,
+} from '../models/exam.dto.js';
+
 import { CurriculumProgressStatus } from '../enums/curriculum.js';
 import { FinancialStatus } from '../enums/payment.js';
 
@@ -198,6 +208,11 @@ export interface TibyanApi {
     createAcademicYear(input: CreateAcademicYearInput): Promise<IpcResult<AcademicYearDto>>;
     switchAcademicYear(input: SwitchAcademicYearInput): Promise<IpcResult<void>>;
     openWhatsApp(input: { phone: string; message: string }): Promise<IpcResult<void>>;
+  };
+  gemini: {
+    getStatus(): Promise<IpcResult<GeminiConfigurationStatus>>;
+    setCredential(input: GeminiCredentialInput): Promise<IpcResult<void>>;
+    deleteCredential(): Promise<IpcResult<void>>;
   };
   finance: {
     recordPayment(input: RecordPaymentInput): Promise<IpcResult<PaymentDto>>;
@@ -277,7 +292,19 @@ export interface TibyanApi {
     previewBulk(items: BulkQuestionItemDto[]): Promise<IpcResult<BulkImportReviewItemDto[]>>;
     commitBulk(input: CommitBulkImportInputDto): Promise<IpcResult<{ createdCount: number; linkedCount: number; dismissedCount: number }>>;
   };
+  exams: {
+    list(): Promise<IpcResult<ExamDto[]>>;
+    get(id: string): Promise<IpcResult<ExamDto>>;
+    previewAssembly(blueprint: ExamBlueprint): Promise<IpcResult<AssemblyPreviewResult>>;
+    confirmAssembly(input: ConfirmAssemblyInput): Promise<IpcResult<ExamDto>>;
+    undoLastMutation(examId: string): Promise<IpcResult<void>>;
+    previewAiCandidates(input: AiGenerateCandidatesInput): Promise<IpcResult<{ candidates: AiExamCandidate[] }>>;
+    renderLayout(input: { examId: string; kind: 'STUDENT' | 'TEACHER' | 'ANSWER_KEY'; versionLabel?: 'A' | 'B' | 'C' | 'D' }): Promise<IpcResult<string>>;
+    exportPdf(input: { examId: string; kind: 'STUDENT' | 'TEACHER' | 'ANSWER_KEY'; versionLabel?: 'A' | 'B' | 'C' | 'D'; defaultFilename?: string }): Promise<IpcResult<{ canceled: boolean; filePath: string }>>;
+    print(input: { examId: string; kind: 'STUDENT' | 'TEACHER' | 'ANSWER_KEY'; versionLabel?: 'A' | 'B' | 'C' | 'D' }): Promise<IpcResult<{ success: boolean; message?: string }>>;
+  };
 }
+
 
 declare global {
   interface Window {

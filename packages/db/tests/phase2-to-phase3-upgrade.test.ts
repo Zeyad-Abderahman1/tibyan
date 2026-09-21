@@ -86,9 +86,9 @@ describe('Phase-2 to Phase-3 Database Upgrade Verification', () => {
       VALUES ('grp-existing', 'مجموعة قائمة من المرحلة 2', 'GENERAL', 'PREP_1', 'ARABIC', NULL, 'MONTHLY', 200, 'ACTIVE', '2026-01-01', '2026-01-01')
     `).run();
 
-    // 3. Upgrade to Phase 3 via migrator
+    // 3. Upgrade through every registered migration; legacy Phase 2 files must reach Phase 4 intact.
     const newlyApplied = migrateAcademicDatabase(rawDb);
-    expect(newlyApplied).toEqual(['0007_awesome_sunspot', '0008_nifty_magus']);
+    expect(newlyApplied).toEqual(['0007_awesome_sunspot', '0008_nifty_magus', '0009_exotic_carmella_unuscione']);
     expect(getAppliedMigrations(rawDb)).toEqual([
       '0000_initial_schema',
       '0001_audit_triggers',
@@ -99,6 +99,7 @@ describe('Phase-2 to Phase-3 Database Upgrade Verification', () => {
       '0006_parched_xavin',
       '0007_awesome_sunspot',
       '0008_nifty_magus',
+      '0009_exotic_carmella_unuscione',
     ]);
 
     // 4. Verify Phase 2 data preserved

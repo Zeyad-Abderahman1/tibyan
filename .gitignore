@@ -17,3 +17,4 @@ test-results/
 playwright-report/
 .native-cache/
 screenshots/
+.superpowers/

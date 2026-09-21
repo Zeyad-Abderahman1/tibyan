@@ -67,6 +67,11 @@ export const IPC_CHANNELS = {
   SYSTEM_SWITCH_ACADEMIC_YEAR: 'system:switchAcademicYear',
   SYSTEM_OPEN_WHATSAPP: 'system:openWhatsApp',
 
+  // Gemini configuration (credential material is accepted only by Main and never returned)
+  GEMINI_GET_STATUS: 'gemini:getStatus',
+  GEMINI_SET_CREDENTIAL: 'gemini:setCredential',
+  GEMINI_DELETE_CREDENTIAL: 'gemini:deleteCredential',
+
   // Finance
   FINANCE_RECORD_PAYMENT: 'finance:recordPayment',
   FINANCE_LIST_STUDENT_PAYMENTS: 'finance:listStudentPayments',
@@ -143,7 +148,19 @@ export const IPC_CHANNELS = {
   QUESTION_BANK_COMMIT_BULK: 'questionBank:commitBulk',
   QUESTION_BANK_LINK_SOURCES: 'questionBank:linkSources',
   QUESTION_BANK_UNLINK_SOURCE: 'questionBank:unlinkSource',
+
+  // Exam Engine & AI Builder (Phase 4)
+  EXAMS_LIST: 'exams:list',
+  EXAMS_GET: 'exams:get',
+  EXAMS_PREVIEW_ASSEMBLY: 'exams:previewAssembly',
+  EXAMS_CONFIRM_ASSEMBLY: 'exams:confirmAssembly',
+  EXAMS_UNDO_LAST_MUTATION: 'exams:undoLastMutation',
+  EXAMS_PREVIEW_AI_CANDIDATES: 'exams:previewAiCandidates',
+  EXAMS_RENDER_LAYOUT: 'exams:renderLayout',
+  EXAMS_EXPORT_PDF: 'exams:exportPdf',
+  EXAMS_PRINT: 'exams:print',
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];
+
 

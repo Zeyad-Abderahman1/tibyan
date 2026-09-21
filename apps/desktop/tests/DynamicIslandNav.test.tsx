@@ -16,6 +16,7 @@ describe('DynamicIslandNav Component Suite', () => {
     expect(html).toContain('اليوم');
     expect(html).toContain('الطلاب');
     expect(html).toContain('المجموعات');
+    expect(html).toContain('الاختبارات');
     expect(html).toContain('المالية');
     expect(html).toContain('الإعدادات');
 
@@ -35,7 +36,7 @@ describe('DynamicIslandNav Component Suite', () => {
   });
 
   it('supports configuration-driven items without hardcoding', () => {
-    expect(DEFAULT_NAV_ITEMS).toHaveLength(5);
-    expect(DEFAULT_NAV_ITEMS.map((i) => i.to)).toEqual(['/', '/students', '/groups', '/finance', '/settings']);
+    expect(DEFAULT_NAV_ITEMS).toHaveLength(6);
+    expect(DEFAULT_NAV_ITEMS.map((i) => i.to)).toEqual(['/', '/students', '/groups', '/exams', '/finance', '/settings']);
   });
 });
