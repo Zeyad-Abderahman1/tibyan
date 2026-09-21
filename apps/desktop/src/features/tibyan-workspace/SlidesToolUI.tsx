@@ -57,24 +57,49 @@ export function SlidesToolUI() {
   const [slides, setSlides] = useState<SlideData[]>([]);
   const [presentationMode, setPresentationMode] = useState(false);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
-    if (!selectedSource) return;
+    if (!selectedSource || !selectedSource.id) return;
     setIsGenerating(true);
+    setGenerationError(null);
     try {
-      const mockSlides: SlideData[] = [];
-      for (let i = 0; i < slideCount; i++) {
-        mockSlides.push({
-          id: `slide-${i}`,
-          title: i === 0 ? (title || 'عنوان العرض') : `شريحة ${i + 1}`,
-          content: `محتوى تعليمي للشريحة ${i + 1} - بناءً على مصدر المنهج المحدد`,
-          notes: `ملاحظات المتحدث للشريحة ${i + 1}`,
-          blocks: [
-            { id: `block-${i}-1`, type: 'TEXT', content: `محتوى الشريحة ${i + 1}` },
-          ],
-        });
+      const result = await window.tibyan.ai.generateSlides({
+        sourceId: selectedSource.id,
+        scope: title || undefined,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error?.message || 'فشل توليد الشرائح');
       }
-      setSlides(mockSlides);
+
+      const generated = result.data as any;
+      const contentStr = generated?.content || '[]';
+      let parsed: any[];
+      try {
+        parsed = typeof contentStr === 'string' ? JSON.parse(contentStr) : contentStr;
+      } catch {
+        parsed = [];
+      }
+
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        setGenerationError('لم يتم توليد شرائح. تأكد من أن المصدر يحتوي على محتوى كافٍ.');
+        return;
+      }
+
+      const slideData: SlideData[] = parsed.map((s: any, idx: number) => ({
+        id: `slide-${Date.now()}-${idx}`,
+        title: s.title || `شريحة ${idx + 1}`,
+        content: s.content || s.text || '',
+        notes: s.notes || s.speakerNotes || '',
+        blocks: [
+          { id: `block-${idx}-1`, type: 'TEXT' as const, content: s.content || s.text || '' },
+        ],
+      }));
+
+      setSlides(slideData);
+    } catch (err: any) {
+      setGenerationError(err?.message || 'حدث خطأ أثناء توليد الشرائح');
     } finally {
       setIsGenerating(false);
     }
@@ -317,13 +342,20 @@ export function SlidesToolUI() {
           </div>
         </Card>
 
+        {/* Generation Error */}
+        {generationError && (
+          <div className="p-3 rounded-lg bg-[var(--color-status-danger-bg)] border border-[var(--color-status-danger-border)] text-[var(--color-status-danger)] text-sm">
+            {generationError}
+          </div>
+        )}
+
         {/* Generate */}
         <Button
           variant="primary"
           size="lg"
           className="w-full"
           onClick={handleGenerate}
-          disabled={!selectedSource || isGenerating}
+          disabled={!selectedSource || !selectedSource.id || isGenerating}
           data-testid="btn-generate-slides"
         >
           {isGenerating ? (

@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { Card, Button, Badge } from '@tibyan/design-system';
 import { Upload, BookMarked, FileText, X, ChevronLeft, FolderOpen } from 'lucide-react';
 import { useCurriculumLibraryList } from '../../hooks/useCurriculumLibrary.js';
+import { ImportDialog } from '../curriculum-library/ImportDialog.js';
 
 export interface SourceSelection {
   type: 'UPLOAD_PDF' | 'CURRICULUM_LIBRARY';
@@ -30,21 +31,55 @@ export function SourcePicker({
 }: SourcePickerProps) {
   const [mode, setMode] = useState<'CHOICE' | 'LIBRARY'>('CHOICE');
   const [isDragOver, setIsDragOver] = useState(false);
+  const [importDialogFile, setImportDialogFile] = useState<{ filePath: string; fileName: string } | null>(null);
   const dragCounterRef = useRef(0);
-  const { data: libraryDocs, isLoading } = useCurriculumLibraryList();
+  const { data: libraryDocs, isLoading, refetch: refetchLibrary } = useCurriculumLibraryList();
 
   const handleBrowse = async () => {
     try {
       const res = await window.tibyan.curriculumLibrary.browseAndImport();
       if (res.success && res.data) {
-        onSourceSelected({
-          type: 'UPLOAD_PDF',
-          title: res.data.fileName,
-          filePath: res.data.filePath,
-        });
+        setImportDialogFile(res.data);
       }
     } catch {
       // user cancelled or error
+    }
+  };
+
+  const handleConfirmImport = async (metadata: {
+    title: string;
+    gradeLevel: string;
+    educationSystem: string;
+    subject: string;
+    description: string;
+  }) => {
+    if (!importDialogFile || !window.tibyan?.curriculumLibrary?.import) return;
+    try {
+      const result = await window.tibyan.curriculumLibrary.import({
+        sourceFilePath: importDialogFile.filePath,
+        title: metadata.title,
+        gradeLevel: metadata.gradeLevel,
+        educationSystem: metadata.educationSystem || undefined,
+        subject: metadata.subject,
+        description: metadata.description || undefined,
+      });
+      if (result.success && result.data) {
+        const doc = result.data as any;
+        setImportDialogFile(null);
+        refetchLibrary();
+        onSourceSelected({
+          type: 'CURRICULUM_LIBRARY',
+          id: doc.id,
+          title: doc.title || metadata.title,
+          gradeLevel: metadata.gradeLevel || undefined,
+          subject: metadata.subject || undefined,
+        });
+      } else {
+        const errResult = result as { success: false; error?: { message?: string } };
+        alert(errResult.error?.message || 'فشل استيراد الملف');
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'فشل استيراد الملف');
     }
   };
 
@@ -92,16 +127,23 @@ export function SourcePicker({
     const files = Array.from(e.dataTransfer.files);
     const pdfFile = files.find((f) => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
     if (pdfFile) {
-      onSourceSelected({
-        type: 'UPLOAD_PDF',
-        title: pdfFile.name,
-      });
+      // For Electron, we need real file path from main process
+      // Use the native file dialog for actual import
+      handleBrowse();
     }
   }, [onSourceSelected]);
 
   if (selectedSource) {
     return (
-      <Card variant="outlined" className="p-4" dir="rtl">
+      <>
+        {importDialogFile && (
+          <ImportDialog
+            fileName={importDialogFile.fileName}
+            onConfirm={handleConfirmImport}
+            onCancel={() => setImportDialogFile(null)}
+          />
+        )}
+        <Card variant="outlined" className="p-4" dir="rtl">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-bold text-[var(--color-text-primary)]">{label}</h3>
           {onSourceCleared && (
@@ -138,12 +180,21 @@ export function SourcePicker({
           </div>
         </div>
       </Card>
+      </>
     );
   }
 
   if (mode === 'LIBRARY') {
     return (
-      <Card variant="default" className="p-6" dir="rtl">
+      <>
+        {importDialogFile && (
+          <ImportDialog
+            fileName={importDialogFile.fileName}
+            onConfirm={handleConfirmImport}
+            onCancel={() => setImportDialogFile(null)}
+          />
+        )}
+        <Card variant="default" className="p-6" dir="rtl">
         <div className="flex items-center gap-2 mb-4">
           <Button variant="ghost" size="sm" onClick={() => setMode('CHOICE')}>
             <ChevronLeft className="w-4 h-4 rotate-180" />
@@ -189,11 +240,20 @@ export function SourcePicker({
           </div>
         )}
       </Card>
+      </>
     );
   }
 
   return (
-    <div
+    <>
+      {importDialogFile && (
+        <ImportDialog
+          fileName={importDialogFile.fileName}
+          onConfirm={handleConfirmImport}
+          onCancel={() => setImportDialogFile(null)}
+        />
+      )}
+      <div
       onDragEnter={acceptDragDrop ? handleDragEnter : undefined}
       onDragLeave={acceptDragDrop ? handleDragLeave : undefined}
       onDragOver={acceptDragDrop ? handleDragOver : undefined}
@@ -238,7 +298,7 @@ export function SourcePicker({
       {isDragOver && acceptDragDrop && (
         <div className="absolute inset-0 z-50 flex items-center justify-center rounded-xl border-2 border-dashed border-[var(--color-brand-primary)] bg-[var(--color-brand-primary-bg)]/90 backdrop-blur-sm pointer-events-none">
           <div className="text-center">
-            <Upload className="w-12 h-12 mx-auto text-[var(--color-brand-primary)] mb-2 animate-bounce" />
+            <Upload className="w-12 h-12 mx-auto text-[var(--color-brand-primary)] mb-2" />
             <p className="text-base font-bold text-[var(--color-brand-primary)]">
               أفلت ملف PDF هنا
             </p>
@@ -246,5 +306,6 @@ export function SourcePicker({
         </div>
       )}
     </div>
+    </>
   );
 }

@@ -41,36 +41,63 @@ export function ExamToolUI() {
   const [generationMode, setGenerationMode] = useState('SAME_IDEA_NEW_NUMBERS');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedQuestions, setGeneratedQuestions] = useState<ExamQuestion[]>([]);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
-    if (!selectedSource) return;
+    if (!selectedSource || !selectedSource.id) return;
     setIsGenerating(true);
+    setGenerationError(null);
     try {
       const totalRequested = mcqCount + writtenCount + trueFalseCount + shortAnswerCount;
-      const mockQuestions: ExamQuestion[] = [];
-      let page = 1;
-      for (let i = 0; i < mcqCount; i++) {
-        mockQuestions.push({
-          id: `q-mcq-${i}`,
-          type: 'MULTIPLE_CHOICE',
-          body: `سؤال اختياري ${i + 1} -Based on source material (same idea, new numbers)`,
-          options: ['الخيار أ', 'الخيار ب', 'الخيار ج', 'الخيار د'],
-          correctAnswer: 'الخيار أ',
-          marks: Math.ceil(totalMarks / totalRequested),
-          sourcePage: page++,
-        });
+      const types: string[] = [];
+      if (mcqCount > 0) types.push('MULTIPLE_CHOICE');
+      if (writtenCount > 0) types.push('SHORT_ANSWER');
+      if (trueFalseCount > 0) types.push('TRUE_FALSE');
+      if (shortAnswerCount > 0) types.push('SHORT_ANSWER');
+
+      const result = await window.tibyan.ai.generateExam({
+        sourceId: selectedSource.id,
+        config: {
+          questionCount: totalRequested,
+          difficulty,
+          types,
+          mcqCount,
+          writtenCount,
+          generationMode,
+        },
+      });
+
+      if (!result.success) {
+        throw new Error(result.error?.message || 'فشل توليد الاختبار');
       }
-      for (let i = 0; i < writtenCount; i++) {
-        mockQuestions.push({
-          id: `q-written-${i}`,
-          type: 'SHORT_ANSWER',
-          body: `سؤال إنشائي ${i + 1} - Solving problem based on source (hand-written solution)`,
-          correctAnswer: 'حل نموذجي...',
-          marks: Math.ceil(totalMarks / totalRequested),
-          sourcePage: page++,
-        });
+
+      const generated = result.data as any;
+      const contentStr = generated?.content || '[]';
+      let parsed: any[];
+      try {
+        parsed = typeof contentStr === 'string' ? JSON.parse(contentStr) : contentStr;
+      } catch {
+        parsed = [];
       }
-      setGeneratedQuestions(mockQuestions);
+
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        setGenerationError('لم يتم توليد أسئلة. تأكد من أن المصدر يحتوي على محتوى كافٍ.');
+        return;
+      }
+
+      const questions: ExamQuestion[] = parsed.map((q: any, idx: number) => ({
+        id: `q-${Date.now()}-${idx}`,
+        type: q.type === 'MULTIPLE_CHOICE' || q.type === 'MCQ' ? 'MULTIPLE_CHOICE' : 'SHORT_ANSWER',
+        body: q.body || q.question || q.text || `سؤال ${idx + 1}`,
+        options: q.options || q.choices || undefined,
+        correctAnswer: q.correctAnswer || q.answer || q.modelAnswer || '',
+        marks: q.marks || Math.ceil(totalMarks / totalRequested),
+        sourcePage: q.sourcePage || q.page || undefined,
+      }));
+
+      setGeneratedQuestions(questions);
+    } catch (err: any) {
+      setGenerationError(err?.message || 'حدث خطأ أثناء توليد الاختبار');
     } finally {
       setIsGenerating(false);
     }
@@ -295,13 +322,20 @@ export function ExamToolUI() {
           </div>
         </Card>
 
+        {/* Generation Error */}
+        {generationError && (
+          <div className="p-3 rounded-lg bg-[var(--color-status-danger-bg)] border border-[var(--color-status-danger-border)] text-[var(--color-status-danger)] text-sm">
+            {generationError}
+          </div>
+        )}
+
         {/* Generate Button */}
         <Button
           variant="primary"
           size="lg"
           className="w-full"
           onClick={handleGenerate}
-          disabled={!selectedSource || isGenerating}
+          disabled={!selectedSource || !selectedSource.id || isGenerating}
           data-testid="btn-generate-exam"
         >
           {isGenerating ? (

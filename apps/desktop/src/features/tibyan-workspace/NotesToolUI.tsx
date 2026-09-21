@@ -35,29 +35,46 @@ export function NotesToolUI() {
   const [includeModelSolutions, setIncludeModelSolutions] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedSections, setGeneratedSections] = useState<NoteSection[]>([]);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
-    if (!selectedSource) return;
+    if (!selectedSource || !selectedSource.id) return;
     setIsGenerating(true);
+    setGenerationError(null);
     try {
-      const sections: NoteSection[] = [
-        { id: 'n-1', title: 'مقدمة', content: 'مقدمة في موضوع الوحدة...', type: 'heading' },
-        { id: 'n-2', title: 'المفاهيم الأساسية', content: 'شرح تفصيلي للمفاهيم الأساسية في الوحدة...', type: 'content' },
-        { id: 'n-3', title: 'مثال تطبيقي', content: 'مثال تطبيقي مع حل خطوة بخطوة...', type: 'example' },
-      ];
-      if (includeExercises) {
-        sections.push(
-          { id: 'ex-1', title: 'تدريب ١', content: 'سؤال تدريبي لقياس الفهم...', type: 'exercise' },
-          { id: 'ex-2', title: 'تدريب ٢', content: 'سؤال تدريبي إضافي...', type: 'exercise' }
-        );
+      const result = await window.tibyan.ai.generateNotes({
+        sourceId: selectedSource.id,
+        scope: scope || undefined,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error?.message || 'فشل توليد المذكرة');
       }
-      if (includeModelSolutions) {
-        sections.push(
-          { id: 'sol-1', title: 'حلول تدريبات', content: 'حلول مفصلة لجميع التدريبات...', type: 'content' }
-        );
+
+      const generated = result.data as any;
+      const contentStr = generated?.content || '[]';
+      let parsed: any[];
+      try {
+        parsed = typeof contentStr === 'string' ? JSON.parse(contentStr) : contentStr;
+      } catch {
+        parsed = [];
       }
-      sections.push({ id: 'n-sum', title: 'ملخص', content: 'ملخص شامل لأهم النقاط في الوحدة...', type: 'content' });
+
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        setGenerationError('لم يتم توليد أقسام المذكرة. تأكد من أن المصدر يحتوي على محتوى كافٍ.');
+        return;
+      }
+
+      const sections: NoteSection[] = parsed.map((s: any, idx: number) => ({
+        id: `n-${Date.now()}-${idx}`,
+        title: s.title || s.heading || `قسم ${idx + 1}`,
+        content: s.content || s.text || s.body || '',
+        type: s.type || (idx === 0 ? 'heading' : 'content'),
+      }));
+
       setGeneratedSections(sections);
+    } catch (err: any) {
+      setGenerationError(err?.message || 'حدث خطأ أثناء توليد المذكرة');
     } finally {
       setIsGenerating(false);
     }
@@ -177,13 +194,20 @@ export function NotesToolUI() {
           </div>
         </Card>
 
+        {/* Generation Error */}
+        {generationError && (
+          <div className="p-3 rounded-lg bg-[var(--color-status-danger-bg)] border border-[var(--color-status-danger-border)] text-[var(--color-status-danger)] text-sm">
+            {generationError}
+          </div>
+        )}
+
         {/* Generate */}
         <Button
           variant="primary"
           size="lg"
           className="w-full"
           onClick={handleGenerate}
-          disabled={!selectedSource || isGenerating}
+          disabled={!selectedSource || !selectedSource.id || isGenerating}
           data-testid="btn-generate-notes"
         >
           {isGenerating ? (

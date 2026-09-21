@@ -45,6 +45,7 @@ export function CurriculumLibraryPage() {
   const [viewingPdfId, setViewingPdfId] = useState<string | null>(null);
   const [importDialogFile, setImportDialogFile] = useState<{ filePath: string; fileName: string } | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: documents, isLoading: listLoading, refetch: refetchList } = useCurriculumLibraryList(
@@ -83,6 +84,8 @@ export function CurriculumLibraryPage() {
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
     setIsDragOver(false);
     // In Electron with contextIsolation, dropped files don't expose real paths
     // We need to use the native file dialog instead
@@ -91,11 +94,30 @@ export function CurriculumLibraryPage() {
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
     setIsDragOver(true);
   }, []);
 
-  const handleDragLeave = useCallback(() => {
-    setIsDragOver(false);
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current += 1;
+    if (dragCounterRef.current === 1) {
+      setIsDragOver(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setIsDragOver(false);
+    }
   }, []);
 
   const handleConfirmImport = async (metadata: {
@@ -158,6 +180,7 @@ export function CurriculumLibraryPage() {
       data-testid="page-curriculum-library"
       onDrop={handleDrop}
       onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
     >
       {/* Hidden file input */}
@@ -197,7 +220,7 @@ export function CurriculumLibraryPage() {
 
       {/* Drag overlay */}
       {isDragOver && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[var(--color-brand-primary)]/10 backdrop-blur-sm border-2 border-dashed border-[var(--color-brand-primary)] rounded-2xl m-4">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[var(--color-brand-primary)]/10 backdrop-blur-sm border-2 border-dashed border-[var(--color-brand-primary)] rounded-2xl m-4" style={{ cursor: 'copy' }}>
           <div className="text-center space-y-2">
             <Upload className="w-12 h-12 mx-auto text-[var(--color-brand-primary)]" />
             <p className="text-lg font-bold text-[var(--color-brand-primary)]">أفلت ملف PDF هنا</p>

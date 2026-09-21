@@ -31,31 +31,45 @@ export function ReviewToolUI() {
   const [includeAnswers, setIncludeAnswers] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedSections, setGeneratedSections] = useState<ReviewSection[]>([]);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
-    if (!selectedSource) return;
+    if (!selectedSource || !selectedSource.id) return;
     setIsGenerating(true);
+    setGenerationError(null);
     try {
-      const sections: ReviewSection[] = [
-        { id: 'sec-1', title: 'المفاهيم الرئيسية', content: 'ملخص المفاهيم الأساسية من الوحدة المحددة...' },
-        { id: 'sec-2', title: 'ملخص الدروس', content: 'مراجعة شاملة لدروس الوحدة مع تركيز على النقاط المهمة...' },
-      ];
-      if (reviewType === 'QUESTIONS' || reviewType === 'MIXED') {
-        for (let i = 1; i <= questionCount; i++) {
-          sections.push({
-            id: `q-${i}`,
-            title: `سؤال تدريبي ${i}`,
-            content: `سؤال تدريبي ${i} - بناءً على محتوى المصدر...`,
-          });
-        }
+      const result = await window.tibyan.ai.generateReview({
+        sourceId: selectedSource.id,
+        scope: scope || undefined,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error?.message || 'فشل توليد المراجعة');
       }
-      if (reviewType === 'SOLVED_EXAMPLES' || reviewType === 'MIXED') {
-        sections.push(
-          { id: 'ex-1', title: 'مثال محلول ١', content: 'حل تفصيلي للمثال الأول مع خطوات واضحة...' },
-          { id: 'ex-2', title: 'مثال محلول ٢', content: 'حل تفصيلي للمثال الثاني مع خطوات واضحة...' }
-        );
+
+      const generated = result.data as any;
+      const contentStr = generated?.content || '[]';
+      let parsed: any[];
+      try {
+        parsed = typeof contentStr === 'string' ? JSON.parse(contentStr) : contentStr;
+      } catch {
+        parsed = [];
       }
+
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        setGenerationError('لم يتم توليد أقسام المراجعة. تأكد من أن المصدر يحتوي على محتوى كافٍ.');
+        return;
+      }
+
+      const sections: ReviewSection[] = parsed.map((s: any, idx: number) => ({
+        id: `sec-${Date.now()}-${idx}`,
+        title: s.title || s.heading || `قسم ${idx + 1}`,
+        content: s.content || s.text || s.body || '',
+      }));
+
       setGeneratedSections(sections);
+    } catch (err: any) {
+      setGenerationError(err?.message || 'حدث خطأ أثناء توليد المراجعة');
     } finally {
       setIsGenerating(false);
     }
@@ -160,13 +174,20 @@ export function ReviewToolUI() {
           </div>
         </Card>
 
+        {/* Generation Error */}
+        {generationError && (
+          <div className="p-3 rounded-lg bg-[var(--color-status-danger-bg)] border border-[var(--color-status-danger-border)] text-[var(--color-status-danger)] text-sm">
+            {generationError}
+          </div>
+        )}
+
         {/* Generate */}
         <Button
           variant="primary"
           size="lg"
           className="w-full"
           onClick={handleGenerate}
-          disabled={!selectedSource || isGenerating}
+          disabled={!selectedSource || !selectedSource.id || isGenerating}
           data-testid="btn-generate-review"
         >
           {isGenerating ? (

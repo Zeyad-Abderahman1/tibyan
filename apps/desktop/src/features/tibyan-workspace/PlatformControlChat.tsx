@@ -77,7 +77,7 @@ export function PlatformControlChat() {
                 <Bot className="w-8 h-8 text-[var(--color-brand-primary)]" />
               </div>
               <p className="text-sm text-[var(--color-text-secondary)]">
-                اطرح أي سؤال关于التحكم في المنصة
+                اطرح أي سؤال عن التحكم في المنصة
               </p>
               <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
                 يمكنني مساعدتك في إدارة الطلاب والمجموعات والجدول والمالية

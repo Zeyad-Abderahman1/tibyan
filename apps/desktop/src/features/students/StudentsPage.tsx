@@ -151,6 +151,13 @@ export function StudentsPage() {
     }
   };
 
+  const handleOpenAllCards = () => {
+    if (students.length > 0) {
+      setCardPreviewStudents(students);
+      setIsCardPreviewOpen(true);
+    }
+  };
+
   const handleOpenSingleCard = (student: StudentDto, e: React.MouseEvent) => {
     e.stopPropagation();
     setCardPreviewStudents([student]);
@@ -178,6 +185,18 @@ export function StudentsPage() {
             >
               <CreditCard size={15} className="me-1.5 text-[var(--color-brand-primary)]" />
               طباعة بطاقات ({selectedStudentIds.size})
+            </Button>
+          )}
+
+          {students.length > 0 && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleOpenAllCards}
+              data-testid="print-all-cards-btn"
+            >
+              <CreditCard size={15} className="me-1.5 text-[var(--color-brand-primary)]" />
+              طباعة كل البطاقات
             </Button>
           )}
 
