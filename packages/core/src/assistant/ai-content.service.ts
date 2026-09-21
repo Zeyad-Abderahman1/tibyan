@@ -9,7 +9,7 @@ import { SourceContextService, type SourceContext } from './source-context.servi
 export interface ContentGenerationRequest { sourceDocumentId: string; scope?: string }
 export type GeneratedContent = GeneratedExamContent | GeneratedSlidesContent | GeneratedReviewContent | GeneratedNotesContent;
 export interface AiContentProvider {
-  generate(request: { prompt: string; responseSchema: Record<string, unknown> }): Promise<unknown>;
+  generate(request: { prompt: string; responseSchema: Record<string, unknown>; fileData: { data: Buffer; mimeType: string } }): Promise<unknown>;
 }
 
 export class AiContentService {
@@ -34,7 +34,7 @@ export class AiContentService {
     const source = await this.sourceContext.load(request.sourceDocumentId);
     const prompt = this.buildPrompt(type, source, request.scope, config);
     const responseSchema = schemaToGemini(type);
-    const raw = await this.aiProvider.generate({ prompt, responseSchema });
+    const raw = await this.aiProvider.generate({ prompt, responseSchema, fileData: source.fileData });
     const parsed = schema.safeParse(raw);
     if (!parsed.success || !this.hasValidPages(parsed.data, source)) throw new Error('استجابة الذكاء الاصطناعي غير صالحة');
     return {

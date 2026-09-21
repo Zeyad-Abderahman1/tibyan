@@ -2,7 +2,7 @@ import { inflateSync } from 'node:zlib';
 import type { SourceDocumentDto } from '@tibyan/contracts';
 
 export interface SourcePage { page: number; text: string }
-export interface SourceContext { document: SourceDocumentDto; pages: SourcePage[] }
+export interface SourceContext { document: SourceDocumentDto; pages: SourcePage[]; fileData: ManagedPdf }
 export interface ManagedPdf { data: Buffer; mimeType: string }
 
 /** Resolves managed PDFs in Core and supplies only extracted page text to AI generation. */
@@ -23,7 +23,7 @@ export class SourceContextService {
     if (pages.reduce((length, page) => length + page.text.length, 0) > 200_000) {
       throw new Error('ملف المصدر كبير جداً للمعالجة دفعة واحدة؛ يرجى اختيار مصدر أصغر');
     }
-    return { document, pages };
+    return { document, pages, fileData: file };
   }
 }
 

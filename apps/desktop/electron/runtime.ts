@@ -190,7 +190,7 @@ export class Runtime {
     this.curriculumLibraryService = new CurriculumLibraryService(this.systemDb.db, sourcesDir);
     this.aiContentService = new AiContentService(
       {
-        generate: async ({ prompt, responseSchema }) => {
+        generate: async ({ prompt, responseSchema, fileData }) => {
           const apiKey = this.geminiCredentialService.get();
           if (!apiKey) throw new Error('Gemini API غير مهيأ');
           const { GeminiExamProvider } = await import('@tibyan/core');
@@ -199,6 +199,7 @@ export class Runtime {
             apiKey,
             model: 'gemini-2.0-flash',
             prompt,
+            fileData,
           }, responseSchema);
         },
       },

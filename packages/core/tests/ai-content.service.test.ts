@@ -8,14 +8,17 @@ const pdf = Buffer.from('%PDF-1.4\n1 0 obj << /Type /Page >> endobj\nstream\nBT 
 describe('AI source generation boundary', () => {
   it('sends actual page text to the provider and retains source page provenance', async () => {
     let seen = '';
+    let fileData: Buffer | undefined;
     const context = new SourceContextService(() => source, async () => ({ data: pdf, mimeType: 'application/pdf' }));
     const service = new AiContentService({ generate: async (request) => {
       seen = request.prompt;
+      fileData = request.fileData?.data;
       return { questions: [{ body: 'What is force?', type: 'SHORT_ANSWER', correctAnswer: 'Mass times acceleration', marks: 1, sourcePage: 2 }] };
     } }, context);
     const result = await service.generateExamFromSource({ sourceDocumentId: source.id });
     expect(seen).toContain('Newton laws of motion');
     expect(seen).toContain('صفحة 2');
+    expect(fileData).toEqual(pdf);
     expect(result.data.questions[0]?.sourcePage).toBe(2);
   });
 
