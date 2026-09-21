@@ -7,6 +7,14 @@ const slideRequest = { sourceDocumentId: source.id, title: 'Motion', gradeLevel:
 const pdf = Buffer.from('%PDF-1.4\n1 0 obj << /Type /Page >> endobj\nstream\nBT (Newton laws of motion) Tj ET\nendstream\n2 0 obj << /Type /Page >> endobj\nstream\nBT (Force equals mass times acceleration) Tj ET\nendstream');
 
 describe('AI source generation boundary', () => {
+  it('passes note style and exercise settings with real source text', async () => {
+    let prompt = '';
+    const context = new SourceContextService(() => source, async () => ({ data: pdf, mimeType: 'application/pdf' }));
+    const service = new AiContentService({ generate: async (request) => { prompt = request.prompt; return { sections: [{ title: 'القوة', content: 'F=ma', type: 'content', sourcePage: 2 }] }; } }, context);
+    await service.generateNotes({ sourceDocumentId: source.id, title: 'ملخص', gradeLevel: 'SEC_2', detailStyle: 'EXPLAIN_EXAMPLES_PRACTICE', includeExercises: true, includeModelSolutions: true, scope: 'الفصل الأول' } as any);
+    expect(prompt).toContain('Newton laws of motion');
+    expect(prompt).toContain('EXPLAIN_EXAMPLES_PRACTICE');
+  });
   it('sends actual page text to the provider and retains source page provenance', async () => {
     let seen = '';
     let fileData: Buffer | undefined;

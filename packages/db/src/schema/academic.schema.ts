@@ -823,3 +823,11 @@ export const reviewArtifacts = sqliteTable('review_artifacts', {
 export type ReviewArtifactRow = typeof reviewArtifacts.$inferSelect;
 export type NewReviewArtifactRow = typeof reviewArtifacts.$inferInsert;
 
+export const notesArtifacts = sqliteTable('notes_artifacts', {
+  id: text('id').primaryKey(), sourceDocumentId: text('source_document_id').notNull(), title: text('title').notNull(),
+  gradeLevel: text('grade_level').notNull(), scope: text('scope'), detailStyle: text('detail_style').notNull(),
+  includeExercises: integer('include_exercises', { mode: 'boolean' }).notNull(), includeModelSolutions: integer('include_model_solutions', { mode: 'boolean' }).notNull(),
+  contentJson: text('content_json').notNull(), createdAt: text('created_at').notNull(), updatedAt: text('updated_at').notNull(),
+});
+export type NotesArtifactRow = typeof notesArtifacts.$inferSelect;
+

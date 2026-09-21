@@ -175,7 +175,7 @@ import {
   UndoInput,
   ExecutionReceipt,
 } from '../models/assistant.dto.js';
-import type { SourceGenerationRequest, ExamGenerationRequest, SlidesGenerationRequest, ReviewGenerationRequest, GeneratedExamContent, GeneratedNotesContent } from '../models/ai-generation.dto.js';
+import type { ExamGenerationRequest, SlidesGenerationRequest, ReviewGenerationRequest, NotesGenerationRequest, GeneratedExamContent } from '../models/ai-generation.dto.js';
 import {
   CurriculumGradeGroup,
   ImportCurriculumLibraryInput,
@@ -451,7 +451,7 @@ export interface TibyanApi {
   };
   ai: {
     generateReview(input: ReviewGenerationRequest): Promise<IpcResult<any>>;
-    generateNotes(input: SourceGenerationRequest): Promise<IpcResult<GeneratedNotesContent>>;
+    generateNotes(input: NotesGenerationRequest): Promise<IpcResult<any>>;
     generateSlides(input: SlidesGenerationRequest): Promise<IpcResult<SlideDeckWithSlides>>;
     generateExam(input: ExamGenerationRequest): Promise<IpcResult<GeneratedExamContent>>;
   };

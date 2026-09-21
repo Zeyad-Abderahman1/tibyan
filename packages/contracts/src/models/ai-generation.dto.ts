@@ -41,6 +41,12 @@ export const ReviewGenerationRequestSchema = z.object({
   questionCount: z.number().int().min(0).max(50), includeModelAnswers: z.boolean(),
 }).strict();
 export type ReviewGenerationRequest = z.infer<typeof ReviewGenerationRequestSchema>;
+export const NotesGenerationRequestSchema = z.object({
+  sourceDocumentId: sourceId, title: z.string().trim().min(1).max(200), gradeLevel: z.enum(['SEC_1','SEC_2','SEC_3']), scope,
+  detailStyle: z.enum(['CONDENSED','MODERATE','DETAILED','EXPLAIN_ONLY','EXPLAIN_EXAMPLES','EXPLAIN_EXAMPLES_PRACTICE']),
+  includeExercises: z.boolean(), includeModelSolutions: z.boolean(),
+}).strict();
+export type NotesGenerationRequest = z.infer<typeof NotesGenerationRequestSchema>;
 
 export const GeneratedQuestionSchema = z.object({
   body: z.string().trim().min(1),
@@ -66,7 +72,7 @@ const sectionFields = { title: z.string().trim().min(1), content: z.string().tri
 export const GeneratedReviewSectionSchema = z.object({ ...sectionFields, type: z.enum(['heading', 'content', 'question', 'example']), modelAnswer: z.string().optional() }).strict();
 export const ReviewGenerationResultSchema = z.object({ title: z.string().optional(), sections: z.array(GeneratedReviewSectionSchema).min(1).max(100) }).strict();
 export type ReviewGenerationResult = z.infer<typeof ReviewGenerationResultSchema>;
-export const GeneratedNoteSectionSchema = z.object({ ...sectionFields, type: z.enum(['heading', 'content', 'example', 'exercise']) }).strict();
+export const GeneratedNoteSectionSchema = z.object({ ...sectionFields, type: z.enum(['heading', 'content', 'example', 'exercise', 'solution']) }).strict();
 export const NotesGenerationResultSchema = z.object({ title: z.string().optional(), sections: z.array(GeneratedNoteSectionSchema).min(1).max(100) }).strict();
 export type NotesGenerationResult = z.infer<typeof NotesGenerationResultSchema>;
 

@@ -46,7 +46,9 @@ export function NotesToolUI() {
     setGenerationError(null);
     try {
       const result = await window.tibyan.ai.generateNotes({
-        sourceId: selectedSource.id,
+        sourceDocumentId: selectedSource.id,
+        title: title || 'مذكرة دراسية', gradeLevel: gradeLevel as any, detailStyle: detailStyle as any,
+        includeExercises, includeModelSolutions,
         scope: scope || undefined,
       });
 
@@ -54,7 +56,7 @@ export function NotesToolUI() {
         throw new Error(result.error?.message || 'فشل توليد المذكرة');
       }
 
-      const parsed = result.data.data.sections;
+      const parsed = (result.data as any).content.sections;
 
       if (!Array.isArray(parsed) || parsed.length === 0) {
         setGenerationError('لم يتم توليد أقسام المذكرة. تأكد من أن المصدر يحتوي على محتوى كافٍ.');

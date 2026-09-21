@@ -2,6 +2,7 @@ import {
   ExamGenerationResultSchema, SlidesGenerationResultSchema,
   ReviewGenerationResultSchema, NotesGenerationResultSchema,
   ReviewGenerationRequestSchema, type ReviewGenerationRequest,
+  NotesGenerationRequestSchema, type NotesGenerationRequest,
   type GeneratedExamContent, type GeneratedSlidesContent,
   type GeneratedReviewContent, type GeneratedNotesContent,
   type SlidesGenerationRequest,
@@ -21,8 +22,9 @@ export class AiContentService {
     const parsed=ReviewGenerationRequestSchema.safeParse(request).success ? ReviewGenerationRequestSchema.parse(request) : request;
     return this.generate('review', parsed, ReviewGenerationResultSchema, parsed);
   }
-  generateNotes(request: ContentGenerationRequest): Promise<GeneratedNotesContent> {
-    return this.generate('notes', request, NotesGenerationResultSchema);
+  generateNotes(request: NotesGenerationRequest | ContentGenerationRequest): Promise<GeneratedNotesContent> {
+    const parsed=NotesGenerationRequestSchema.safeParse(request).success ? NotesGenerationRequestSchema.parse(request) : request;
+    return this.generate('notes', parsed, NotesGenerationResultSchema, parsed);
   }
   async generateSlides(request: SlidesGenerationRequest): Promise<GeneratedSlidesContent> {
     const result = await this.generate('slides', request, SlidesGenerationResultSchema, request) as GeneratedSlidesContent;
@@ -81,7 +83,7 @@ function schemaToGemini(type: string): Record<string, unknown> {
   const base = { title: string, content: string, sourcePage: number };
   const item = type === 'exam'
     ? { body: string, type: { type: 'STRING', enum: ['MULTIPLE_CHOICE', 'SHORT_ANSWER', 'TRUE_FALSE', 'WRITTEN'] }, options: { type: 'ARRAY', items: string }, correctAnswer: string, explanation: string, marks: number, sourcePage: number }
-    : type === 'slides' ? { ...base, notes: string } : { ...base, type: { type: 'STRING', enum: type === 'review' ? ['heading', 'content', 'question', 'example'] : ['heading', 'content', 'example', 'exercise'] } };
+    : type === 'slides' ? { ...base, notes: string } : { ...base, type: { type: 'STRING', enum: type === 'review' ? ['heading', 'content', 'question', 'example'] : ['heading', 'content', 'example', 'exercise', 'solution'] } };
   const key = type === 'exam' ? 'questions' : type === 'slides' ? 'slides' : 'sections';
   const required = type === 'exam' ? ['body', 'type', 'correctAnswer', 'marks', 'sourcePage'] : type === 'slides' ? ['title', 'content', 'sourcePage'] : ['title', 'content', 'type', 'sourcePage'];
   return { type: 'OBJECT', properties: { title: string, [key]: { type: 'ARRAY', items: { type: 'OBJECT', properties: item, required } } }, required: [key] };
