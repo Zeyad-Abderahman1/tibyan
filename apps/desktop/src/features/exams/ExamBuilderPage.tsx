@@ -24,6 +24,7 @@ import {
   usePrintExam,
 } from '../../hooks/useExams.js';
 import { useCurriculumCatalogs, useCurriculumTree } from '../../hooks/useCurriculum.js';
+import { ExamSourceChoice, type SelectedSource } from '../tibyan-workspace/ExamSourceChoice.js';
 import { MathRichContentViewer } from '@tibyan/design-system';
 import type {
   ExamBlueprint,
@@ -68,6 +69,9 @@ export function ExamBuilderPage() {
   // Drag-and-drop state for question reorder
   const dragItemRef = useRef<number | null>(null);
   const dragOverItemRef = useRef<number | null>(null);
+
+  // Source choice state
+  const [selectedSource, setSelectedSource] = useState<SelectedSource | null>(null);
 
   // Queries & Mutations
   const { data: exams = [] } = useExams();
@@ -360,6 +364,31 @@ export function ExamBuilderPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left / Top Blueprint Form */}
           <div className="lg:col-span-4 space-y-4">
+            {!selectedSource ? (
+              <ExamSourceChoice onSourceSelected={setSelectedSource} />
+            ) : (
+              <Card className="p-4 space-y-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="font-bold text-sm text-[var(--color-text-primary)] border-b pb-2">
+                    مصدر الاختبار
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedSource(null)}
+                  >
+                    تغيير
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2 p-2 bg-[var(--color-brand-primary-bg)] rounded-lg">
+                  <FileCheck className="w-4 h-4 text-[var(--color-brand-primary)]" />
+                  <span className="text-sm font-medium text-[var(--color-text-primary)]">
+                    {selectedSource.title}
+                  </span>
+                </div>
+              </Card>
+            )}
+
             <Card className="p-4 space-y-3">
               <h2 className="font-bold text-sm text-[var(--color-text-primary)] border-b pb-2">
                 محددات المخطط (مخطط الاختبار)
