@@ -32,7 +32,7 @@ export const DEFAULT_NAV_ITEMS: NavItem[] = [
   { to: '/exams', label: 'الاختبارات', icon: FileCheck },
   { to: '/slides', label: 'الشرائح', icon: Presentation },
   { to: '/finance', label: 'المالية', icon: CreditCard },
-  { to: '/assistant', label: 'المساعد', icon: Bot },
+  { to: '/assistant', label: 'تِبيان', icon: Bot },
   { to: '/settings', label: 'الإعدادات', icon: Settings },
 ];
 

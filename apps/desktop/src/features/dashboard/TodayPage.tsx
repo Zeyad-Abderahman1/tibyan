@@ -195,7 +195,7 @@ export function TodayPage() {
               <Badge variant="accent" size="sm">جديد</Badge>
             </div>
             <p className="text-xs text-[var(--color-text-secondary)] mt-0.5">
-              بناء وتنسيق نماذج الاختبارات A/B/C/D استناداً لبنك الأسئلة ومساعد الذكاء الاصطناعي، وتصديرها بصيغة A4 جاهزة للطباعة.
+              بناء وتنسيق نماذج الاختبارات A/B/C/D استناداً لبنك الأسئلة وتِبيان، وتصديرها بصيغة A4 جاهزة للطباعة.
             </p>
           </div>
         </div>

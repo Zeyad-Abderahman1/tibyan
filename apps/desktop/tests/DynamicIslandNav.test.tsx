@@ -19,7 +19,7 @@ describe('DynamicIslandNav Component Suite', () => {
     expect(html).toContain('الاختبارات');
     expect(html).toContain('الشرائح');
     expect(html).toContain('المالية');
-    expect(html).toContain('المساعد');
+    expect(html).toContain('تِبيان');
     expect(html).toContain('الإعدادات');
 
     // Contextual routes must not be displayed on home

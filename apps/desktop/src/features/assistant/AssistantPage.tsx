@@ -162,10 +162,10 @@ export function AssistantPage() {
                 <Bot className="w-8 h-8 text-[var(--color-brand-primary)]" />
               </div>
               <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
-                مساعد تبيان الذكي
+                تِبيان
               </h2>
               <p className="text-sm text-[var(--color-text-secondary)]">
-                اطرح سؤالاً أو اطلب المساعدة في إدارة بياناتك التعليمية
+                مساعدك الذكي لإدارة العمل
               </p>
               <Button variant="primary" onClick={handleNewSession}>
                 <Sparkles className="w-4 h-4 ml-2" />

@@ -260,7 +260,7 @@ export function ExamBuilderPage() {
               منشئ الاختبارات الذكي (Exam Builder)
             </h1>
             <p className="text-xs text-[var(--color-text-secondary)]">
-              بناء وتنسيق نماذج الاختبارات A/B/C/D استناداً لبنك الأسئلة ومساعد الذكاء الاصطناعي
+              بناء وتنسيق نماذج الاختبارات A/B/C/D استناداً لبنك الأسئلة وتِبيان
             </p>
           </div>
         </div>
@@ -549,7 +549,7 @@ export function ExamBuilderPage() {
             <Card className="p-4 space-y-3 border-emerald-500/30">
               <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold text-sm">
                 <Sparkles className="w-4 h-4" />
-                توليد أسئلة بالذكاء الاصطناعي (Gemini)
+                توليد أسئلة بالذكاء الاصطناعي (تِبيان)
               </div>
               <p className="text-xs text-[var(--color-text-secondary)]">
                 توليد مقترحات متوافقة بدقة مع المخطط لا تعتمد مباشرة إلا بعد مراجعتك.

@@ -372,7 +372,7 @@ export function CorrectionWorkspace() {
 
                     {/* AI Proposal */}
                     <div className="bg-[var(--color-bg-surface-subtle)] rounded-lg p-3">
-                      <p className="text-xs font-medium text-[var(--color-text-secondary)] mb-1">اقتراح الذكاء الاصطناعي</p>
+                      <p className="text-xs font-medium text-[var(--color-text-secondary)] mb-1">اقتراح من تِبيان</p>
                       {currentDecision.aiProposalJson ? (
                         <p className="text-sm text-[var(--color-brand-accent)]">متوفر</p>
                       ) : (
