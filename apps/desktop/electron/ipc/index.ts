@@ -22,6 +22,7 @@ import { registerAnalyticsIpcHandlers, unregisterAnalyticsIpcHandlers } from './
 import { registerAssistantIpcHandlers, unregisterAssistantIpcHandlers } from './assistant.ipc.js';
 import { registerSlideIpcHandlers, unregisterSlideIpcHandlers } from './slides.ipc.js';
 import { registerCurriculumLibraryIpcHandlers, unregisterCurriculumLibraryIpcHandlers } from './curriculum-library.ipc.js';
+import { registerTibyanWorkspaceIpcHandlers, unregisterTibyanWorkspaceIpcHandlers } from './tibyan-workspace.ipc.js';
 
 /**
  * Registers all typed IPC domain handlers against the electron ipcMain dispatcher.
@@ -52,6 +53,7 @@ export function registerAllIpcHandlers(runtime: Runtime, mainWindow: BrowserWind
   registerAssistantIpcHandlers(runtime, mainWindow);
   registerSlideIpcHandlers(runtime, mainWindow);
   registerCurriculumLibraryIpcHandlers(runtime, mainWindow);
+  registerTibyanWorkspaceIpcHandlers(runtime, mainWindow);
 }
 
 /**
@@ -80,6 +82,7 @@ export function unregisterAllIpcHandlers(): void {
   unregisterAssistantIpcHandlers();
   unregisterSlideIpcHandlers();
   unregisterCurriculumLibraryIpcHandlers();
+  unregisterTibyanWorkspaceIpcHandlers();
 }
 
 export * from './errors.js';
