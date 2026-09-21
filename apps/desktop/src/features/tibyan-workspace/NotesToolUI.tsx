@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Card, Button, Badge, Input, Select } from '@tibyan/design-system';
-import { StickyNote, Loader2, Sparkles, Save, Download, CheckCircle } from 'lucide-react';
+import { StickyNote, Loader2, Sparkles, Save, CheckCircle } from 'lucide-react';
 import { SourcePicker, type SourceSelection } from './SourcePicker.js';
 
 const DETAIL_STYLES = [
@@ -22,6 +22,7 @@ interface NoteSection {
   id: string;
   title: string;
   content: string;
+  sourcePage: number;
   type: 'heading' | 'content' | 'example' | 'exercise';
 }
 
@@ -34,8 +35,10 @@ export function NotesToolUI() {
   const [includeExercises, setIncludeExercises] = useState(false);
   const [includeModelSolutions, setIncludeModelSolutions] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [generatedSections, setGeneratedSections] = useState<NoteSection[]>([]);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     if (!selectedSource || !selectedSource.id) return;
@@ -51,25 +54,19 @@ export function NotesToolUI() {
         throw new Error(result.error?.message || 'فشل توليد المذكرة');
       }
 
-      const generated = result.data as any;
-      const contentStr = generated?.content || '[]';
-      let parsed: any[];
-      try {
-        parsed = typeof contentStr === 'string' ? JSON.parse(contentStr) : contentStr;
-      } catch {
-        parsed = [];
-      }
+      const parsed = result.data.data.sections;
 
       if (!Array.isArray(parsed) || parsed.length === 0) {
         setGenerationError('لم يتم توليد أقسام المذكرة. تأكد من أن المصدر يحتوي على محتوى كافٍ.');
         return;
       }
 
-      const sections: NoteSection[] = parsed.map((s: any, idx: number) => ({
+      const sections: NoteSection[] = parsed.map((s, idx) => ({
         id: `n-${Date.now()}-${idx}`,
-        title: s.title || s.heading || `قسم ${idx + 1}`,
-        content: s.content || s.text || s.body || '',
-        type: s.type || (idx === 0 ? 'heading' : 'content'),
+        title: s.title,
+        content: s.content,
+        sourcePage: s.sourcePage,
+        type: s.type,
       }));
 
       setGeneratedSections(sections);
@@ -77,6 +74,41 @@ export function NotesToolUI() {
       setGenerationError(err?.message || 'حدث خطأ أثناء توليد المذكرة');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (generatedSections.length === 0 || !selectedSource?.id) return;
+    setIsSaving(true);
+    setGenerationError(null);
+    try {
+      const sessionResult = await window.tibyan.tibyan.createTaskSession({
+        taskType: 'NOTES',
+        title: `مذكرة - ${title || selectedSource.title || new Date().toLocaleDateString('ar')}`,
+      });
+      if (!sessionResult.success) {
+        throw new Error(sessionResult.error?.message || 'فشل إنشاء الجلسة');
+      }
+
+      const fullContent = generatedSections
+        .map((s) => `## ${s.title}\n\n${s.content}`)
+        .join('\n\n---\n\n');
+
+      const assistantResult = await window.tibyan.assistant.sendMessage({
+        sessionId: sessionResult.data.id,
+        content: fullContent,
+        context: { scope: 'global', entityId: selectedSource.id },
+      });
+
+      if (assistantResult.success) {
+        setSavedMessage('تم حفظ المذكرة بنجاح');
+      } else {
+        throw new Error(assistantResult.error?.message || 'فشل حفظ المذكرة');
+      }
+    } catch (err: any) {
+      setGenerationError(err?.message || 'حدث خطأ أثناء الحفظ');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -250,15 +282,26 @@ export function NotesToolUI() {
               ))}
             </div>
             <div className="flex gap-3 mt-4">
-              <Button variant="primary" className="flex-1" data-testid="btn-save-notes">
-                <Save className="w-4 h-4 ml-1" />
-                حفظ
-              </Button>
-              <Button variant="secondary" className="flex-1" data-testid="btn-export-notes">
-                <Download className="w-4 h-4 ml-1" />
-                تصدير PDF
+              <Button
+                variant="primary"
+                className="flex-1"
+                onClick={handleSave}
+                disabled={isSaving}
+                data-testid="btn-save-notes"
+              >
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 animate-spin ml-1" />
+                ) : (
+                  <Save className="w-4 h-4 ml-1" />
+                )}
+                {isSaving ? 'جاري الحفظ...' : 'حفظ'}
               </Button>
             </div>
+            {savedMessage && (
+              <div className="mt-3 p-2 rounded bg-[var(--color-status-success-bg)] text-[var(--color-status-success)] text-sm text-center">
+                {savedMessage}
+              </div>
+            )}
           </Card>
         )}
       </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Card, Button, Badge, Input, Select } from '@tibyan/design-system';
-import { BookOpen, Loader2, Sparkles, Save, Download, CheckCircle } from 'lucide-react';
+import { BookOpen, Loader2, Sparkles, Save, CheckCircle } from 'lucide-react';
 import { SourcePicker, type SourceSelection } from './SourcePicker.js';
 
 const REVIEW_TYPES = [
@@ -20,6 +20,7 @@ interface ReviewSection {
   id: string;
   title: string;
   content: string;
+  sourcePage: number;
 }
 
 export function ReviewToolUI() {
@@ -30,8 +31,10 @@ export function ReviewToolUI() {
   const [scope, setScope] = useState('');
   const [includeAnswers, setIncludeAnswers] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [generatedSections, setGeneratedSections] = useState<ReviewSection[]>([]);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     if (!selectedSource || !selectedSource.id) return;
@@ -47,24 +50,18 @@ export function ReviewToolUI() {
         throw new Error(result.error?.message || 'فشل توليد المراجعة');
       }
 
-      const generated = result.data as any;
-      const contentStr = generated?.content || '[]';
-      let parsed: any[];
-      try {
-        parsed = typeof contentStr === 'string' ? JSON.parse(contentStr) : contentStr;
-      } catch {
-        parsed = [];
-      }
+      const parsed = result.data.data.sections;
 
       if (!Array.isArray(parsed) || parsed.length === 0) {
         setGenerationError('لم يتم توليد أقسام المراجعة. تأكد من أن المصدر يحتوي على محتوى كافٍ.');
         return;
       }
 
-      const sections: ReviewSection[] = parsed.map((s: any, idx: number) => ({
+      const sections: ReviewSection[] = parsed.map((s, idx) => ({
         id: `sec-${Date.now()}-${idx}`,
-        title: s.title || s.heading || `قسم ${idx + 1}`,
-        content: s.content || s.text || s.body || '',
+        title: s.title,
+        content: s.content,
+        sourcePage: s.sourcePage,
       }));
 
       setGeneratedSections(sections);
@@ -72,6 +69,41 @@ export function ReviewToolUI() {
       setGenerationError(err?.message || 'حدث خطأ أثناء توليد المراجعة');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (generatedSections.length === 0 || !selectedSource?.id) return;
+    setIsSaving(true);
+    setGenerationError(null);
+    try {
+      const sessionResult = await window.tibyan.tibyan.createTaskSession({
+        taskType: 'REVIEW',
+        title: `مراجعة - ${selectedSource.title || new Date().toLocaleDateString('ar')}`,
+      });
+      if (!sessionResult.success) {
+        throw new Error(sessionResult.error?.message || 'فشل إنشاء الجلسة');
+      }
+
+      const fullContent = generatedSections
+        .map((s) => `## ${s.title}\n\n${s.content}`)
+        .join('\n\n---\n\n');
+
+      const assistantResult = await window.tibyan.assistant.sendMessage({
+        sessionId: sessionResult.data.id,
+        content: fullContent,
+        context: { scope: 'global', entityId: selectedSource.id },
+      });
+
+      if (assistantResult.success) {
+        setSavedMessage('تم حفظ المراجعة بنجاح');
+      } else {
+        throw new Error(assistantResult.error?.message || 'فشل حفظ المراجعة');
+      }
+    } catch (err: any) {
+      setGenerationError(err?.message || 'حدث خطأ أثناء الحفظ');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -227,15 +259,26 @@ export function ReviewToolUI() {
               ))}
             </div>
             <div className="flex gap-3 mt-4">
-              <Button variant="primary" className="flex-1" data-testid="btn-save-review">
-                <Save className="w-4 h-4 ml-1" />
-                حفظ
-              </Button>
-              <Button variant="secondary" className="flex-1" data-testid="btn-export-review">
-                <Download className="w-4 h-4 ml-1" />
-                تصدير PDF
+              <Button
+                variant="primary"
+                className="flex-1"
+                onClick={handleSave}
+                disabled={isSaving}
+                data-testid="btn-save-review"
+              >
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 animate-spin ml-1" />
+                ) : (
+                  <Save className="w-4 h-4 ml-1" />
+                )}
+                {isSaving ? 'جاري الحفظ...' : 'حفظ'}
               </Button>
             </div>
+            {savedMessage && (
+              <div className="mt-3 p-2 rounded bg-[var(--color-status-success-bg)] text-[var(--color-status-success)] text-sm text-center">
+                {savedMessage}
+              </div>
+            )}
           </Card>
         )}
       </div>

@@ -1,6 +1,6 @@
 import { ipcMain, type BrowserWindow } from 'electron';
 import { z } from 'zod';
-import { IPC_CHANNELS } from '@tibyan/contracts';
+import { IPC_CHANNELS, SourceGenerationRequestSchema, ExamGenerationRequestSchema } from '@tibyan/contracts';
 import type { Runtime } from '../runtime.js';
 import { safeIpcCall } from './errors.js';
 import { validateIpcSender } from '../security.js';
@@ -99,12 +99,7 @@ export function registerTibyanWorkspaceIpcHandlers(
     if (!validateIpcSender(event, mainWindow)) throw new Error('UNAUTHORIZED_IPC_SENDER');
     return safeIpcCall(async () => {
       runtime.requireAuthenticatedActor();
-      const { sourceId, scope } = z
-        .object({
-          sourceId: z.string().uuid(),
-          scope: z.string().optional(),
-        })
-        .parse(payload);
+      const { sourceId, scope } = SourceGenerationRequestSchema.parse(payload);
       return runtime.aiContentService.generateReview({
         sourceDocumentId: sourceId,
         scope,
@@ -116,12 +111,7 @@ export function registerTibyanWorkspaceIpcHandlers(
     if (!validateIpcSender(event, mainWindow)) throw new Error('UNAUTHORIZED_IPC_SENDER');
     return safeIpcCall(async () => {
       runtime.requireAuthenticatedActor();
-      const { sourceId, scope } = z
-        .object({
-          sourceId: z.string().uuid(),
-          scope: z.string().optional(),
-        })
-        .parse(payload);
+      const { sourceId, scope } = SourceGenerationRequestSchema.parse(payload);
       return runtime.aiContentService.generateNotes({
         sourceDocumentId: sourceId,
         scope,
@@ -133,12 +123,7 @@ export function registerTibyanWorkspaceIpcHandlers(
     if (!validateIpcSender(event, mainWindow)) throw new Error('UNAUTHORIZED_IPC_SENDER');
     return safeIpcCall(async () => {
       runtime.requireAuthenticatedActor();
-      const { sourceId, scope } = z
-        .object({
-          sourceId: z.string().uuid(),
-          scope: z.string().optional(),
-        })
-        .parse(payload);
+      const { sourceId, scope } = SourceGenerationRequestSchema.parse(payload);
       return runtime.aiContentService.generateSlides({
         sourceDocumentId: sourceId,
         scope,
@@ -150,15 +135,10 @@ export function registerTibyanWorkspaceIpcHandlers(
     if (!validateIpcSender(event, mainWindow)) throw new Error('UNAUTHORIZED_IPC_SENDER');
     return safeIpcCall(async () => {
       runtime.requireAuthenticatedActor();
-      const { sourceId, config } = z
-        .object({
-          sourceId: z.string().uuid(),
-          config: z.record(z.unknown()).default({}),
-        })
-        .parse(payload);
+      const { sourceId, config } = ExamGenerationRequestSchema.parse(payload);
       return runtime.aiContentService.generateExamFromSource(
         { sourceDocumentId: sourceId },
-        config as any
+        config
       );
     });
   });

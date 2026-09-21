@@ -826,16 +826,16 @@ export const tibyanApi: TibyanApi = {
   },
 
   ai: {
-    generateReview(input: { sourceId: string; scope?: string }): Promise<IpcResult<AssistantResponse>> {
+    generateReview(input: { sourceId: string; scope?: string }): Promise<IpcResult<import('@tibyan/contracts').GeneratedReviewContent>> {
       return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_REVIEW, input);
     },
-    generateNotes(input: { sourceId: string; scope?: string }): Promise<IpcResult<AssistantResponse>> {
+    generateNotes(input: { sourceId: string; scope?: string }): Promise<IpcResult<import('@tibyan/contracts').GeneratedNotesContent>> {
       return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_NOTES, input);
     },
-    generateSlides(input: { sourceId: string; scope?: string }): Promise<IpcResult<AssistantResponse>> {
+    generateSlides(input: { sourceId: string; scope?: string }): Promise<IpcResult<import('@tibyan/contracts').GeneratedSlidesContent>> {
       return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_SLIDES, input);
     },
-    generateExam(input: { sourceId: string; config: Record<string, unknown> }): Promise<IpcResult<AssistantResponse>> {
+    generateExam(input: import('@tibyan/contracts').ExamGenerationRequest): Promise<IpcResult<import('@tibyan/contracts').GeneratedExamContent>> {
       return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_EXAM, input);
     },
   },

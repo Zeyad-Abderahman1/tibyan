@@ -43,6 +43,7 @@ import {
   GradingService,
   AnalyticsService,
   AiContentService,
+  SourceContextService,
   injectKatex,
   type AuthenticatedUser,
 } from '@tibyan/core';
@@ -189,20 +190,22 @@ export class Runtime {
     this.curriculumLibraryService = new CurriculumLibraryService(this.systemDb.db, sourcesDir);
     this.aiContentService = new AiContentService(
       {
-        generate: async (prompt: string) => {
+        generate: async ({ prompt, responseSchema }) => {
           const apiKey = this.geminiCredentialService.get();
           if (!apiKey) throw new Error('Gemini API غير مهيأ');
           const { GeminiExamProvider } = await import('@tibyan/core');
           const provider = new GeminiExamProvider();
-          const result = await provider.preview({
+          return provider.generate({
             apiKey,
             model: 'gemini-2.0-flash',
             prompt,
-          });
-          return JSON.stringify(result);
+          }, responseSchema);
         },
       },
-      (id: string) => this.curriculumLibraryService.get(id)
+      new SourceContextService(
+        (id: string) => this.curriculumLibraryService.get(id),
+        async (id: string) => this.curriculumLibraryService.readFileBuffer(id),
+      )
     );
     this.questionBankService = new QuestionBankService(this.systemDb.db);
     this.aiExamService = new AiExamService(this.geminiCredentialService);

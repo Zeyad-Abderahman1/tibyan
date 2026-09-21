@@ -8,13 +8,7 @@ interface SlideData {
   title: string;
   content: string;
   notes: string;
-  blocks: SlideBlock[];
-}
-
-interface SlideBlock {
-  id: string;
-  type: 'TEXT' | 'MATH' | 'IMAGE' | 'GEOMETRY' | 'QUESTION';
-  content: string;
+  sourcePage: number;
 }
 
 const GRADE_LEVELS = [
@@ -54,7 +48,9 @@ export function SlidesToolUI() {
   const [theme, setTheme] = useState('LIGHT');
   const [layoutTemplate, setLayoutTemplate] = useState('SIMPLE_EDUCATIONAL');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [slides, setSlides] = useState<SlideData[]>([]);
+  const [savedDeckId, setSavedDeckId] = useState<string | null>(null);
   const [presentationMode, setPresentationMode] = useState(false);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [generationError, setGenerationError] = useState<string | null>(null);
@@ -63,6 +59,7 @@ export function SlidesToolUI() {
     if (!selectedSource || !selectedSource.id) return;
     setIsGenerating(true);
     setGenerationError(null);
+    setSavedDeckId(null);
     try {
       const result = await window.tibyan.ai.generateSlides({
         sourceId: selectedSource.id,
@@ -73,28 +70,19 @@ export function SlidesToolUI() {
         throw new Error(result.error?.message || 'فشل توليد الشرائح');
       }
 
-      const generated = result.data as any;
-      const contentStr = generated?.content || '[]';
-      let parsed: any[];
-      try {
-        parsed = typeof contentStr === 'string' ? JSON.parse(contentStr) : contentStr;
-      } catch {
-        parsed = [];
-      }
+      const parsed = result.data.data.slides;
 
       if (!Array.isArray(parsed) || parsed.length === 0) {
         setGenerationError('لم يتم توليد شرائح. تأكد من أن المصدر يحتوي على محتوى كافٍ.');
         return;
       }
 
-      const slideData: SlideData[] = parsed.map((s: any, idx: number) => ({
+      const slideData: SlideData[] = parsed.map((s, idx) => ({
         id: `slide-${Date.now()}-${idx}`,
-        title: s.title || `شريحة ${idx + 1}`,
-        content: s.content || s.text || '',
-        notes: s.notes || s.speakerNotes || '',
-        blocks: [
-          { id: `block-${idx}-1`, type: 'TEXT' as const, content: s.content || s.text || '' },
-        ],
+        title: s.title,
+        content: s.content,
+        notes: s.notes || '',
+        sourcePage: s.sourcePage,
       }));
 
       setSlides(slideData);
@@ -102,6 +90,50 @@ export function SlidesToolUI() {
       setGenerationError(err?.message || 'حدث خطأ أثناء توليد الشرائح');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleSaveDeck = async () => {
+    if (slides.length === 0) return;
+    setIsSaving(true);
+    setGenerationError(null);
+    try {
+      const deckTitle = title || `عرض تعليمي - ${new Date().toLocaleDateString('ar')}`;
+      const deckResult = await window.tibyan.slides.createDeck({
+        title: deckTitle,
+        description: `عرض ${theme} - ${layoutTemplate}`,
+      });
+
+      if (!deckResult.success) {
+        throw new Error(deckResult.error?.message || 'فشل إنشاء العرض');
+      }
+
+      const deckId = (deckResult.data as any).id;
+      setSavedDeckId(deckId);
+
+      for (let i = 0; i < slides.length; i++) {
+        const slide = slides[i]!;
+        const slideResult = await window.tibyan.slides.addSlide({
+          deckId,
+          title: slide.title,
+          position: i,
+          notes: slide.notes || undefined,
+        });
+
+        if (slideResult.success && slideResult.data) {
+          const slideId = (slideResult.data as any).id;
+          await window.tibyan.slides.addBlock({
+            slideId,
+            blockType: 'TEXT',
+            contentJson: JSON.stringify([{ type: 'text', content: slide.content }]),
+            position: 0,
+          });
+        }
+      }
+    } catch (err: any) {
+      setGenerationError(err?.message || 'حدث خطأ أثناء الحفظ');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -126,7 +158,6 @@ export function SlidesToolUI() {
     }
   };
 
-  // Presentation mode overlay
   if (presentationMode && slides.length > 0) {
     const current = slides[currentSlideIndex]!;
     const themeBg = theme === 'DARK' ? 'bg-gray-900' : theme === 'TIBYAN' ? 'bg-emerald-900' : 'bg-white';
@@ -138,7 +169,6 @@ export function SlidesToolUI() {
           className={`relative w-full max-w-5xl aspect-video ${themeBg} ${themeText} rounded-lg shadow-2xl overflow-hidden`}
           style={{ maxHeight: '90vh' }}
         >
-          {/* Slide Content */}
           <div className="absolute inset-0 flex flex-col items-center justify-center p-12">
             {currentSlideIndex === 0 ? (
               <>
@@ -154,13 +184,9 @@ export function SlidesToolUI() {
               </>
             )}
           </div>
-
-          {/* Slide Number */}
           <div className="absolute bottom-4 left-4 text-sm opacity-60">
             {currentSlideIndex + 1} / {slides.length}
           </div>
-
-          {/* Navigation */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
             <Button variant="ghost" size="sm" onClick={prevSlide} disabled={currentSlideIndex === 0}>
               السابق
@@ -180,7 +206,6 @@ export function SlidesToolUI() {
   return (
     <div className="h-full overflow-y-auto p-6" dir="rtl">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[var(--color-brand-primary-bg)] flex items-center justify-center">
             <Presentation className="w-5 h-5 text-[var(--color-brand-primary)]" />
@@ -195,7 +220,6 @@ export function SlidesToolUI() {
           </div>
         </div>
 
-        {/* Source */}
         <SourcePicker
           selectedSource={selectedSource}
           onSourceSelected={setSelectedSource}
@@ -203,7 +227,6 @@ export function SlidesToolUI() {
           label="مصدر العرض"
         />
 
-        {/* Settings */}
         <Card variant="default" className="p-6">
           <h3 className="text-base font-bold text-[var(--color-text-primary)] mb-4">
             إعدادات العرض
@@ -261,7 +284,6 @@ export function SlidesToolUI() {
             </div>
           </div>
 
-          {/* Toggles */}
           <div className="flex gap-4 mt-4">
             <label className="flex items-center gap-2 text-sm text-[var(--color-text-primary)]">
               <input
@@ -296,7 +318,6 @@ export function SlidesToolUI() {
           </div>
         </Card>
 
-        {/* Theme & Layout */}
         <Card variant="default" className="p-6">
           <h3 className="text-base font-bold text-[var(--color-text-primary)] mb-4">
             المظهر والتخطيط
@@ -342,14 +363,18 @@ export function SlidesToolUI() {
           </div>
         </Card>
 
-        {/* Generation Error */}
         {generationError && (
           <div className="p-3 rounded-lg bg-[var(--color-status-danger-bg)] border border-[var(--color-status-danger-border)] text-[var(--color-status-danger)] text-sm">
             {generationError}
           </div>
         )}
 
-        {/* Generate */}
+        {savedDeckId && (
+          <div className="p-3 rounded-lg bg-[var(--color-status-success-bg)] border border-[var(--color-status-success-border)] text-[var(--color-status-success)] text-sm">
+            تم حفظ العرض بنجاح
+          </div>
+        )}
+
         <Button
           variant="primary"
           size="lg"
@@ -366,20 +391,32 @@ export function SlidesToolUI() {
           {isGenerating ? 'جاري توليد الشرائح...' : 'توليد الشرائح'}
         </Button>
 
-        {/* Slides Preview */}
         {slides.length > 0 && (
           <Card variant="default" className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-[var(--color-text-primary)]">
                 الشرائح ({slides.length})
               </h3>
-              <Button variant="primary" size="sm" onClick={startPresentation} data-testid="btn-present">
-                <Play className="w-4 h-4 ml-1" />
-                بدء العرض
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleSaveDeck}
+                  disabled={isSaving}
+                  data-testid="btn-save-slides"
+                >
+                  {isSaving ? (
+                    <Loader2 className="w-4 h-4 animate-spin ml-1" />
+                  ) : null}
+                  {isSaving ? 'جاري الحفظ...' : 'حفظ العرض'}
+                </Button>
+                <Button variant="primary" size="sm" onClick={startPresentation} data-testid="btn-present">
+                  <Play className="w-4 h-4 ml-1" />
+                  بدء العرض
+                </Button>
+              </div>
             </div>
 
-            {/* 16:9 Slide Grid */}
             <div className="grid grid-cols-3 gap-3">
               {slides.map((slide, idx) => (
                 <div
@@ -387,7 +424,6 @@ export function SlidesToolUI() {
                   className="relative group cursor-pointer"
                   data-testid={`slide-thumb-${idx}`}
                 >
-                  {/* 16:9 Thumbnail */}
                   <div className="aspect-video rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-3 flex flex-col overflow-hidden">
                     <p className="text-xs font-bold text-[var(--color-text-primary)] truncate mb-1">
                       {slide.title}
@@ -400,7 +436,6 @@ export function SlidesToolUI() {
                     </p>
                   </div>
 
-                  {/* Actions overlay */}
                   <div className="absolute top-1 left-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       className="w-5 h-5 rounded bg-black/50 text-white flex items-center justify-center text-xs cursor-grab active:cursor-grabbing"

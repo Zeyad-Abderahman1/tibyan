@@ -9,6 +9,13 @@ function parseCandidateResponse(value: unknown): { candidates: AiExamCandidate[]
 
 export type GeminiFetch = (input: string, init: RequestInit) => Promise<Response>;
 export interface GeminiPreviewRequest { apiKey: string; prompt: string; model: string; signal?: AbortSignal; }
+export interface GeminiGenerateRequest {
+  apiKey: string;
+  prompt: string;
+  model: string;
+  fileData?: { data: Buffer; mimeType: string };
+  signal?: AbortSignal;
+}
 export interface GeminiProviderOptions { timeoutMs?: number; retryDelayMs?: number; }
 
 /** Provider boundary: no IDs, SQL, commands, or persistence leave this class. */
@@ -21,13 +28,37 @@ export class GeminiExamProvider {
   }
 
   async preview(request: GeminiPreviewRequest) {
+    return this.generate({ ...request, fileData: undefined });
+  }
+
+  async generate(request: GeminiGenerateRequest, responseSchema?: Record<string, unknown>): Promise<any> {
     const controller = new AbortController();
     let timedOut = false;
     const externalAbort = () => controller.abort();
     request.signal?.addEventListener('abort', externalAbort, { once: true });
     const timer = setTimeout(() => { timedOut = true; controller.abort(); }, this.timeoutMs);
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(request.model)}:generateContent`;
-    const init: RequestInit = { method: 'POST', signal: controller.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': request.apiKey }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: request.prompt }] }], generationConfig: { responseMimeType: 'application/json' } }) };
+
+    const parts: Array<Record<string, unknown>> = [];
+    if (request.fileData) {
+      parts.push({
+        inlineData: {
+          mimeType: request.fileData.mimeType,
+          data: request.fileData.data.toString('base64'),
+        },
+      });
+    }
+    parts.push({ text: request.prompt });
+
+    const init: RequestInit = {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': request.apiKey },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts }],
+        generationConfig: { responseMimeType: 'application/json', ...(responseSchema ? { responseSchema } : {}) },
+      }),
+    };
     try {
       let response: Response | undefined;
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -44,7 +75,10 @@ export class GeminiExamProvider {
       if (!response?.ok) throw new Error('تعذر الاتصال بخدمة الذكاء الاصطناعي');
       const payload = await response.json();
       const text = payload?.candidates?.[0]?.content?.parts?.[0]?.text ?? payload;
-      try { return parseCandidateResponse(typeof text === 'string' ? JSON.parse(text) : text); }
+      try {
+        const parsed = typeof text === 'string' ? JSON.parse(text) : text;
+        return responseSchema ? parsed : parseCandidateResponse(parsed);
+      }
       catch { throw new Error('استجابة الذكاء الاصطناعي غير صالحة'); }
     } finally {
       clearTimeout(timer);

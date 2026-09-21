@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Card, Button, Badge, Input, Select } from '@tibyan/design-system';
 import { FileText, Loader2, Sparkles, Trash2, RefreshCw, Eye, Save } from 'lucide-react';
 import { SourcePicker, type SourceSelection } from './SourcePicker.js';
+import { createTextBlock, type MathRichContent } from '@tibyan/contracts';
 
 interface ExamQuestion {
   id: string;
-  type: 'MULTIPLE_CHOICE' | 'SHORT_ANSWER';
+  type: 'MULTIPLE_CHOICE' | 'SHORT_ANSWER' | 'TRUE_FALSE';
   body: string;
   options?: string[];
   correctAnswer: string;
@@ -25,6 +26,10 @@ const GENERATION_MODES = [
   { value: 'MIXED', label: 'مزيج بين النوعين' },
 ];
 
+function toRichContent(text: string): MathRichContent {
+  return { version: 1, blocks: [createTextBlock(text)] };
+}
+
 export function ExamToolUI() {
   const [selectedSource, setSelectedSource] = useState<SourceSelection | null>(null);
   const [title, setTitle] = useState('');
@@ -40,20 +45,23 @@ export function ExamToolUI() {
   const [answerLines, setAnswerLines] = useState(3);
   const [generationMode, setGenerationMode] = useState('SAME_IDEA_NEW_NUMBERS');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
   const [generatedQuestions, setGeneratedQuestions] = useState<ExamQuestion[]>([]);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [savedExamId, setSavedExamId] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     if (!selectedSource || !selectedSource.id) return;
     setIsGenerating(true);
     setGenerationError(null);
+    setSavedExamId(null);
     try {
       const totalRequested = mcqCount + writtenCount + trueFalseCount + shortAnswerCount;
-      const types: string[] = [];
+      const types: Array<'MULTIPLE_CHOICE' | 'SHORT_ANSWER' | 'TRUE_FALSE' | 'WRITTEN'> = [];
       if (mcqCount > 0) types.push('MULTIPLE_CHOICE');
-      if (writtenCount > 0) types.push('SHORT_ANSWER');
       if (trueFalseCount > 0) types.push('TRUE_FALSE');
-      if (shortAnswerCount > 0) types.push('SHORT_ANSWER');
+      if (writtenCount > 0 || shortAnswerCount > 0) types.push('SHORT_ANSWER');
 
       const result = await window.tibyan.ai.generateExam({
         sourceId: selectedSource.id,
@@ -63,6 +71,8 @@ export function ExamToolUI() {
           types,
           mcqCount,
           writtenCount,
+          trueFalseCount,
+          shortAnswerCount,
           generationMode,
         },
       });
@@ -71,33 +81,86 @@ export function ExamToolUI() {
         throw new Error(result.error?.message || 'فشل توليد الاختبار');
       }
 
-      const generated = result.data as any;
-      const contentStr = generated?.content || '[]';
-      let parsed: any[];
-      try {
-        parsed = typeof contentStr === 'string' ? JSON.parse(contentStr) : contentStr;
-      } catch {
-        parsed = [];
-      }
+      const parsed = result.data.data.questions;
 
       if (!Array.isArray(parsed) || parsed.length === 0) {
         setGenerationError('لم يتم توليد أسئلة. تأكد من أن المصدر يحتوي على محتوى كافٍ.');
         return;
       }
 
-      const questions: ExamQuestion[] = parsed.map((q: any, idx: number) => ({
-        id: `q-${Date.now()}-${idx}`,
-        type: q.type === 'MULTIPLE_CHOICE' || q.type === 'MCQ' ? 'MULTIPLE_CHOICE' : 'SHORT_ANSWER',
-        body: q.body || q.question || q.text || `سؤال ${idx + 1}`,
-        options: q.options || q.choices || undefined,
-        correctAnswer: q.correctAnswer || q.answer || q.modelAnswer || '',
-        marks: q.marks || Math.ceil(totalMarks / totalRequested),
-        sourcePage: q.sourcePage || q.page || undefined,
-      }));
+      const questions: ExamQuestion[] = parsed.map((q, idx) => {
+        let type: ExamQuestion['type'] = 'SHORT_ANSWER';
+        if (q.type === 'TRUE_FALSE') {
+          type = 'TRUE_FALSE';
+        } else if (q.type === 'MULTIPLE_CHOICE') {
+          type = 'MULTIPLE_CHOICE';
+        }
+        const body = q.body;
+        let options = q.options;
+        if (type === 'TRUE_FALSE') {
+          options = options || ['صح', 'خطأ'];
+        }
+        return {
+          id: `q-${Date.now()}-${idx}`,
+          type,
+          body,
+          options: options || undefined,
+          correctAnswer: q.correctAnswer,
+          marks: q.marks,
+          sourcePage: q.sourcePage,
+        };
+      });
 
       setGeneratedQuestions(questions);
     } catch (err: any) {
       setGenerationError(err?.message || 'حدث خطأ أثناء توليد الاختبار');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleRegenerateSingle = async (questionId: string) => {
+    if (!selectedSource || !selectedSource.id) return;
+    const question = generatedQuestions.find((q) => q.id === questionId);
+    if (!question) return;
+
+    setIsGenerating(true);
+    setGenerationError(null);
+    try {
+      const result = await window.tibyan.ai.generateExam({
+        sourceId: selectedSource.id,
+        config: {
+          questionCount: 1,
+          difficulty,
+          types: [question.type],
+          generationMode,
+        },
+      });
+
+      if (!result.success) {
+        throw new Error(result.error?.message || 'فشل إعادة التوليد');
+      }
+
+      const parsed = result.data.data.questions;
+
+      if (parsed.length > 0) {
+        const newQ = parsed[0]!;
+        setGeneratedQuestions((prev) =>
+          prev.map((q) =>
+            q.id === questionId
+              ? {
+                  ...q,
+                  body: newQ.body,
+                  options: newQ.options ?? q.options,
+                  correctAnswer: newQ.correctAnswer,
+                  sourcePage: newQ.sourcePage,
+                }
+              : q
+          )
+        );
+      }
+    } catch (err: any) {
+      setGenerationError(err?.message || 'حدث خطأ أثناء إعادة التوليد');
     } finally {
       setIsGenerating(false);
     }
@@ -113,10 +176,96 @@ export function ExamToolUI() {
     );
   };
 
+  const handleSaveDraft = async () => {
+    if (generatedQuestions.length === 0) return;
+    setIsSaving(true);
+    setGenerationError(null);
+    try {
+      const totalQ = generatedQuestions.length;
+      const totalM = generatedQuestions.reduce((s, q) => s + q.marks, 0);
+      const typeDistribution: Record<string, number> = {};
+      const diffDistribution: Record<string, number> = {};
+      for (const q of generatedQuestions) {
+        typeDistribution[q.type] = (typeDistribution[q.type] || 0) + 1;
+        diffDistribution[difficulty] = (diffDistribution[difficulty] || 0) + 1;
+      }
+
+      const blueprint = {
+        title: title || `اختبار تجريبي - ${new Date().toLocaleDateString('ar')}`,
+        gradeLevel: gradeLevel as any,
+        languageTrack: 'ARABIC' as const,
+        curriculumNodeIds: [],
+        sourceReferenceIds: [],
+        totalQuestions: totalQ,
+        totalMarks: totalM,
+        durationMinutes,
+        difficultyDistribution: diffDistribution,
+        questionTypeDistribution: typeDistribution,
+        variantCount,
+      };
+
+      const placements = generatedQuestions.map((q, idx) => ({
+        provenance: 'AI_CANDIDATE' as const,
+        body: toRichContent(q.body),
+        modelAnswer: q.correctAnswer ? toRichContent(q.correctAnswer) : null,
+        marks: q.marks,
+        answerSpaceLines: answerLines,
+        curriculumNodeIds: [],
+        sourceReferenceIds: [],
+        position: idx,
+      }));
+
+      const result = await window.tibyan.exams.confirmAssembly({
+        blueprint,
+        placements,
+        sectionTitle: 'القسم الرئيسي',
+      });
+
+      if (result.success) {
+        setSavedExamId((result.data as any).id);
+      } else {
+        throw new Error(result.error?.message || 'فشل حفظ الاختبار');
+      }
+    } catch (err: any) {
+      setGenerationError(err?.message || 'حدث خطأ أثناء الحفظ');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handlePreviewA4 = async (examId?: string) => {
+    const targetId = examId || savedExamId;
+    if (!targetId) {
+      setGenerationError('احفظ الاختبار أولاً ثم قم بالمعاينة');
+      return;
+    }
+    setIsPreviewing(true);
+    setGenerationError(null);
+    try {
+      const result = await window.tibyan.exams.renderLayout({
+        examId: targetId,
+        kind: 'STUDENT',
+      });
+      if (result.success) {
+        const html = result.data as string;
+        const win = window.open('', '_blank', 'width=800,height=1000');
+        if (win) {
+          win.document.write(html);
+          win.document.close();
+        }
+      } else {
+        throw new Error(result.error?.message || 'فشل توليد المعاينة');
+      }
+    } catch (err: any) {
+      setGenerationError(err?.message || 'حدث خطأ أثناء المعاينة');
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
+
   return (
     <div className="h-full overflow-y-auto p-6" dir="rtl">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[var(--color-brand-primary-bg)] flex items-center justify-center">
             <FileText className="w-5 h-5 text-[var(--color-brand-primary)]" />
@@ -131,7 +280,6 @@ export function ExamToolUI() {
           </div>
         </div>
 
-        {/* Source Selection */}
         <SourcePicker
           selectedSource={selectedSource}
           onSourceSelected={setSelectedSource}
@@ -139,7 +287,6 @@ export function ExamToolUI() {
           label="مصدر الاختبار"
         />
 
-        {/* Exam Settings */}
         <Card variant="default" className="p-6">
           <h3 className="text-base font-bold text-[var(--color-text-primary)] mb-4">
             إعدادات الاختبار
@@ -224,7 +371,6 @@ export function ExamToolUI() {
           </div>
         </Card>
 
-        {/* Question Distribution */}
         <Card variant="default" className="p-6">
           <h3 className="text-base font-bold text-[var(--color-text-primary)] mb-4">
             أنواع الأسئلة
@@ -245,19 +391,6 @@ export function ExamToolUI() {
             </div>
             <div>
               <label className="text-xs font-semibold text-[var(--color-text-secondary)]">
-                أسئلة إنشائية / حل باليد
-              </label>
-              <Input
-                type="number"
-                value={writtenCount}
-                onChange={(e) => setWrittenCount(Number(e.target.value))}
-                min={0}
-                className="mt-1"
-                data-testid="exam-written-count"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[var(--color-text-secondary)]">
                 أسئلة صح / خطأ
               </label>
               <Input
@@ -271,7 +404,20 @@ export function ExamToolUI() {
             </div>
             <div>
               <label className="text-xs font-semibold text-[var(--color-text-secondary)]">
-                أسئلة قصيرة
+                أسئلة إنشائية / قصيرة
+              </label>
+              <Input
+                type="number"
+                value={writtenCount}
+                onChange={(e) => setWrittenCount(Number(e.target.value))}
+                min={0}
+                className="mt-1"
+                data-testid="exam-written-count"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[var(--color-text-secondary)]">
+                أسئلة قصيرة جداً
               </label>
               <Input
                 type="number"
@@ -285,7 +431,6 @@ export function ExamToolUI() {
           </div>
         </Card>
 
-        {/* Generation Mode & Difficulty */}
         <Card variant="default" className="p-6">
           <h3 className="text-base font-bold text-[var(--color-text-primary)] mb-4">
             طريقة توليد الأسئلة
@@ -322,14 +467,18 @@ export function ExamToolUI() {
           </div>
         </Card>
 
-        {/* Generation Error */}
         {generationError && (
           <div className="p-3 rounded-lg bg-[var(--color-status-danger-bg)] border border-[var(--color-status-danger-border)] text-[var(--color-status-danger)] text-sm">
             {generationError}
           </div>
         )}
 
-        {/* Generate Button */}
+        {savedExamId && (
+          <div className="p-3 rounded-lg bg-[var(--color-status-success-bg)] border border-[var(--color-status-success-border)] text-[var(--color-status-success)] text-sm">
+            تم حفظ الاختبار بنجاح
+          </div>
+        )}
+
         <Button
           variant="primary"
           size="lg"
@@ -346,7 +495,6 @@ export function ExamToolUI() {
           {isGenerating ? 'جاري توليد الاختبار...' : 'توليد الاختبار'}
         </Button>
 
-        {/* Preview */}
         {generatedQuestions.length > 0 && (
           <Card variant="default" className="p-6">
             <div className="flex items-center justify-between mb-4">
@@ -356,6 +504,9 @@ export function ExamToolUI() {
               <div className="flex gap-2">
                 <Badge variant="primary" size="sm">
                   اختياري: {generatedQuestions.filter((q) => q.type === 'MULTIPLE_CHOICE').length}
+                </Badge>
+                <Badge variant="info" size="sm">
+                  صح/خطأ: {generatedQuestions.filter((q) => q.type === 'TRUE_FALSE').length}
                 </Badge>
                 <Badge variant="accent" size="sm">
                   إنشائي: {generatedQuestions.filter((q) => q.type === 'SHORT_ANSWER').length}
@@ -374,8 +525,21 @@ export function ExamToolUI() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge variant={q.type === 'MULTIPLE_CHOICE' ? 'primary' : 'accent'} size="sm">
-                        {q.type === 'MULTIPLE_CHOICE' ? 'اختياري' : 'إنشائي'}
+                      <Badge
+                        variant={
+                          q.type === 'MULTIPLE_CHOICE'
+                            ? 'primary'
+                            : q.type === 'TRUE_FALSE'
+                            ? 'info'
+                            : 'accent'
+                        }
+                        size="sm"
+                      >
+                        {q.type === 'MULTIPLE_CHOICE'
+                          ? 'اختياري'
+                          : q.type === 'TRUE_FALSE'
+                          ? 'صح/خطأ'
+                          : 'إنشائي'}
                       </Badge>
                       {q.sourcePage && (
                         <Badge variant="neutral" size="sm">صفحة {q.sourcePage}</Badge>
@@ -386,10 +550,20 @@ export function ExamToolUI() {
                       <div className="mt-2 grid grid-cols-2 gap-1">
                         {q.options.map((opt, i) => (
                           <span key={i} className="text-xs text-[var(--color-text-secondary)]">
-                            {String.fromCharCode(1571 + i)}) {opt}
+                            {q.type === 'TRUE_FALSE'
+                              ? i === 0
+                                ? '✓'
+                                : '✗'
+                              : `${String.fromCharCode(1571 + i)})`}{' '}
+                            {opt}
                           </span>
                         ))}
                       </div>
+                    )}
+                    {q.correctAnswer && (
+                      <p className="mt-1 text-xs text-[var(--color-status-success)]">
+                        الإجابة: {q.correctAnswer}
+                      </p>
                     )}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
@@ -404,9 +578,11 @@ export function ExamToolUI() {
                       variant="ghost"
                       size="sm"
                       className="h-6 w-6 p-0"
+                      onClick={() => handleRegenerateSingle(q.id)}
+                      disabled={isGenerating}
                       data-testid={`regenerate-question-${idx}`}
                     >
-                      <RefreshCw className="w-3 h-3" />
+                      <RefreshCw className={`w-3 h-3 ${isGenerating ? 'animate-spin' : ''}`} />
                     </Button>
                     <Button
                       variant="ghost"
@@ -422,15 +598,34 @@ export function ExamToolUI() {
               ))}
             </div>
 
-            {/* Save / Export */}
             <div className="flex gap-3 mt-4">
-              <Button variant="primary" className="flex-1" data-testid="btn-save-exam">
-                <Save className="w-4 h-4 ml-1" />
-                حفظ كمسودة
+              <Button
+                variant="primary"
+                className="flex-1"
+                onClick={handleSaveDraft}
+                disabled={isSaving}
+                data-testid="btn-save-exam"
+              >
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 animate-spin ml-1" />
+                ) : (
+                  <Save className="w-4 h-4 ml-1" />
+                )}
+                {isSaving ? 'جاري الحفظ...' : 'حفظ كمسودة'}
               </Button>
-              <Button variant="secondary" className="flex-1" data-testid="btn-preview-exam">
-                <Eye className="w-4 h-4 ml-1" />
-                معاينة A4
+              <Button
+                variant="secondary"
+                className="flex-1"
+                onClick={() => handlePreviewA4()}
+                disabled={isPreviewing || !savedExamId}
+                data-testid="btn-preview-exam"
+              >
+                {isPreviewing ? (
+                  <Loader2 className="w-4 h-4 animate-spin ml-1" />
+                ) : (
+                  <Eye className="w-4 h-4 ml-1" />
+                )}
+                {isPreviewing ? 'جاري التحميل...' : 'معاينة A4'}
               </Button>
             </div>
           </Card>

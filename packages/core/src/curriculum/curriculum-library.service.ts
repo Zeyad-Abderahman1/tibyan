@@ -198,6 +198,23 @@ export class CurriculumLibraryService {
     };
   }
 
+  async readFileBuffer(id: string): Promise<{ data: Buffer; mimeType: string } | null> {
+    const doc = this.sourceDocRepo.findById(id);
+    if (!doc) return null;
+    const fullPath = path.resolve(this.storageDir, doc.filePath);
+    if (!fullPath.startsWith(this.storageDir + path.sep) || path.extname(fullPath).toLowerCase() !== '.pdf') return null;
+    if (!fs.existsSync(fullPath)) return null;
+    try {
+      if (!fs.realpathSync(fullPath).startsWith(fs.realpathSync(this.storageDir) + path.sep)) return null;
+      const data = fs.readFileSync(fullPath);
+      if (data.length > 20 * 1024 * 1024 || data.length < 5) return null;
+      if (crypto.createHash('sha256').update(data).digest('hex') !== doc.sha256Hash) return null;
+      return { data, mimeType: 'application/pdf' };
+    } catch {
+      return null;
+    }
+  }
+
   private mapToDto(row: SourceDocumentRow): SourceDocumentDto {
     return {
       id: row.id,

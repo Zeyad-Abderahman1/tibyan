@@ -14,3 +14,4 @@ export { executeUndo } from './undo-layer.js';
 export { registerAllAssistantTools } from './tools/index.js';
 export { AiContentService } from './ai-content.service.js';
 export type { AiContentProvider, ContentGenerationRequest, GeneratedContent } from './ai-content.service.js';
+export { SourceContextService } from './source-context.service.js';
