@@ -71,6 +71,13 @@
       "when": 1789925514054,
       "tag": "0009_exotic_carmella_unuscione",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1789994614792,
+      "tag": "0010_oval_paibok",
+      "breakpoints": true
     }
   ]
 }

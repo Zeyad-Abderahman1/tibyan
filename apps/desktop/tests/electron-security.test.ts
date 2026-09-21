@@ -211,6 +211,7 @@ describe('Task 10 — Preload Bridge Surface & Isolation Verification', () => {
     const exposedDomains = Object.keys(tibyanApi).sort();
     expect(exposedDomains).toEqual([
       'analytics',
+      'assistant',
       'attendance',
       'auth',
       'backup',

@@ -13,6 +13,7 @@ import {
   HelpCircle,
   FileCheck,
   ClipboardCheck,
+  Bot,
 } from 'lucide-react';
 
 import { cn } from '@tibyan/design-system';
@@ -30,6 +31,7 @@ export const DEFAULT_NAV_ITEMS: NavItem[] = [
   { to: '/groups', label: 'المجموعات', icon: BookOpen },
   { to: '/exams', label: 'الاختبارات', icon: FileCheck },
   { to: '/finance', label: 'المالية', icon: CreditCard },
+  { to: '/assistant', label: 'المساعد', icon: Bot },
   { to: '/settings', label: 'الإعدادات', icon: Settings },
 ];
 
@@ -72,6 +74,9 @@ export function DynamicIslandNav({ items = DEFAULT_NAV_ITEMS, className }: Dynam
       const copy = [...DEFAULT_NAV_ITEMS];
       copy.splice(3, 0, { to: '/capture', label: 'تصحيح الأوراق', icon: ClipboardCheck });
       return copy;
+    }
+    if (location.pathname.startsWith('/assistant')) {
+      return items;
     }
     return items;
 

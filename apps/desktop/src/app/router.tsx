@@ -29,6 +29,7 @@ import { CaptureSessionPage } from '../features/capture/CaptureSessionPage.js';
 import { CorrectionWorkspace } from '../features/grading/CorrectionWorkspace.js';
 import { AnalyticsDashboard } from '../features/analytics/AnalyticsDashboard.js';
 import { StudentResultPage } from '../features/analytics/StudentResultPage.js';
+import { AssistantPage } from '../features/assistant/AssistantPage.js';
 
 
 /**
@@ -274,6 +275,10 @@ export const routes: RouteObject[] = [
       {
         path: 'student-result/:submissionId',
         element: <StudentResultPage />,
+      },
+      {
+        path: 'assistant',
+        element: <AssistantPage />,
       },
 
       {

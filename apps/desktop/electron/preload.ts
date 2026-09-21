@@ -134,6 +134,14 @@ import {
   type QuestionPerformanceDto,
   type SkillPerformanceDto,
   type StudentExamResultDto,
+  type AssistantSession,
+  type ConversationHistory,
+  type AssistantResponse,
+  type SendMessageInput,
+  type CreateSessionInput,
+  type ConfirmationInput,
+  type UndoInput,
+  type ExecutionReceipt,
 } from '@tibyan/contracts';
 
 
@@ -661,6 +669,39 @@ export const tibyanApi: TibyanApi = {
     },
     listStudentResults(examId: string): Promise<IpcResult<StudentExamResultDto[]>> {
       return ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_LIST_STUDENT_RESULTS, examId);
+    },
+  },
+
+  assistant: {
+    createSession(input?: CreateSessionInput): Promise<IpcResult<AssistantSession>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_CREATE_SESSION, input);
+    },
+    listSessions(): Promise<IpcResult<AssistantSession[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_LIST_SESSIONS);
+    },
+    getSession(sessionId: string): Promise<IpcResult<AssistantSession>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_GET_SESSION, sessionId);
+    },
+    deleteSession(sessionId: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_DELETE_SESSION, sessionId);
+    },
+    sendMessage(input: SendMessageInput): Promise<IpcResult<AssistantResponse>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_SEND_MESSAGE, input);
+    },
+    getHistory(sessionId: string, cursor?: string): Promise<IpcResult<ConversationHistory>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_GET_HISTORY, sessionId, cursor);
+    },
+    confirmAction(input: ConfirmationInput): Promise<IpcResult<AssistantResponse>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_CONFIRM_ACTION, input);
+    },
+    cancelAction(previewId: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_CANCEL_ACTION, previewId);
+    },
+    undoAction(input: UndoInput): Promise<IpcResult<ExecutionReceipt>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_UNDO_ACTION, input);
+    },
+    getTools(): Promise<IpcResult<Array<{ name: string; description: string; riskLevel: string }>>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_GET_TOOLS);
     },
   },
 };

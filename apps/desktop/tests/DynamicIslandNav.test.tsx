@@ -18,6 +18,7 @@ describe('DynamicIslandNav Component Suite', () => {
     expect(html).toContain('المجموعات');
     expect(html).toContain('الاختبارات');
     expect(html).toContain('المالية');
+    expect(html).toContain('المساعد');
     expect(html).toContain('الإعدادات');
 
     // Contextual routes must not be displayed on home
@@ -36,7 +37,7 @@ describe('DynamicIslandNav Component Suite', () => {
   });
 
   it('supports configuration-driven items without hardcoding', () => {
-    expect(DEFAULT_NAV_ITEMS).toHaveLength(6);
-    expect(DEFAULT_NAV_ITEMS.map((i) => i.to)).toEqual(['/', '/students', '/groups', '/exams', '/finance', '/settings']);
+    expect(DEFAULT_NAV_ITEMS).toHaveLength(7);
+    expect(DEFAULT_NAV_ITEMS.map((i) => i.to)).toEqual(['/', '/students', '/groups', '/exams', '/finance', '/assistant', '/settings']);
   });
 });

@@ -1,0 +1,14 @@
+export { AssistantOrchestrator } from './assistant-orchestrator.js';
+export type { OrchestratorDeps } from './assistant-orchestrator.js';
+export { registerTool, getTool, requireTool, listTools, listToolsSummary, isToolRegistered, clearAllTools } from './tool-registry.js';
+export type { ToolDefinition, ToolExecutionContext, ToolExecutionResult, ToolRiskLevel, ConfirmationPolicy, UndoCapability } from './tool-registry.js';
+export { classifyConfirmationPolicy, summarizeRiskLevel, isIrreversible } from './risk-classifier.js';
+export { buildSafeContext, formatContextForPrompt } from './context-builder.js';
+export { generatePreview, isPreviewExpired, previewMatchesInput } from './preview-engine.js';
+export type { PreviewResult, PreviewItem } from './preview-engine.js';
+export { validateConfirmation, createConfirmationRecord } from './confirmation-workflow.js';
+export type { ConfirmationRecord } from './confirmation-workflow.js';
+export { executeConfirmedAction } from './execute-audit.js';
+export type { ExecutionReceiptRecord, AuditRecord } from './execute-audit.js';
+export { executeUndo } from './undo-layer.js';
+export { registerAllAssistantTools } from './tools/index.js';

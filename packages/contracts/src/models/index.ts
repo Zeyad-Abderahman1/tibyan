@@ -21,3 +21,4 @@ export * from './gemini-configuration.dto.js';
 export * from './capture.dto.js';
 export * from './grading.dto.js';
 export * from './analytics.dto.js';
+export * from './assistant.dto.js';

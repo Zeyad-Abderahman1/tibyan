@@ -26,3 +26,4 @@ export * from './geometry/index.js';
 export * from './capture/index.js';
 export * from './grading/index.js';
 export * from './analytics/index.js';
+export * from './assistant/index.js';

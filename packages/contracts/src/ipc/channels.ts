@@ -194,6 +194,18 @@ export const IPC_CHANNELS = {
   ANALYTICS_GET_SKILL_PERFORMANCE: 'analytics:getSkillPerformance',
   ANALYTICS_GET_STUDENT_RESULT: 'analytics:getStudentResult',
   ANALYTICS_LIST_STUDENT_RESULTS: 'analytics:listStudentResults',
+
+  // Assistant (Phase 6)
+  ASSISTANT_CREATE_SESSION: 'assistant:createSession',
+  ASSISTANT_LIST_SESSIONS: 'assistant:listSessions',
+  ASSISTANT_GET_SESSION: 'assistant:getSession',
+  ASSISTANT_DELETE_SESSION: 'assistant:deleteSession',
+  ASSISTANT_SEND_MESSAGE: 'assistant:sendMessage',
+  ASSISTANT_GET_HISTORY: 'assistant:getHistory',
+  ASSISTANT_CONFIRM_ACTION: 'assistant:confirmAction',
+  ASSISTANT_CANCEL_ACTION: 'assistant:cancelAction',
+  ASSISTANT_UNDO_ACTION: 'assistant:undoAction',
+  ASSISTANT_GET_TOOLS: 'assistant:getTools',
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];

@@ -165,6 +165,16 @@ import {
   SkillPerformanceDto,
   StudentExamResultDto,
 } from '../models/analytics.dto.js';
+import {
+  AssistantSession,
+  ConversationHistory,
+  AssistantResponse,
+  SendMessageInput,
+  CreateSessionInput,
+  ConfirmationInput,
+  UndoInput,
+  ExecutionReceipt,
+} from '../models/assistant.dto.js';
 
 import { CurriculumProgressStatus } from '../enums/curriculum.js';
 import { FinancialStatus } from '../enums/payment.js';
@@ -366,6 +376,18 @@ export interface TibyanApi {
     getSkillPerformance(examId: string): Promise<IpcResult<SkillPerformanceDto[]>>;
     getStudentResult(submissionId: string): Promise<IpcResult<StudentExamResultDto>>;
     listStudentResults(examId: string): Promise<IpcResult<StudentExamResultDto[]>>;
+  };
+  assistant: {
+    createSession(input?: CreateSessionInput): Promise<IpcResult<AssistantSession>>;
+    listSessions(): Promise<IpcResult<AssistantSession[]>>;
+    getSession(sessionId: string): Promise<IpcResult<AssistantSession>>;
+    deleteSession(sessionId: string): Promise<IpcResult<void>>;
+    sendMessage(input: SendMessageInput): Promise<IpcResult<AssistantResponse>>;
+    getHistory(sessionId: string, cursor?: string): Promise<IpcResult<ConversationHistory>>;
+    confirmAction(input: ConfirmationInput): Promise<IpcResult<AssistantResponse>>;
+    cancelAction(previewId: string): Promise<IpcResult<void>>;
+    undoAction(input: UndoInput): Promise<IpcResult<ExecutionReceipt>>;
+    getTools(): Promise<IpcResult<Array<{ name: string; description: string; riskLevel: string }>>>;
   };
 }
 
