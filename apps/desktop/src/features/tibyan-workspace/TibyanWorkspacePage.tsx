@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@tibyan/design-system';
-import { Send, Bot, User, Loader2, Plus, Trash2, MessageSquare, FileText, Presentation, BookOpen, StickyNote, Settings } from 'lucide-react';
+import { Bot, Plus, Trash2, MessageSquare, FileText, Presentation, BookOpen, StickyNote, Settings } from 'lucide-react';
 import {
   useCreateTaskSession,
   useTibyanConversation,
@@ -9,6 +9,11 @@ import {
   TASK_DEFINITIONS,
   type TaskType,
 } from '../../hooks/useTibyanWorkspace.js';
+import { ExamToolUI } from './ExamToolUI.js';
+import { SlidesToolUI } from './SlidesToolUI.js';
+import { ReviewToolUI } from './ReviewToolUI.js';
+import { NotesToolUI } from './NotesToolUI.js';
+import { PlatformControlChat } from './PlatformControlChat.js';
 
 const TASK_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   EXAM: FileText,
@@ -27,18 +32,33 @@ const CAPABILITIES = [
 ];
 
 const SUGGESTION_PROMPTS = [
-  'إنشاء اختبار من المنهج',
-  'جهز شرائح للدرس',
-  'اعمل مراجعة للمادة',
-  'جهز مذكرة للطلاب',
+  { task: 'EXAM' as TaskType, prompt: 'إنشاء اختبار من المنهج' },
+  { task: 'SLIDES' as TaskType, prompt: 'جهز شرائح للدرس' },
+  { task: 'REVIEW' as TaskType, prompt: 'اعمل مراجعة للمادة' },
+  { task: 'NOTES' as TaskType, prompt: 'جهز مذكرة للطلاب' },
 ];
+
+function renderToolUI(taskType: TaskType) {
+  switch (taskType) {
+    case 'EXAM':
+      return <ExamToolUI />;
+    case 'SLIDES':
+      return <SlidesToolUI />;
+    case 'REVIEW':
+      return <ReviewToolUI />;
+    case 'NOTES':
+      return <NotesToolUI />;
+    case 'PLATFORM_CONTROL':
+      return <PlatformControlChat />;
+    default:
+      return null;
+  }
+}
 
 export function TibyanWorkspacePage() {
   const [activeTask, setActiveTask] = useState<TaskType | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
-  const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const createSessionMutation = useCreateTaskSession();
   const { data: conversation } = useTibyanConversation(activeSessionId || undefined);
@@ -46,7 +66,6 @@ export function TibyanWorkspacePage() {
   const deleteMutation = useDeleteHistoryItem();
 
   const messages = conversation?.messages || [];
-  const sending = false;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -62,13 +81,16 @@ export function TibyanWorkspacePage() {
       });
       setActiveSessionId(session.id);
       setActiveTask(task);
-      inputRef.current?.focus();
     } catch {
       // error handled by hook
     }
   };
 
   const handleSelectSession = (sessionId: string) => {
+    const session = sessions?.find((s) => s.id === sessionId);
+    if (session?.contextScope) {
+      setActiveTask(session.contextScope as TaskType);
+    }
     setActiveSessionId(sessionId);
   };
 
@@ -76,19 +98,6 @@ export function TibyanWorkspacePage() {
     setActiveTask(task);
     if (!activeSessionId) {
       handleNewSession(task);
-    }
-  };
-
-  const handleSend = async () => {
-    const text = input.trim();
-    if (!text || sending) return;
-    setInput('');
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
     }
   };
 
@@ -106,111 +115,58 @@ export function TibyanWorkspacePage() {
     }
   };
 
+  const handleSuggestionClick = (task: TaskType) => {
+    setActiveTask(task);
+    handleNewSession(task);
+  };
+
   return (
     <div className="h-full flex" dir="rtl" data-testid="page-tibyan-workspace">
-      {/* Main conversation area (center/left) */}
+      {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {!activeSessionId ? (
+        {!activeTask ? (
           /* Welcome / Empty State */
           <div className="flex-1 flex flex-col items-center justify-center px-8">
             <div className="w-20 h-20 rounded-3xl bg-[var(--color-brand-primary-bg)] flex items-center justify-center mb-6">
               <Bot className="w-10 h-10 text-[var(--color-brand-primary)]" />
             </div>
-            <h1 className="text-3xl font-bold text-[var(--color-text-primary)] mb-2">تِبيان</h1>
+            <h1 className="text-3xl font-bold text-[var(--color-text-primary)] mb-2">تبيان</h1>
             <p className="text-base text-[var(--color-text-secondary)] mb-8 max-w-md text-center">
-              مساعدك الذكي لإدارة العمل
+              مساعدك الذكي لإدارة العمل التعليمي
             </p>
 
             {/* Suggestion prompts */}
             <div className="grid grid-cols-2 gap-3 max-w-lg w-full">
-              {SUGGESTION_PROMPTS.map((prompt) => (
-                <button
-                  key={prompt}
-                  onClick={() => {
-                    setInput(prompt);
-                    if (!activeTask) {
-                      handleNewSession('EXAM');
-                    }
-                  }}
-                  className="p-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-elevated)] text-right text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
-                >
-                  {prompt}
-                </button>
-              ))}
+              {SUGGESTION_PROMPTS.map((s) => {
+                const Icon = TASK_ICONS[s.task] || MessageSquare;
+                return (
+                  <button
+                    key={s.task}
+                    onClick={() => handleSuggestionClick(s.task)}
+                    className="p-4 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-elevated)] text-right transition-colors group"
+                    data-testid={`suggestion-${s.task}`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Icon className="w-4 h-4 text-[var(--color-brand-primary)]" />
+                      <span className="text-xs font-bold text-[var(--color-brand-primary)]">
+                        {TASK_DEFINITIONS[s.task]?.labelAr}
+                      </span>
+                    </div>
+                    <p className="text-sm text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)] transition-colors">
+                      {s.prompt}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
           </div>
+        ) : activeTask === 'PLATFORM_CONTROL' ? (
+          /* Platform Control: Normal Chat */
+          <PlatformControlChat />
         ) : (
-          /* Active Conversation */
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {messages.length === 0 && (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-sm text-[var(--color-text-secondary)]">
-                  ابدأ المحادثة...
-                </p>
-              </div>
-            )}
-            {messages.map((msg: any, idx: number) => (
-              <div
-                key={idx}
-                className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {msg.role !== 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-[var(--color-brand-primary-bg)] flex items-center justify-center flex-shrink-0 mt-1">
-                    <Bot className="w-4 h-4 text-[var(--color-brand-primary)]" />
-                  </div>
-                )}
-                <div
-                  className={`max-w-[70%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-[var(--color-brand-primary)] text-white'
-                      : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)]'
-                  }`}
-                >
-                  {msg.content}
-                </div>
-                {msg.role === 'user' && (
-                  <div className="w-8 h-8 rounded-full bg-[var(--color-bg-elevated)] flex items-center justify-center flex-shrink-0 mt-1">
-                    <User className="w-4 h-4 text-[var(--color-text-secondary)]" />
-                  </div>
-                )}
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
+          /* Dedicated Tool UI: EXAM / SLIDES / REVIEW / NOTES */
+          renderToolUI(activeTask)
         )}
-
-        {/* Composer */}
-        <div className="border-t border-[var(--color-border-subtle)] p-4">
-          <div className="max-w-3xl mx-auto">
-            <div className="flex gap-2 items-end bg-[var(--color-bg-surface)] rounded-2xl border border-[var(--color-border-subtle)] p-2 focus-within:ring-2 focus-within:ring-[var(--color-brand-primary)]">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={activeSessionId ? "اكتب رسالتك هنا..." : "ماذا تريد أن تفعل؟"}
-                className="flex-1 resize-none rounded-xl bg-transparent px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none min-h-[44px] max-h-[200px]"
-                rows={1}
-                dir="rtl"
-                data-testid="tibyan-composer"
-              />
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={activeSessionId ? handleSend : () => handleNewSession()}
-                disabled={activeSessionId ? !input.trim() || sending : !activeTask}
-                className="rounded-xl h-10 w-10 p-0 flex items-center justify-center"
-                data-testid="tibyan-send-btn"
-              >
-                {sending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Right sidebar: Capabilities + History */}
@@ -221,31 +177,27 @@ export function TibyanWorkspacePage() {
             <div className="w-8 h-8 rounded-xl bg-[var(--color-brand-primary-bg)] flex items-center justify-center">
               <Bot className="w-4 h-4 text-[var(--color-brand-primary)]" />
             </div>
-            <span className="text-sm font-bold text-[var(--color-text-primary)]">تِبيان</span>
+            <span className="text-sm font-bold text-[var(--color-text-primary)]">تبيان</span>
           </div>
           <Button
             variant="primary"
             size="sm"
             className="w-full"
             onClick={() => {
-              if (activeTask) {
-                handleNewSession(activeTask);
-              } else {
-                setActiveTask(null);
-                setActiveSessionId(null);
-              }
+              setActiveTask(null);
+              setActiveSessionId(null);
             }}
             data-testid="btn-new-session"
           >
             <Plus className="w-4 h-4 ml-1" />
-            محادثة جديدة
+            رئيسي
           </Button>
         </div>
 
         {/* Capabilities */}
         <div className="p-3">
           <h3 className="text-xs font-bold text-[var(--color-text-secondary)] mb-2 px-1">
-            ماذا تريد أن تفعل؟
+            الأدوات
           </h3>
           <div className="space-y-1">
             {CAPABILITIES.map((cap) => {

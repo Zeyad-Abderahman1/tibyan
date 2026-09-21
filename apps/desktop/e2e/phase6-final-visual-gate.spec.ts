@@ -107,16 +107,20 @@ test.describe('Phase 6 Final — Corrected UI Visual Gate', () => {
     // Screenshot 3: Right sidebar capabilities + history
     await page.screenshot({ path: path.join(docsDir, '03-tibyan-right-sidebar-capabilities-history.png') });
 
-    // ── 4. Select a capability and create session ──
+    // ── 4. Select a capability and verify dedicated tool UI ──
     await examCapability.click();
     await page.waitForTimeout(500);
 
-    // Verify composer is visible
-    const composer = page.locator('[data-testid="tibyan-composer"]');
-    await expect(composer).toBeVisible();
+    // Verify Exam Tool UI is visible (dedicated UI, not generic chat)
+    const examToolUI = page.locator('text=إنشاء اختبار').first();
+    await expect(examToolUI).toBeVisible();
 
-    // Screenshot 4: Active conversation
-    await page.screenshot({ path: path.join(docsDir, '04-tibyan-active-conversation.png') });
+    // Verify source picker is visible
+    const sourcePicker = page.locator('[data-testid="source-browse"]');
+    await expect(sourcePicker).toBeVisible();
+
+    // Screenshot 4: Exam dedicated tool UI
+    await page.screenshot({ path: path.join(docsDir, '04-exam-dedicated-ui.png') });
 
     // ── 5. Open Curriculum Library ──
     const curriculumLink = page.locator('nav a[href="#/curriculum-library"]');
