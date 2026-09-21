@@ -86,7 +86,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     const acadRaw = createRawDatabase(':memory:');
 
     const appliedSys = migrateSystemDatabase(sysRaw);
-    expect(appliedSys).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris']);
+    expect(appliedSys).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris', '0011_curriculum_library_metadata']);
 
     const appliedAcad = migrateAcademicDatabase(acadRaw);
     expect(appliedAcad).toEqual([
@@ -103,7 +103,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0010_phase5_capture_grading_analytics',
     ]);
 
-    expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris']);
+    expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris', '0011_curriculum_library_metadata']);
     expect(getAppliedMigrations(acadRaw)).toEqual([
       '0000_initial_schema',
       '0001_audit_triggers',
@@ -137,7 +137,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     expect(secondSys).toEqual([]);
     expect(secondAcad).toEqual([]);
 
-    expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris']);
+    expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris', '0011_curriculum_library_metadata']);
     expect(getAppliedMigrations(acadRaw)).toEqual([
       '0000_initial_schema',
       '0001_audit_triggers',

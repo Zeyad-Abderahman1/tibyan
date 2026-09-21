@@ -38,7 +38,7 @@ describe('DynamicIslandNav Component Suite', () => {
   });
 
   it('supports configuration-driven items without hardcoding', () => {
-    expect(DEFAULT_NAV_ITEMS).toHaveLength(8);
-    expect(DEFAULT_NAV_ITEMS.map((i) => i.to)).toEqual(['/', '/students', '/groups', '/exams', '/slides', '/finance', '/assistant', '/settings']);
+    expect(DEFAULT_NAV_ITEMS).toHaveLength(9);
+    expect(DEFAULT_NAV_ITEMS.map((i) => i.to)).toEqual(['/', '/students', '/groups', '/exams', '/slides', '/curriculum-library', '/finance', '/assistant', '/settings']);
   });
 });

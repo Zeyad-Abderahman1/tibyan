@@ -31,13 +31,14 @@ describe('Phase-2 to Phase-3 Database Upgrade Verification', () => {
 
     // 3. Upgrade to Phase 3 via migrator
     const newlyApplied = migrateSystemDatabase(rawDb);
-    expect(newlyApplied).toEqual(['0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris']);
+    expect(newlyApplied).toEqual(['0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris', '0011_curriculum_library_metadata']);
     expect(getAppliedMigrations(rawDb)).toEqual([
       '0000_initial_schema',
       '0001_audit_triggers',
       '0002_overrated_naoko',
       '0003_uneven_vengeance',
       '0004_certain_stellaris',
+      '0011_curriculum_library_metadata',
     ]);
 
     // 4. Verify Phase 2 data preserved

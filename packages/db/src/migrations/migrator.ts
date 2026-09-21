@@ -235,6 +235,20 @@ export const SYSTEM_MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS \`idx_question_source_ref\` ON \`question_source_references\` (\`source_reference_id\`);
     `,
   },
+  // 0006: Curriculum library metadata columns
+  {
+    id: '0011_curriculum_library_metadata',
+    sql: `
+      ALTER TABLE \`source_documents\` ADD COLUMN \`grade_level\` text;
+      ALTER TABLE \`source_documents\` ADD COLUMN \`education_system\` text;
+      ALTER TABLE \`source_documents\` ADD COLUMN \`subject\` text;
+      ALTER TABLE \`source_documents\` ADD COLUMN \`description\` text;
+      ALTER TABLE \`source_documents\` ADD COLUMN \`academic_year_id\` text;
+      ALTER TABLE \`source_documents\` ADD COLUMN \`import_source\` text DEFAULT 'MANUAL' NOT NULL;
+      CREATE INDEX IF NOT EXISTS \`idx_source_document_grade\` ON \`source_documents\` (\`grade_level\`);
+      CREATE INDEX IF NOT EXISTS \`idx_source_document_subject\` ON \`source_documents\` (\`subject\`);
+    `,
+  },
 ];
 
 export const ACADEMIC_MIGRATIONS: Migration[] = [
@@ -779,20 +793,6 @@ export const ACADEMIC_MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS \`idx_grading_decisions_question\` ON \`grading_decisions\` (\`exam_question_id\`);
       CREATE INDEX IF NOT EXISTS \`idx_grading_decisions_run\` ON \`grading_decisions\` (\`grading_run_id\`);
       CREATE INDEX IF NOT EXISTS \`idx_grading_decisions_status\` ON \`grading_decisions\` (\`status\`);
-    `,
-  },
-  // 0006: Curriculum library metadata columns
-  {
-    id: '0006_curriculum_library_metadata',
-    sql: `
-      ALTER TABLE \`source_documents\` ADD COLUMN \`grade_level\` text;
-      ALTER TABLE \`source_documents\` ADD COLUMN \`education_system\` text;
-      ALTER TABLE \`source_documents\` ADD COLUMN \`subject\` text;
-      ALTER TABLE \`source_documents\` ADD COLUMN \`description\` text;
-      ALTER TABLE \`source_documents\` ADD COLUMN \`academic_year_id\` text;
-      ALTER TABLE \`source_documents\` ADD COLUMN \`import_source\` text DEFAULT 'MANUAL' NOT NULL;
-      CREATE INDEX IF NOT EXISTS \`idx_source_document_grade\` ON \`source_documents\` (\`grade_level\`);
-      CREATE INDEX IF NOT EXISTS \`idx_source_document_subject\` ON \`source_documents\` (\`subject\`);
     `,
   },
 ];
