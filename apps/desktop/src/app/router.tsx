@@ -31,6 +31,7 @@ import { AnalyticsDashboard } from '../features/analytics/AnalyticsDashboard.js'
 import { StudentResultPage } from '../features/analytics/StudentResultPage.js';
 import { AssistantPage } from '../features/assistant/AssistantPage.js';
 import { SlidesPage } from '../features/slides/SlidesPage.js';
+import { CurriculumLibraryPage } from '../features/curriculum-library/CurriculumLibraryPage.js';
 
 
 /**
@@ -280,6 +281,10 @@ export const routes: RouteObject[] = [
       {
         path: 'slides',
         element: <SlidesPage />,
+      },
+      {
+        path: 'curriculum-library',
+        element: <CurriculumLibraryPage />,
       },
 
       {

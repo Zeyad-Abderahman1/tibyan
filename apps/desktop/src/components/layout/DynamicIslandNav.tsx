@@ -14,6 +14,7 @@ import {
   ClipboardCheck,
   Bot,
   Presentation,
+  BookMarked,
 } from 'lucide-react';
 
 import { cn } from '@tibyan/design-system';
@@ -31,6 +32,7 @@ export const DEFAULT_NAV_ITEMS: NavItem[] = [
   { to: '/groups', label: 'المجموعات', icon: BookOpen },
   { to: '/exams', label: 'الاختبارات', icon: FileCheck },
   { to: '/slides', label: 'الشرائح', icon: Presentation },
+  { to: '/curriculum-library', label: 'مكتبة المناهج', icon: BookMarked },
   { to: '/finance', label: 'المالية', icon: CreditCard },
   { to: '/assistant', label: 'تِبيان', icon: Bot },
   { to: '/settings', label: 'الإعدادات', icon: Settings },
