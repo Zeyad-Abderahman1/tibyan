@@ -11,9 +11,9 @@ export default defineConfig({
         entry: 'electron/main.ts',
         vite: {
           resolve: {
-            alias: {
-              katex: path.resolve(__dirname, '../../node_modules/.pnpm/katex@0.18.7/node_modules/katex/dist/katex.js'),
-            },
+            alias: [
+              { find: /^katex$/, replacement: path.resolve(__dirname, '../../node_modules/.pnpm/katex@0.18.7/node_modules/katex/dist/katex.js') },
+            ],
           },
           build: {
             rollupOptions: {
@@ -40,9 +40,9 @@ export default defineConfig({
     ]),
   ],
   resolve: {
-    alias: {
-      katex: path.resolve(__dirname, '../../node_modules/.pnpm/katex@0.18.7/node_modules/katex/dist/katex.js'),
-    },
+    alias: [
+      { find: /^katex$/, replacement: path.resolve(__dirname, '../../node_modules/.pnpm/katex@0.18.7/node_modules/katex/dist/katex.js') },
+    ],
   },
   test: {
     include: ['tests/**/*.test.{ts,tsx}'],
