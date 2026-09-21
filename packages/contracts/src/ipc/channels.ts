@@ -234,6 +234,8 @@ export const IPC_CHANNELS = {
   CURRICULUM_LIBRARY_GET: 'curriculumLibrary:get',
   CURRICULUM_LIBRARY_VIEW_PDF: 'curriculumLibrary:viewPdf',
   CURRICULUM_LIBRARY_OPEN_EXTERNAL: 'curriculumLibrary:openExternal',
+  CURRICULUM_LIBRARY_BROWSE_AND_IMPORT: 'curriculumLibrary:browseAndImport',
+  CURRICULUM_LIBRARY_RESOLVE_DATA_URL: 'curriculumLibrary:resolveDataUrl',
 
   // Tibyan Workspace (Phase 6 central AI)
   TIBYAN_CREATE_TASK_SESSION: 'tibyan:createTaskSession',

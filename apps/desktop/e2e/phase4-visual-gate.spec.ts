@@ -102,19 +102,15 @@ test.describe('Phase 4 — AI Exam Builder Visible Flow Spec', () => {
 
     await expect(appShell).toBeVisible({ timeout: 15000 });
 
-    // 1. Verify visible Arabic navigation item for Exams on the main shell
-    const examsNav = page.locator('[data-testid="nav-item-exams"]');
-    await expect(examsNav).toBeVisible({ timeout: 10000 });
-    await expect(examsNav).toContainText('الاختبارات');
+    // 1. Navigate to Exams page directly (removed from primary nav, accessible via URL)
+    await page.evaluate(() => { window.location.hash = '#/exams'; });
+    await page.waitForTimeout(1000);
 
     // Screenshot 1: 01-main-navigation-with-exams.png
     const shot1 = path.join(docsDir, '01-main-navigation-with-exams.png');
     await page.screenshot({ path: shot1 });
 
-    // 2. Click the navigation entry itself
-    await examsNav.click();
-
-    // 3. Verify Exam Builder Page is loaded and visible
+    // 2. Verify Exam Builder Page is loaded and visible
     const examBuilderPage = page.locator('[data-testid="page-exam-builder"]');
     await expect(examBuilderPage).toBeVisible({ timeout: 10000 });
 

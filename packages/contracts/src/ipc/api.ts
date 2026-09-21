@@ -438,6 +438,8 @@ export interface TibyanApi {
     get(id: string): Promise<IpcResult<SourceDocumentDto>>;
     viewPdf(request: { id: string; page?: number }): Promise<IpcResult<{ filePath: string; pageCount: number }>>;
     openExternal(id: string): Promise<IpcResult<void>>;
+    browseAndImport(): Promise<IpcResult<{ filePath: string; fileName: string } | null>>;
+    resolveDataUrl(id: string): Promise<IpcResult<{ dataUrl: string; pageCount: number; title: string }>>;
   };
   tibyan: {
     createTaskSession(input: { taskType: string; title?: string }): Promise<IpcResult<AssistantSession>>;

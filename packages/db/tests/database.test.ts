@@ -86,7 +86,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     const acadRaw = createRawDatabase(':memory:');
 
     const appliedSys = migrateSystemDatabase(sysRaw);
-    expect(appliedSys).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris', '0011_curriculum_library_metadata']);
+    expect(appliedSys).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris', '0005_assistant_tables', '0006_curriculum_library_metadata']);
 
     const appliedAcad = migrateAcademicDatabase(acadRaw);
     expect(appliedAcad).toEqual([
@@ -101,9 +101,10 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0008_nifty_magus',
       '0009_exotic_carmella_unuscione',
       '0010_phase5_capture_grading_analytics',
+      '0011_slide_decks',
     ]);
 
-    expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris', '0011_curriculum_library_metadata']);
+    expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris', '0005_assistant_tables', '0006_curriculum_library_metadata']);
     expect(getAppliedMigrations(acadRaw)).toEqual([
       '0000_initial_schema',
       '0001_audit_triggers',
@@ -116,6 +117,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0008_nifty_magus',
       '0009_exotic_carmella_unuscione',
       '0010_phase5_capture_grading_analytics',
+      '0011_slide_decks',
     ]);
 
     sysRaw.close();
@@ -137,7 +139,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     expect(secondSys).toEqual([]);
     expect(secondAcad).toEqual([]);
 
-    expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris', '0011_curriculum_library_metadata']);
+    expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris', '0005_assistant_tables', '0006_curriculum_library_metadata']);
     expect(getAppliedMigrations(acadRaw)).toEqual([
       '0000_initial_schema',
       '0001_audit_triggers',
@@ -150,6 +152,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0008_nifty_magus',
       '0009_exotic_carmella_unuscione',
       '0010_phase5_capture_grading_analytics',
+      '0011_slide_decks',
     ]);
 
     sysRaw.close();
@@ -990,7 +993,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     const appliedDuringUpgrade = migrateAcademicDatabase(rawDb);
 
     // 4. Verify every later migration, including the Phase 4 exam schema, is applied.
-    expect(appliedDuringUpgrade).toEqual(['0002_glamorous_sunspot', '0003_neat_krista_starr', '0004_cold_bullseye', '0005_rainy_silvermane', '0006_parched_xavin', '0007_awesome_sunspot', '0008_nifty_magus', '0009_exotic_carmella_unuscione', '0010_phase5_capture_grading_analytics']);
+    expect(appliedDuringUpgrade).toEqual(['0002_glamorous_sunspot', '0003_neat_krista_starr', '0004_cold_bullseye', '0005_rainy_silvermane', '0006_parched_xavin', '0007_awesome_sunspot', '0008_nifty_magus', '0009_exotic_carmella_unuscione', '0010_phase5_capture_grading_analytics', '0011_slide_decks']);
     const colsAfter = rawDb.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
     expect(colsAfter.map((c) => c.name)).toContain('cancellation_reason');
 
@@ -1027,6 +1030,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0008_nifty_magus',
       '0009_exotic_carmella_unuscione',
       '0010_phase5_capture_grading_analytics',
+      '0011_slide_decks',
     ]);
     const migrationRecords = rawDb
       .prepare("SELECT COUNT(*) as count FROM __tibyan_migrations WHERE id = '0002_glamorous_sunspot'")

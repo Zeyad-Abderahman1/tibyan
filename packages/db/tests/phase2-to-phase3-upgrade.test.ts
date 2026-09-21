@@ -31,14 +31,15 @@ describe('Phase-2 to Phase-3 Database Upgrade Verification', () => {
 
     // 3. Upgrade to Phase 3 via migrator
     const newlyApplied = migrateSystemDatabase(rawDb);
-    expect(newlyApplied).toEqual(['0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris', '0011_curriculum_library_metadata']);
+    expect(newlyApplied).toEqual(['0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris', '0005_assistant_tables', '0006_curriculum_library_metadata']);
     expect(getAppliedMigrations(rawDb)).toEqual([
       '0000_initial_schema',
       '0001_audit_triggers',
       '0002_overrated_naoko',
       '0003_uneven_vengeance',
       '0004_certain_stellaris',
-      '0011_curriculum_library_metadata',
+      '0005_assistant_tables',
+      '0006_curriculum_library_metadata',
     ]);
 
     // 4. Verify Phase 2 data preserved
@@ -89,7 +90,7 @@ describe('Phase-2 to Phase-3 Database Upgrade Verification', () => {
 
     // 3. Upgrade through every registered migration; legacy Phase 2 files must reach Phase 4 intact.
     const newlyApplied = migrateAcademicDatabase(rawDb);
-    expect(newlyApplied).toEqual(['0007_awesome_sunspot', '0008_nifty_magus', '0009_exotic_carmella_unuscione', '0010_phase5_capture_grading_analytics']);
+    expect(newlyApplied).toEqual(['0007_awesome_sunspot', '0008_nifty_magus', '0009_exotic_carmella_unuscione', '0010_phase5_capture_grading_analytics', '0011_slide_decks']);
     expect(getAppliedMigrations(rawDb)).toEqual([
       '0000_initial_schema',
       '0001_audit_triggers',
@@ -102,6 +103,7 @@ describe('Phase-2 to Phase-3 Database Upgrade Verification', () => {
       '0008_nifty_magus',
       '0009_exotic_carmella_unuscione',
       '0010_phase5_capture_grading_analytics',
+      '0011_slide_decks',
     ]);
 
     // 4. Verify Phase 2 data preserved

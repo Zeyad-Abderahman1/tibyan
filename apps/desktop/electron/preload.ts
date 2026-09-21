@@ -799,6 +799,12 @@ export const tibyanApi: TibyanApi = {
     openExternal(id: string): Promise<IpcResult<void>> {
       return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_OPEN_EXTERNAL, id);
     },
+    browseAndImport(): Promise<IpcResult<{ filePath: string; fileName: string } | null>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_BROWSE_AND_IMPORT);
+    },
+    resolveDataUrl(id: string): Promise<IpcResult<{ dataUrl: string; pageCount: number; title: string }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_RESOLVE_DATA_URL, id);
+    },
   },
 
   tibyan: {

@@ -10,10 +10,8 @@ import {
   GraduationCap,
   FileText,
   HelpCircle,
-  FileCheck,
   ClipboardCheck,
   Bot,
-  Presentation,
   BookMarked,
 } from 'lucide-react';
 
@@ -30,8 +28,6 @@ export const DEFAULT_NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'اليوم', icon: LayoutDashboard },
   { to: '/students', label: 'الطلاب', icon: Users },
   { to: '/groups', label: 'المجموعات', icon: BookOpen },
-  { to: '/exams', label: 'الاختبارات', icon: FileCheck },
-  { to: '/slides', label: 'الشرائح', icon: Presentation },
   { to: '/curriculum-library', label: 'مكتبة المناهج', icon: BookMarked },
   { to: '/finance', label: 'المالية', icon: CreditCard },
   { to: '/assistant', label: 'تِبيان', icon: Bot },

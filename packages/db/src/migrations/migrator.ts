@@ -235,9 +235,81 @@ export const SYSTEM_MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS \`idx_question_source_ref\` ON \`question_source_references\` (\`source_reference_id\`);
     `,
   },
+  // 0005: Assistant tables (sessions, messages, audit, confirmations)
+  {
+    id: '0005_assistant_tables',
+    sql: `
+      CREATE TABLE IF NOT EXISTS \`assistant_sessions\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`user_id\` text NOT NULL,
+        \`title\` text,
+        \`context_scope\` text,
+        \`context_entity_id\` text,
+        \`created_at\` text NOT NULL,
+        \`updated_at\` text NOT NULL,
+        FOREIGN KEY (\`user_id\`) REFERENCES \`users\`(\`id\`) ON UPDATE no action ON DELETE cascade
+      );
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_session_user\` ON \`assistant_sessions\` (\`user_id\`);
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_session_updated\` ON \`assistant_sessions\` (\`updated_at\`);
+
+      CREATE TABLE IF NOT EXISTS \`assistant_messages\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`session_id\` text NOT NULL,
+        \`role\` text NOT NULL,
+        \`type\` text NOT NULL,
+        \`content\` text NOT NULL,
+        \`tool_call_id\` text,
+        \`tool_name\` text,
+        \`tool_input_json\` text,
+        \`tool_output_json\` text,
+        \`confirmation_token\` text,
+        \`preview_id\` text,
+        \`receipt_id\` text,
+        \`undo_available\` integer DEFAULT false,
+        \`undo_token\` text,
+        \`created_at\` text NOT NULL,
+        FOREIGN KEY (\`session_id\`) REFERENCES \`assistant_sessions\`(\`id\`) ON UPDATE no action ON DELETE cascade
+      );
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_msg_session\` ON \`assistant_messages\` (\`session_id\`,\`created_at\`);
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_msg_preview\` ON \`assistant_messages\` (\`preview_id\`);
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_msg_receipt\` ON \`assistant_messages\` (\`receipt_id\`);
+
+      CREATE TABLE IF NOT EXISTS \`assistant_audit_log\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`actor_user_id\` text NOT NULL,
+        \`session_id\` text NOT NULL,
+        \`tool_name\` text NOT NULL,
+        \`action\` text NOT NULL,
+        \`input_summary_json\` text,
+        \`affected_entities_json\` text,
+        \`outcome\` text NOT NULL,
+        \`receipt_id\` text,
+        \`created_at\` text NOT NULL,
+        FOREIGN KEY (\`actor_user_id\`) REFERENCES \`users\`(\`id\`) ON UPDATE no action ON DELETE no action
+      );
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_audit_user\` ON \`assistant_audit_log\` (\`actor_user_id\`);
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_audit_session\` ON \`assistant_audit_log\` (\`session_id\`);
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_audit_tool\` ON \`assistant_audit_log\` (\`tool_name\`);
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_audit_created\` ON \`assistant_audit_log\` (\`created_at\`);
+
+      CREATE TABLE IF NOT EXISTS \`assistant_confirmations\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`preview_id\` text NOT NULL,
+        \`tool_name\` text NOT NULL,
+        \`tool_input_json\` text NOT NULL,
+        \`summary\` text NOT NULL,
+        \`requires_confirmation\` integer DEFAULT true NOT NULL,
+        \`confirmed\` integer DEFAULT false NOT NULL,
+        \`executed\` integer DEFAULT false NOT NULL,
+        \`expires_at\` text NOT NULL,
+        \`created_at\` text NOT NULL
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS \`idx_assistant_confirm_preview\` ON \`assistant_confirmations\` (\`preview_id\`);
+    `,
+  },
   // 0006: Curriculum library metadata columns
   {
-    id: '0011_curriculum_library_metadata',
+    id: '0006_curriculum_library_metadata',
     sql: `
       ALTER TABLE \`source_documents\` ADD COLUMN \`grade_level\` text;
       ALTER TABLE \`source_documents\` ADD COLUMN \`education_system\` text;
@@ -793,6 +865,48 @@ export const ACADEMIC_MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS \`idx_grading_decisions_question\` ON \`grading_decisions\` (\`exam_question_id\`);
       CREATE INDEX IF NOT EXISTS \`idx_grading_decisions_run\` ON \`grading_decisions\` (\`grading_run_id\`);
       CREATE INDEX IF NOT EXISTS \`idx_grading_decisions_status\` ON \`grading_decisions\` (\`status\`);
+    `,
+  },
+  // 0011: Slide decks, slides, and slide blocks
+  {
+    id: '0011_slide_decks',
+    sql: `
+      CREATE TABLE IF NOT EXISTS \`slide_decks\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`title\` text NOT NULL,
+        \`description\` text,
+        \`curriculum_node_id\` text,
+        \`group_id\` text,
+        \`status\` text DEFAULT 'DRAFT' NOT NULL,
+        \`created_at\` text NOT NULL,
+        \`updated_at\` text NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS \`idx_slide_decks_status\` ON \`slide_decks\` (\`status\`);
+      CREATE INDEX IF NOT EXISTS \`idx_slide_decks_curriculum\` ON \`slide_decks\` (\`curriculum_node_id\`);
+      CREATE INDEX IF NOT EXISTS \`idx_slide_decks_group\` ON \`slide_decks\` (\`group_id\`);
+
+      CREATE TABLE IF NOT EXISTS \`slides\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`deck_id\` text NOT NULL,
+        \`title\` text,
+        \`position\` integer DEFAULT 0 NOT NULL,
+        \`notes\` text,
+        \`created_at\` text NOT NULL,
+        FOREIGN KEY (\`deck_id\`) REFERENCES \`slide_decks\`(\`id\`) ON UPDATE no action ON DELETE cascade
+      );
+      CREATE INDEX IF NOT EXISTS \`idx_slides_deck\` ON \`slides\` (\`deck_id\`);
+
+      CREATE TABLE IF NOT EXISTS \`slide_blocks\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`slide_id\` text NOT NULL,
+        \`block_type\` text NOT NULL,
+        \`content_json\` text NOT NULL,
+        \`question_id\` text,
+        \`position\` integer DEFAULT 0 NOT NULL,
+        \`created_at\` text NOT NULL,
+        FOREIGN KEY (\`slide_id\`) REFERENCES \`slides\`(\`id\`) ON UPDATE no action ON DELETE cascade
+      );
+      CREATE INDEX IF NOT EXISTS \`idx_slide_blocks_slide\` ON \`slide_blocks\` (\`slide_id\`);
     `,
   },
 ];
