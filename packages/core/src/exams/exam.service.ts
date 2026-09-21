@@ -18,6 +18,7 @@ import { buildExamVariants } from './exam-variants.js';
 import { ExamLayoutEngine } from './exam-layout-engine.js';
 import { requirePermission } from '../auth/permissions.js';
 import { type AuthActor } from '../sources/pdf-source.service.js';
+import { renderMathToStaticHtml } from './katex-renderer.js';
 
 export class ExamService {
   private readonly examRepo: ExamRepository;
@@ -311,11 +312,9 @@ export class ExamService {
         return `<span class="text-block" dir="${block.direction ?? 'auto'}">${text}</span>`;
       }
       if (block.type === 'math') {
-        const latex = String(block.latex ?? '')
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;');
-        return `<span class="math" dir="ltr">${latex}</span>`;
+        const latex = String(block.latex ?? '');
+        const isBlock = block.displayMode === 'block';
+        return renderMathToStaticHtml(latex, isBlock);
       }
       if (block.type === 'geometry' && block.svgPayload) {
         return `<div class="geometry-container">${block.svgPayload}</div>`;

@@ -31,6 +31,29 @@ export interface MathRichContentViewerProps {
 }
 
 /**
+ * Renders a LaTeX mathematical expression to static HTML using KaTeX.
+ * Enforces strict security constraints: no arbitrary trust, throwOnError=false,
+ * and wraps in LTR isolated container.
+ */
+export function renderLatexToHtml(latex: string, displayMode = false): string {
+  try {
+    const rendered = katex.renderToString(latex, {
+      displayMode,
+      throwOnError: false,
+      strict: false,
+      trust: false,
+    });
+    return `<span class="math font-math" dir="ltr" style="direction:ltr;unicode-bidi:isolate;">${rendered}</span>`;
+  } catch {
+    const escaped = String(latex)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    return `<span class="katex-fallback-error text-red-500 font-mono text-sm" dir="ltr">${escaped}</span>`;
+  }
+}
+
+/**
  * Individual MathBlock renderer with KaTeX and strict LTR BiDi isolation.
  */
 export const SingleMathRenderer: React.FC<{ block: MathBlock }> = ({ block }) => {

@@ -5,7 +5,7 @@ import { WorkspaceStage } from './WorkspaceStage.js';
 export function AppShell() {
   return (
     <div
-      className="min-h-screen w-full bg-[var(--color-bg-app)] text-[var(--color-text-primary)] flex flex-col selection:bg-[var(--color-brand-primary)] selection:text-white"
+      className="h-screen w-full bg-[var(--color-bg-app)] text-[var(--color-text-primary)] flex flex-col overflow-hidden selection:bg-[var(--color-brand-primary)] selection:text-white"
       dir="rtl"
       data-testid="app-shell"
     >

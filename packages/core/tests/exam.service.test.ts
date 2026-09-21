@@ -12,7 +12,21 @@ import {
 } from '@tibyan/db';
 import { seedPermissions } from '../src/auth/permissions.js';
 import { ExamService } from '../src/exams/exam.service.js';
+import { injectKatex } from '../src/exams/katex-renderer.js';
 import type { ExamBlueprint, MathRichContent } from '@tibyan/contracts';
+import { createRequire } from 'node:module';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Inject katex so renderMathToStaticHtml produces real KaTeX output in tests
+try {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const dsPackageJson = path.resolve(__dirname, '../../design-system/package.json');
+  const dsRequire = createRequire(dsPackageJson);
+  injectKatex(dsRequire('katex'));
+} catch {
+  // katex unavailable — math rendering tests will use fallback
+}
 
 const dummyBody: MathRichContent = {
   version: 1,
@@ -192,5 +206,45 @@ describe('ExamService workflow: preview -> confirm -> audit -> undo', () => {
     service.undoLastMutation(exam.id, actor);
     expect(service.getExam(exam.id)).toBeNull();
     expect(service.listExams()).toHaveLength(0);
+  });
+
+  it('renders mathematical expressions using offline KaTeX and avoids leaking raw LaTeX commands', () => {
+    const mathExam = service.confirmAssembly(
+      {
+        blueprint: validBlueprint,
+        sectionTitle: 'قسم الرياضيات والفيزياء',
+        placements: [
+          {
+            questionId: '22222222-2222-2222-2222-222222222221',
+            provenance: 'QUESTION_BANK',
+            body: {
+              version: 1,
+              blocks: [
+                { id: 'b1', type: 'text', content: 'أوجد قيمة الوتر:', direction: 'rtl' },
+                { id: 'm1', type: 'math', latex: 'c = \\sqrt{6^2 + 8^2} = 10', displayMode: 'block' },
+              ],
+            },
+            modelAnswer: dummyAnswer,
+            marks: 5,
+            answerSpaceLines: 3,
+            curriculumNodeIds: [nodeId],
+            sourceReferenceIds: [],
+            position: 0,
+          },
+        ],
+      },
+      actor
+    );
+
+    const printableHtml = service.renderPrintableHtml(mathExam.id, 'STUDENT', 'A');
+
+    // Must contain KaTeX class and rendered structures
+    expect(printableHtml).toContain('katex');
+    // Must contain KaTeX CSS embedded
+    expect(printableHtml).toContain('.katex');
+    // Must not leak unrendered raw \sqrt command as raw visible text
+    expect(printableHtml).not.toContain('<span class="math" dir="ltr">c = \\sqrt{6^2 + 8^2} = 10</span>');
+    // Root symbol or sqrt element must exist in KaTeX DOM
+    expect(printableHtml).toMatch(/katex-html|katex-mathml|sqrt/);
   });
 });

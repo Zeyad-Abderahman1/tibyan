@@ -52,7 +52,8 @@ test.describe('Phase 4 — AI Exam Builder Visible Flow Spec', () => {
 
     page = await electronApp.firstWindow();
     page.on('dialog', (dialog) => dialog.accept());
-    await page.setViewportSize({ width: 1440, height: 900 });
+    // Laptop resolution: 1366x768
+    await page.setViewportSize({ width: 1366, height: 768 });
     await page.waitForLoadState('domcontentloaded');
 
     // Complete First-Run Wizard
@@ -106,9 +107,9 @@ test.describe('Phase 4 — AI Exam Builder Visible Flow Spec', () => {
     await expect(examsNav).toBeVisible({ timeout: 10000 });
     await expect(examsNav).toContainText('الاختبارات');
 
-    // Screenshot 1: Main navigation with the visible Exams entry on dashboard
+    // Screenshot 1: 01-main-navigation-with-exams.png
     const shot1 = path.join(docsDir, '01-main-navigation-with-exams.png');
-    await page.screenshot({ path: shot1, fullPage: true });
+    await page.screenshot({ path: shot1 });
 
     // 2. Click the navigation entry itself
     await examsNav.click();
@@ -122,50 +123,104 @@ test.describe('Phase 4 — AI Exam Builder Visible Flow Spec', () => {
     await expect(builderTab).toBeVisible();
     await builderTab.click();
 
-    // Screenshot 2: Exam Builder page with Blueprint settings and AI Generator panel
-    const shot2 = path.join(docsDir, '02-exam-builder-workbench.png');
-    await page.screenshot({ path: shot2, fullPage: true });
+    // Screenshot 2: 02-exam-builder-top.png
+    const shot2 = path.join(docsDir, '02-exam-builder-top.png');
+    await page.screenshot({ path: shot2 });
 
-    // Verify Blueprint input fields exist and are visible
+    // Verify Blueprint input fields exist
     const titleInput = page.locator('[data-testid="input-exam-title"]');
     await expect(titleInput).toBeVisible();
     await titleInput.fill('اختبار تجريبي في الهندسة المستوية');
 
-    const runAssemblyBtn = page.locator('[data-testid="btn-run-assembly"]');
-    await expect(runAssemblyBtn).toBeVisible();
-
+    // Test Vertical Scroll at laptop resolution (1366x768):
+    // The bottom controls (AI button, confirm exam button) are below initial fold.
     const generateAiBtn = page.locator('[data-testid="btn-generate-ai"]');
+    const runAssemblyBtn = page.locator('[data-testid="btn-run-assembly"]');
+    const addSampleBtn = page.locator('[data-testid="btn-add-sample-question"]');
+
+    // Scroll bottom controls into view and interact
+    await generateAiBtn.scrollIntoViewIfNeeded();
     await expect(generateAiBtn).toBeVisible();
 
-    // 4. Click sample question button to populate staged placement
-    const addSampleBtn = page.locator('[data-testid="btn-add-sample-question"]');
+    // Add sample question containing square-root math expression
+    await addSampleBtn.scrollIntoViewIfNeeded();
     await expect(addSampleBtn).toBeVisible();
     await addSampleBtn.click();
 
-    // Verify staged placement appears
+    // Verify staged question appeared and is scrollable
     const stagedQuestion = page.locator('[data-testid="staged-question-0"]');
+    await stagedQuestion.scrollIntoViewIfNeeded();
     await expect(stagedQuestion).toBeVisible();
+
+    // Screenshot 3: 03-exam-builder-scrolled-bottom.png
+    const shot3 = path.join(docsDir, '03-exam-builder-scrolled-bottom.png');
+    await page.screenshot({ path: shot3 });
 
     // Confirm and save exam
     const confirmExamBtn = page.locator('[data-testid="btn-confirm-exam"]');
+    await confirmExamBtn.scrollIntoViewIfNeeded();
     await expect(confirmExamBtn).toBeVisible();
     await confirmExamBtn.click();
 
-    // Verify preview tab opens with A4 document preview
+    // 4. Verify preview tab opens with A4 document preview
     const a4Preview = page.locator('[data-testid="a4-document-preview"]');
     await expect(a4Preview).toBeVisible({ timeout: 15000 });
 
-    // Screenshot 4: A4 Live Exam Print Preview
-    const shot4 = path.join(docsDir, '04-exam-a4-preview.png');
-    await page.screenshot({ path: shot4, fullPage: true });
+    // Verify KaTeX math rendered inside A4 preview
+    const katexEl = a4Preview.locator('.katex');
+    await expect(katexEl.first()).toBeVisible({ timeout: 10000 });
 
-    // Switch to List tab
+    // Verify raw LaTeX \sqrt is NOT visible in rendered document
+    const a4Text = await a4Preview.innerText();
+    expect(a4Text).not.toContain('\\sqrt');
+
+    // Test variant switching A/B/C/D
+    const versionBtnB = page.locator('[data-testid="version-btn-B"]');
+    if (await versionBtnB.isVisible()) {
+      await versionBtnB.click();
+      await expect(a4Preview).toBeVisible();
+    }
+
+    // Test kind switching: Teacher / Answer Key
+    const teacherBtn = page.locator('[data-testid="kind-teacher-btn"]');
+    await teacherBtn.click();
+    await expect(a4Preview).toBeVisible();
+
+    const studentBtn = page.locator('[data-testid="kind-student-btn"]');
+    await studentBtn.click();
+    await expect(a4Preview).toBeVisible();
+
+    // Screenshot 5: 05-exam-a4-preview-rendered-math.png
+    const shot5 = path.join(docsDir, '05-exam-a4-preview-rendered-math.png');
+    await page.screenshot({ path: shot5 });
+
+    // 5. Switch to List tab and verify localized 'معتمد' badge
     const listTab = page.locator('[data-testid="tab-exam-list"]');
     await expect(listTab).toBeVisible();
     await listTab.click();
 
-    // Screenshot 3: Exam list overview showing newly created exam
-    const shot3 = path.join(docsDir, '03-exam-list-overview.png');
-    await page.screenshot({ path: shot3, fullPage: true });
+    // Verify localized status badge
+    const examCards = page.locator('[data-testid^="exam-card-"]');
+    await expect(examCards.first()).toBeVisible({ timeout: 10000 });
+    await expect(examCards.first()).toContainText('معتمد');
+
+    // Screenshot 4: 04-exam-list-overview.png
+    const shot4 = path.join(docsDir, '04-exam-list-overview.png');
+    await page.screenshot({ path: shot4 });
+
+    // 6. Test Dark Mode & Scrolled Exam Builder View
+    const themeToggleBtn = page.locator('[data-testid="topbar-theme-toggle-btn"]');
+    if (await themeToggleBtn.isVisible()) {
+      await themeToggleBtn.click();
+      await page.waitForTimeout(500);
+    }
+
+    // Switch back to builder tab in dark mode
+    await builderTab.click();
+    await confirmExamBtn.scrollIntoViewIfNeeded();
+
+    // Screenshot 6: 06-exam-builder-dark-mode-scrolled.png
+    const shot6 = path.join(docsDir, '06-exam-builder-dark-mode-scrolled.png');
+    await page.screenshot({ path: shot6 });
   });
 });

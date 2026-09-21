@@ -38,8 +38,10 @@ import {
   GeminiCredentialService,
   ExamService,
   AiExamService,
+  injectKatex,
   type AuthenticatedUser,
 } from '@tibyan/core';
+import { getKatexModule } from './katex-bridge.js';
 
 
 export interface RuntimePaths {
@@ -177,7 +179,15 @@ export class Runtime {
     this.questionBankService = new QuestionBankService(this.systemDb.db);
     this.aiExamService = new AiExamService(this.geminiCredentialService);
 
-    // 2. Discover active academic year
+    // 2. Inject KaTeX module for exam math rendering
+    //    katex-bridge provides a statically-importable katex that vite can bundle.
+    try {
+      injectKatex(getKatexModule());
+    } catch {
+      // KaTeX unavailable — exam A4 print preview will show escaped LaTeX fallback
+    }
+
+    // 3. Discover active academic year
     const activeYear = this.academicYearRepo.findActive();
     if (activeYear) {
       this.mountAcademicYear(activeYear);

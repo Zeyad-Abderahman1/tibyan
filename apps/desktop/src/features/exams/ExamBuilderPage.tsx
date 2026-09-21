@@ -276,7 +276,7 @@ export function ExamBuilderPage() {
                   <div>
                     <div className="flex items-center justify-between">
                       <h3 className="font-bold text-base text-[var(--color-text-primary)]">{exam.title}</h3>
-                      <Badge variant="success">{exam.status}</Badge>
+                      <Badge variant="success">{exam.status === 'CONFIRMED' ? 'معتمد' : 'مسودة'}</Badge>
                     </div>
                     <div className="mt-2 text-xs text-[var(--color-text-secondary)] space-y-1">
                       <div>عدد الأسئلة: {exam.placements.length} مسألة</div>
@@ -324,7 +324,7 @@ export function ExamBuilderPage() {
           <div className="lg:col-span-4 space-y-4">
             <Card className="p-4 space-y-3">
               <h2 className="font-bold text-sm text-[var(--color-text-primary)] border-b pb-2">
-                محددات المخطط (Blueprint)
+                محددات المخطط (مخطط الاختبار)
               </h2>
 
               <div>
