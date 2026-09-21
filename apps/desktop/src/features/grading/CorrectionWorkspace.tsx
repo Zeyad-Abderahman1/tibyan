@@ -57,7 +57,7 @@ export function CorrectionWorkspace() {
 
   const currentDecision = decisions[currentIndex];
   const totalPages = decisions.length;
-  const isFinalized = gradingStatus?.status === 'GRADED' || gradingStatus?.status === 'FINALIZED';
+  const isFinalized = gradingStatus?.status === 'FINALIZED';
 
   const handlePrev = () => setCurrentIndex(i => Math.max(0, i - 1));
   const handleNext = () => setCurrentIndex(i => Math.min(totalPages - 1, i + 1));

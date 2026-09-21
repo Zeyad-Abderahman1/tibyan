@@ -98,8 +98,7 @@ test.describe('Phase 5 — Paper Correction & Analytics Visual Gate', () => {
     await expect(appShell).toBeVisible({ timeout: 15000 });
 
     // ── 2. Seed data via IPC: create exam, capture session, submissions, grading decisions ──
-    // Create an exam via confirmAssembly (creates exam + questions in one shot)
-    // Seed exam data via IPC
+    // Create an exam via confirmAssembly with proper answer-key format for grading engine
     const examResult = await page.evaluate(async () => {
       const tibyan = (window as any).tibyan;
       if (!tibyan?.exams?.confirmAssembly) return { error: 'no confirmAssembly' };
@@ -119,35 +118,65 @@ test.describe('Phase 5 — Paper Correction & Analytics Visual Gate', () => {
             totalMarks: 6,
             durationMinutes: 45,
             difficultyDistribution: { EASY: 1, MEDIUM: 1, HARD: 1 },
-            questionTypeDistribution: { MULTIPLE_CHOICE: 2, TRUE_FALSE: 1 },
+            questionTypeDistribution: { MULTIPLE_CHOICE: 1, TRUE_FALSE: 1, SHORT_ANSWER: 1 },
             variantCount: 1,
           },
           placements: [
             {
               provenance: 'AI_CANDIDATE',
-              body: { blocks: [{ type: 'text', content: 'ما ناتج 2 + 3؟' }], plainText: 'ما ناتج 2 + 3؟' },
-              modelAnswer: { blocks: [{ type: 'text', content: '5' }], plainText: '5' },
+              body: {
+                version: 1,
+                blocks: [{ id: 'q1-body', type: 'text', content: 'ما ناتج 2 + 3؟', direction: 'rtl' }],
+              },
+              modelAnswer: {
+                version: 1,
+                blocks: [{ id: 'q1-ans', type: 'text', content: 'ب) 5', direction: 'rtl' }],
+                type: 'MULTIPLE_CHOICE',
+                correctOptionLabel: 'ب',
+              },
               marks: 2,
               answerSpaceLines: 2,
               curriculumNodeIds: [qNodeId],
+              sourceReferenceIds: [],
               position: 0,
             },
             {
               provenance: 'AI_CANDIDATE',
-              body: { blocks: [{ type: 'text', content: 'ما ناتج 6 × 7؟' }], plainText: 'ما ناتج 6 × 7؟' },
-              modelAnswer: { blocks: [{ type: 'text', content: '42' }], plainText: '42' },
+              body: {
+                version: 1,
+                blocks: [{ id: 'q2-body', type: 'text', content: 'صِف خطوات حل المعادلة: 2x + 5 = 11', direction: 'rtl' }],
+              },
+              modelAnswer: {
+                version: 1,
+                blocks: [{ id: 'q2-ans', type: 'text', content: 'طرح 5 من الطرفين، ثم القسمة على 2', direction: 'rtl' }],
+                type: 'SHORT_ANSWER',
+                rubricCriteria: [
+                  { key: 'isolation', label: 'عزل المتغير', maxMarks: 1, description: 'طرح 5 من الطرفين' },
+                  { key: 'division', label: 'القسمة', maxMarks: 1, description: 'قسمة على 2' },
+                ],
+              },
               marks: 2,
-              answerSpaceLines: 2,
+              answerSpaceLines: 3,
               curriculumNodeIds: [qNodeId],
+              sourceReferenceIds: [],
               position: 1,
             },
             {
               provenance: 'AI_CANDIDATE',
-              body: { blocks: [{ type: 'text', content: 'هل 10 عدد زوجي؟' }], plainText: 'هل 10 عدد زوجي؟' },
-              modelAnswer: { blocks: [{ type: 'text', content: 'صواب' }], plainText: 'صواب' },
+              body: {
+                version: 1,
+                blocks: [{ id: 'q3-body', type: 'text', content: 'هل العدد 10 عدد زوجي؟', direction: 'rtl' }],
+              },
+              modelAnswer: {
+                version: 1,
+                blocks: [{ id: 'q3-ans', type: 'text', content: 'صواب', direction: 'rtl' }],
+                type: 'TRUE_FALSE',
+                correctResponse: 'صواب',
+              },
               marks: 2,
               answerSpaceLines: 1,
               curriculumNodeIds: [qNodeId],
+              sourceReferenceIds: [],
               position: 2,
             },
           ],
@@ -200,10 +229,11 @@ test.describe('Phase 5 — Paper Correction & Analytics Visual Gate', () => {
       submissionId = importResult?.submissionId || '';
     }
 
-    // Grade the submission deterministically
+    // Extract answers first, then grade deterministically
     if (submissionId) {
       await page.evaluate(async (sid: string) => {
         const tibyan = (window as any).tibyan;
+        await tibyan.grading.extractAnswers(sid);
         await tibyan.grading.gradeSubmission({ submissionId: sid, method: 'DETERMINISTIC' });
       }, submissionId);
     }
@@ -267,7 +297,7 @@ test.describe('Phase 5 — Paper Correction & Analytics Visual Gate', () => {
       const extractedTab = page.locator('[data-testid="tab-extracted"]');
       if (await extractedTab.isVisible()) {
         await extractedTab.click();
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(1000);
         // Screenshot 4: 04-extraction-review.png
         await page.screenshot({ path: path.join(docsDir, '04-extraction-review.png') });
       }
@@ -278,11 +308,18 @@ test.describe('Phase 5 — Paper Correction & Analytics Visual Gate', () => {
         await decisionsTab.click();
         await page.waitForTimeout(500);
 
-        // Try to edit a decision for partial credit screenshot
-        const editBtn = page.locator('[data-testid="edit-decision-btn"]');
-        if (await editBtn.isVisible()) {
-          await editBtn.click();
+        // Navigate to the SHORT_ANSWER question (question 2, index 1) which has rubric criteria
+        const nextBtn = page.locator('[data-testid="next-question-btn"]');
+        if (await nextBtn.isVisible() && await nextBtn.isEnabled()) {
+          await nextBtn.click();
           await page.waitForTimeout(300);
+        }
+
+        // Open the edit/override form to show teacher adjustment controls
+        const editBtn = page.locator('[data-testid="edit-decision-btn"]');
+        if (await editBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+          await editBtn.click();
+          await page.waitForTimeout(500);
         }
 
         // Screenshot 5: 05-partial-credit-correction.png

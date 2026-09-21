@@ -56,7 +56,9 @@ export class GradingService {
     const now = new Date().toISOString();
 
     // Get exam questions for answer key mapping
-    const examSnapshot = this.examRepo.findSnapshot(submission.sessionId);
+    const captureSession = this.captureRepo.findSession(submission.sessionId);
+    if (!captureSession) throw new Error('جلسة التصوير غير موجودة');
+    const examSnapshot = this.examRepo.findSnapshot(captureSession.examId);
     if (!examSnapshot) throw new Error('الاختبار غير موجود');
 
     // Build answer key entries from exam snapshot
@@ -122,7 +124,9 @@ export class GradingService {
     const submission = this.captureRepo.findSubmission(validated.submissionId);
     if (!submission) throw new Error('التسليم غير موجود');
 
-    const examSnapshot = this.examRepo.findSnapshot(submission.sessionId);
+    const captureSession = this.captureRepo.findSession(submission.sessionId);
+    if (!captureSession) throw new Error('جلسة التصوير غير موجودة');
+    const examSnapshot = this.examRepo.findSnapshot(captureSession.examId);
     if (!examSnapshot) throw new Error('الاختبار غير موجود');
 
     // Create grading run
@@ -235,7 +239,9 @@ export class GradingService {
     const submission = this.captureRepo.findSubmission(validated.submissionId);
     if (!submission) throw new Error('التسليم غير موجود');
 
-    const examSnapshot = this.examRepo.findSnapshot(submission.sessionId);
+    const captureSession = this.captureRepo.findSession(submission.sessionId);
+    if (!captureSession) throw new Error('جلسة التصوير غير موجودة');
+    const examSnapshot = this.examRepo.findSnapshot(captureSession.examId);
     if (!examSnapshot) throw new Error('الاختبار غير موجود');
 
     // Create grading run

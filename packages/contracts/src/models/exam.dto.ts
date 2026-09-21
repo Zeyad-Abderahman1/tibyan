@@ -118,7 +118,7 @@ export const ConfirmAssemblyInputSchema = z.object({
     questionId: z.string().uuid().optional(),
     provenance: ExamProvenanceSchema,
     body: MathRichContentSchema,
-    modelAnswer: MathRichContentSchema.nullable().default(null),
+    modelAnswer: MathRichContentSchema.passthrough().nullable().default(null),
     marks: z.number().int().positive(),
     answerSpaceLines: z.number().int().nonnegative().default(0),
     curriculumNodeIds: z.array(z.string().uuid()),
