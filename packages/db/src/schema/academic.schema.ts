@@ -814,3 +814,12 @@ export type NewSlideRow = typeof slides.$inferInsert;
 export type SlideBlockRow = typeof slideBlocks.$inferSelect;
 export type NewSlideBlockRow = typeof slideBlocks.$inferInsert;
 
+export const reviewArtifacts = sqliteTable('review_artifacts', {
+  id: text('id').primaryKey(), sourceDocumentId: text('source_document_id').notNull(),
+  title: text('title').notNull(), reviewType: text('review_type').notNull(), detailLevel: text('detail_level').notNull(),
+  scope: text('scope'), questionCount: integer('question_count').notNull(), includeModelAnswers: integer('include_model_answers', { mode: 'boolean' }).notNull(),
+  contentJson: text('content_json').notNull(), createdAt: text('created_at').notNull(), updatedAt: text('updated_at').notNull(),
+});
+export type ReviewArtifactRow = typeof reviewArtifacts.$inferSelect;
+export type NewReviewArtifactRow = typeof reviewArtifacts.$inferInsert;
+

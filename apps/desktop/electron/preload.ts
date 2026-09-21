@@ -826,7 +826,7 @@ export const tibyanApi: TibyanApi = {
   },
 
   ai: {
-    generateReview(input: { sourceId: string; scope?: string }): Promise<IpcResult<import('@tibyan/contracts').GeneratedReviewContent>> {
+    generateReview(input: import('@tibyan/contracts').ReviewGenerationRequest): Promise<IpcResult<any>> {
       return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_REVIEW, input);
     },
     generateNotes(input: { sourceId: string; scope?: string }): Promise<IpcResult<import('@tibyan/contracts').GeneratedNotesContent>> {

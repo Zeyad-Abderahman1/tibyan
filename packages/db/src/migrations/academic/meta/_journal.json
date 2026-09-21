@@ -85,6 +85,13 @@
       "when": 1789996560681,
       "tag": "0011_slide-decks",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790000000000,
+      "tag": "0012_review-artifacts",
+      "breakpoints": true
     }
   ]
 }

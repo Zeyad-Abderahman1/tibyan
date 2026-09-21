@@ -34,6 +34,13 @@ export const SlidesGenerationRequestSchema = z.object({
   layoutTemplate: z.enum(['SIMPLE_EDUCATIONAL', 'EXPLAIN_EXAMPLE', 'QUICK_REVIEW', 'VISUAL_EXPLAIN']),
 }).strict();
 export type SlidesGenerationRequest = z.infer<typeof SlidesGenerationRequestSchema>;
+export const ReviewGenerationRequestSchema = z.object({
+  sourceDocumentId: sourceId, title: z.string().trim().min(1).max(200),
+  reviewType: z.enum(['QUESTIONS','EXPLANATION','SOLVED_EXAMPLES','MIXED']),
+  detailLevel: z.enum(['BRIEF','MODERATE','DETAILED']), scope,
+  questionCount: z.number().int().min(0).max(50), includeModelAnswers: z.boolean(),
+}).strict();
+export type ReviewGenerationRequest = z.infer<typeof ReviewGenerationRequestSchema>;
 
 export const GeneratedQuestionSchema = z.object({
   body: z.string().trim().min(1),
@@ -56,7 +63,7 @@ export const SlidesGenerationResultSchema = z.object({ title: z.string().optiona
 export type SlidesGenerationResult = z.infer<typeof SlidesGenerationResultSchema>;
 
 const sectionFields = { title: z.string().trim().min(1), content: z.string().trim().min(1), sourcePage };
-export const GeneratedReviewSectionSchema = z.object({ ...sectionFields, type: z.enum(['heading', 'content', 'question', 'example']) }).strict();
+export const GeneratedReviewSectionSchema = z.object({ ...sectionFields, type: z.enum(['heading', 'content', 'question', 'example']), modelAnswer: z.string().optional() }).strict();
 export const ReviewGenerationResultSchema = z.object({ title: z.string().optional(), sections: z.array(GeneratedReviewSectionSchema).min(1).max(100) }).strict();
 export type ReviewGenerationResult = z.infer<typeof ReviewGenerationResultSchema>;
 export const GeneratedNoteSectionSchema = z.object({ ...sectionFields, type: z.enum(['heading', 'content', 'example', 'exercise']) }).strict();

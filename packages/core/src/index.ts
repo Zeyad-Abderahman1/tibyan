@@ -28,3 +28,4 @@ export * from './grading/index.js';
 export * from './analytics/index.js';
 export * from './assistant/index.js';
 export * from './slides/index.js';
+export * from './review/review.service.js';

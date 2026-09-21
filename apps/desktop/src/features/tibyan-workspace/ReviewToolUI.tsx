@@ -42,7 +42,9 @@ export function ReviewToolUI() {
     setGenerationError(null);
     try {
       const result = await window.tibyan.ai.generateReview({
-        sourceId: selectedSource.id,
+        sourceDocumentId: selectedSource.id,
+        title: 'مراجعة جديدة', reviewType: reviewType as any,
+        detailLevel: detailLevel as any, questionCount, includeModelAnswers: includeAnswers,
         scope: scope || undefined,
       });
 
@@ -50,7 +52,7 @@ export function ReviewToolUI() {
         throw new Error(result.error?.message || 'فشل توليد المراجعة');
       }
 
-      const parsed = result.data.data.sections;
+      const parsed = (result.data as any).content.sections;
 
       if (!Array.isArray(parsed) || parsed.length === 0) {
         setGenerationError('لم يتم توليد أقسام المراجعة. تأكد من أن المصدر يحتوي على محتوى كافٍ.');
