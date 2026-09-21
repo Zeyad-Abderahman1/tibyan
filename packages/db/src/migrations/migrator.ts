@@ -781,6 +781,20 @@ export const ACADEMIC_MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS \`idx_grading_decisions_status\` ON \`grading_decisions\` (\`status\`);
     `,
   },
+  // 0006: Curriculum library metadata columns
+  {
+    id: '0006_curriculum_library_metadata',
+    sql: `
+      ALTER TABLE \`source_documents\` ADD COLUMN \`grade_level\` text;
+      ALTER TABLE \`source_documents\` ADD COLUMN \`education_system\` text;
+      ALTER TABLE \`source_documents\` ADD COLUMN \`subject\` text;
+      ALTER TABLE \`source_documents\` ADD COLUMN \`description\` text;
+      ALTER TABLE \`source_documents\` ADD COLUMN \`academic_year_id\` text;
+      ALTER TABLE \`source_documents\` ADD COLUMN \`import_source\` text DEFAULT 'MANUAL' NOT NULL;
+      CREATE INDEX IF NOT EXISTS \`idx_source_document_grade\` ON \`source_documents\` (\`grade_level\`);
+      CREATE INDEX IF NOT EXISTS \`idx_source_document_subject\` ON \`source_documents\` (\`subject\`);
+    `,
+  },
 ];
 
 

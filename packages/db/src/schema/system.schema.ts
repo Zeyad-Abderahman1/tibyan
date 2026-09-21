@@ -194,12 +194,20 @@ export const sourceDocuments = sqliteTable(
       .notNull()
       .default('INDEXED'),
     metadataJson: text('metadata_json'),
+    gradeLevel: text('grade_level'),
+    educationSystem: text('education_system'),
+    subject: text('subject'),
+    description: text('description'),
+    academicYearId: text('academic_year_id'),
+    importSource: text('import_source').notNull().default('MANUAL'),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
   (t) => ({
     idxSourceDocumentHash: uniqueIndex('idx_source_document_hash').on(t.sha256Hash),
     idxSourceDocumentCatalog: index('idx_source_document_catalog').on(t.curriculumCatalogId),
+    idxSourceDocumentGrade: index('idx_source_document_grade').on(t.gradeLevel),
+    idxSourceDocumentSubject: index('idx_source_document_subject').on(t.subject),
   })
 );
 
