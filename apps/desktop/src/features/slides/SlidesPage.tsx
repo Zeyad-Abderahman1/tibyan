@@ -151,11 +151,11 @@ function BlockRenderer({ block, onDelete, onEdit, onDragStart, onDragOver, onDro
             {content}
           </div>
         </div>
-        <button
+        {(block.blockType === 'TEXT' || block.blockType === 'MATH') && <button
           onClick={(e) => { e.stopPropagation(); onEdit(); }}
           className="p-1 text-xs text-[var(--color-brand-primary)]"
           data-testid={`edit-block-${block.id}`}
-        >تعديل</button>
+        >تعديل</button>}
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
           className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/40 text-[var(--color-text-muted)] hover:text-red-500 transition-all shrink-0"
