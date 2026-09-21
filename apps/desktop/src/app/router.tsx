@@ -29,7 +29,7 @@ import { CaptureSessionPage } from '../features/capture/CaptureSessionPage.js';
 import { CorrectionWorkspace } from '../features/grading/CorrectionWorkspace.js';
 import { AnalyticsDashboard } from '../features/analytics/AnalyticsDashboard.js';
 import { StudentResultPage } from '../features/analytics/StudentResultPage.js';
-import { AssistantPage } from '../features/assistant/AssistantPage.js';
+import { TibyanWorkspacePage } from '../features/tibyan-workspace/TibyanWorkspacePage.js';
 import { SlidesPage } from '../features/slides/SlidesPage.js';
 import { CurriculumLibraryPage } from '../features/curriculum-library/CurriculumLibraryPage.js';
 
@@ -276,7 +276,7 @@ export const routes: RouteObject[] = [
       },
       {
         path: 'assistant',
-        element: <AssistantPage />,
+        element: <TibyanWorkspacePage />,
       },
       {
         path: 'slides',
