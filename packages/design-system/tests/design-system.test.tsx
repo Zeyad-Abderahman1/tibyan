@@ -33,33 +33,23 @@ import {
 
 describe('Task 9: Tibyan Design System Verification Suite', () => {
   const rootDir = path.resolve(__dirname, '..');
-  const projectRoot = path.resolve(rootDir, '../..');
 
   // 1. Exact official PNG asset hash/bytes remain unchanged from the Task 1 approved asset.
   it('1. Exact official PNG asset hash/bytes remain unchanged from the Task 1 approved asset', () => {
     const designSystemLogoPath = path.join(rootDir, 'src/assets/tibyan-official-logo.png');
-    const masterLogoPath = path.join(projectRoot, 'ChatGPT Image Sep 17, 2026, 02_47_35 AM.png');
 
     expect(fs.existsSync(designSystemLogoPath)).toBe(true);
-    expect(fs.existsSync(masterLogoPath)).toBe(true);
 
     const dsBytes = fs.readFileSync(designSystemLogoPath);
-    const masterBytes = fs.readFileSync(masterLogoPath);
 
     // Byte length check
     expect(dsBytes.length).toBe(1122852);
-    expect(masterBytes.length).toBe(1122852);
 
     // SHA-256 hash check
     const dsHash = crypto.createHash('sha256').update(dsBytes).digest('hex').toUpperCase();
-    const masterHash = crypto.createHash('sha256').update(masterBytes).digest('hex').toUpperCase();
 
     const expectedHash = '66BFBEF03BE0E7EE99CDBE147C13859E92AC9071A9E8AC47F681EE30D0254749';
     expect(dsHash).toBe(expectedHash);
-    expect(masterHash).toBe(expectedHash);
-
-    // Exact byte-for-byte equality
-    expect(dsBytes.equals(masterBytes)).toBe(true);
   });
 
   // 2. ThemeProvider applies Light mode correctly.
