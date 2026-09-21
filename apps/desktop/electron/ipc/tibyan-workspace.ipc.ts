@@ -1,6 +1,7 @@
 import { ipcMain, type BrowserWindow } from 'electron';
 import { z } from 'zod';
-import { IPC_CHANNELS, SourceGenerationRequestSchema, ExamGenerationRequestSchema } from '@tibyan/contracts';
+import { IPC_CHANNELS, SourceGenerationRequestSchema, ExamGenerationRequestSchema, SlidesGenerationRequestSchema } from '@tibyan/contracts';
+import { SlideService } from '@tibyan/core';
 import type { Runtime } from '../runtime.js';
 import { safeIpcCall } from './errors.js';
 import { validateIpcSender } from '../security.js';
@@ -123,11 +124,10 @@ export function registerTibyanWorkspaceIpcHandlers(
     if (!validateIpcSender(event, mainWindow)) throw new Error('UNAUTHORIZED_IPC_SENDER');
     return safeIpcCall(async () => {
       runtime.requireAuthenticatedActor();
-      const { sourceId, scope } = SourceGenerationRequestSchema.parse(payload);
-      return runtime.aiContentService.generateSlides({
-        sourceDocumentId: sourceId,
-        scope,
-      });
+      runtime.requireActiveAcademicYear();
+      const request = SlidesGenerationRequestSchema.parse(payload);
+      const generated = await runtime.aiContentService.generateSlides(request);
+      return new SlideService(runtime.academicDb!.db).createGeneratedDeck(request, generated.data);
     });
   });
 

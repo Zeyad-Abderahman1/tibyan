@@ -21,6 +21,20 @@ export const ExamGenerationRequestSchema = z.object({
 }).strict();
 export type ExamGenerationRequest = z.infer<typeof ExamGenerationRequestSchema>;
 
+export const SlidesGenerationRequestSchema = z.object({
+  sourceDocumentId: sourceId,
+  title: z.string().trim().min(1).max(200),
+  gradeLevel: z.enum(['SEC_1', 'SEC_2', 'SEC_3']),
+  slideCount: z.number().int().min(1).max(50),
+  detailLevel: z.enum(['BRIEF', 'MODERATE', 'DETAILED']),
+  includeInteractive: z.boolean(),
+  includeExamples: z.boolean(),
+  includeSummary: z.boolean(),
+  theme: z.enum(['LIGHT', 'DARK', 'TIBYAN']),
+  layoutTemplate: z.enum(['SIMPLE_EDUCATIONAL', 'EXPLAIN_EXAMPLE', 'QUICK_REVIEW', 'VISUAL_EXPLAIN']),
+}).strict();
+export type SlidesGenerationRequest = z.infer<typeof SlidesGenerationRequestSchema>;
+
 export const GeneratedQuestionSchema = z.object({
   body: z.string().trim().min(1),
   type: z.enum(['MULTIPLE_CHOICE', 'SHORT_ANSWER', 'TRUE_FALSE', 'WRITTEN']),

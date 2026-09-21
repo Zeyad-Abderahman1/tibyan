@@ -832,7 +832,7 @@ export const tibyanApi: TibyanApi = {
     generateNotes(input: { sourceId: string; scope?: string }): Promise<IpcResult<import('@tibyan/contracts').GeneratedNotesContent>> {
       return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_NOTES, input);
     },
-    generateSlides(input: { sourceId: string; scope?: string }): Promise<IpcResult<import('@tibyan/contracts').GeneratedSlidesContent>> {
+    generateSlides(input: import('@tibyan/contracts').SlidesGenerationRequest): Promise<IpcResult<SlideDeckWithSlides>> {
       return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_SLIDES, input);
     },
     generateExam(input: import('@tibyan/contracts').ExamGenerationRequest): Promise<IpcResult<import('@tibyan/contracts').GeneratedExamContent>> {

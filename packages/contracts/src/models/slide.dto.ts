@@ -5,6 +5,20 @@ import { z } from 'zod';
 export const SlideDeckStatusSchema = z.enum(['DRAFT', 'PUBLISHED']);
 export type SlideDeckStatus = z.infer<typeof SlideDeckStatusSchema>;
 
+export const SlideGenerationSettingsSchema = z.object({
+  sourceDocumentId: z.string().uuid(),
+  gradeLevel: z.enum(['SEC_1', 'SEC_2', 'SEC_3']),
+  slideCount: z.number().int().min(1).max(50),
+  detailLevel: z.enum(['BRIEF', 'MODERATE', 'DETAILED']),
+  includeInteractive: z.boolean(),
+  includeExamples: z.boolean(),
+  includeSummary: z.boolean(),
+  theme: z.enum(['LIGHT', 'DARK', 'TIBYAN']),
+  layoutTemplate: z.enum(['SIMPLE_EDUCATIONAL', 'EXPLAIN_EXAMPLE', 'QUICK_REVIEW', 'VISUAL_EXPLAIN']),
+  aspectRatio: z.literal('16:9'),
+}).strict();
+export type SlideGenerationSettings = z.infer<typeof SlideGenerationSettingsSchema>;
+
 export const SlideDeckSchema = z.object({
   id: z.string().uuid(),
   title: z.string().min(1).max(200),
@@ -13,6 +27,7 @@ export const SlideDeckSchema = z.object({
   groupId: z.string().uuid().optional().nullable(),
   status: SlideDeckStatusSchema.default('DRAFT'),
   slideCount: z.number().int().nonnegative().default(0),
+  generationSettings: SlideGenerationSettingsSchema.optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

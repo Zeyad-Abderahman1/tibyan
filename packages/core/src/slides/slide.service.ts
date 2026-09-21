@@ -14,6 +14,12 @@ import {
   type ReorderSlideBlocksInput,
   type MoveSlideBlockInput,
   type SlidePresentation,
+  type SlidesGenerationRequest,
+  type SlidesGenerationResult,
+  SlideGenerationSettingsSchema,
+  SlidesGenerationRequestSchema,
+  SlidesGenerationResultSchema,
+  MathRichContentSchema,
 } from '@tibyan/contracts';
 import {
   type AcademicDrizzle,
@@ -23,6 +29,9 @@ import {
   type SlideDeckRow,
   type SlideRow,
   type SlideBlockRow,
+  slideDecks,
+  slides,
+  slideBlocks,
 } from '@tibyan/db';
 
 export type SlideErrorCode =
@@ -48,6 +57,10 @@ function now(): string {
 }
 
 function toDeckDto(row: SlideDeckRow, slideCount: number): SlideDeckDto {
+  let generationSettings: SlideDeckDto['generationSettings'];
+  if (row.description?.startsWith('{"tibyanAi":')) {
+    try { generationSettings = SlideGenerationSettingsSchema.parse(JSON.parse(row.description).tibyanAi); } catch { /* legacy description */ }
+  }
   return {
     id: row.id,
     title: row.title,
@@ -56,6 +69,7 @@ function toDeckDto(row: SlideDeckRow, slideCount: number): SlideDeckDto {
     groupId: row.groupId ?? undefined,
     status: row.status as 'DRAFT' | 'PUBLISHED',
     slideCount,
+    generationSettings,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -90,10 +104,34 @@ export class SlideService {
   private readonly slideRepo: SlideRepository;
   private readonly blockRepo: SlideBlockRepository;
 
-  constructor(academicDb: AcademicDrizzle) {
+  constructor(private readonly academicDb: AcademicDrizzle) {
     this.deckRepo = new SlideDeckRepository(academicDb);
     this.slideRepo = new SlideRepository(academicDb);
     this.blockRepo = new SlideBlockRepository(academicDb);
+  }
+
+  createGeneratedDeck(request: SlidesGenerationRequest, generated: SlidesGenerationResult): SlideDeckWithSlides {
+    request = SlidesGenerationRequestSchema.parse(request);
+    generated = SlidesGenerationResultSchema.parse(generated);
+    if (generated.slides.length !== request.slideCount) throw new SlideError('INVALID_INPUT', 'عدد الشرائح لا يطابق الطلب');
+    const deckId = uuid();
+    const timestamp = now();
+    const { title, ...settings } = request;
+    const description = JSON.stringify({ tibyanAi: { ...settings, aspectRatio: '16:9' } });
+    this.academicDb.transaction((tx) => {
+      tx.insert(slideDecks).values({ id: deckId, title, description, curriculumNodeId: null, groupId: null, status: 'DRAFT', createdAt: timestamp, updatedAt: timestamp }).run();
+      generated.slides.forEach((slide, position) => {
+        const slideId = uuid();
+        tx.insert(slides).values({ id: slideId, deckId, title: slide.title, position, notes: [slide.notes, `صفحة المصدر: ${slide.sourcePage}`].filter(Boolean).join('\n'), createdAt: timestamp }).run();
+        const segments = slide.content.split(/(\$\$[\s\S]*?\$\$)/g).filter(Boolean);
+        const blocks = segments.map((segment) => segment.startsWith('$$') && segment.endsWith('$$')
+          ? { id: uuid(), type: 'math' as const, latex: segment.slice(2, -2).trim(), displayMode: 'block' as const }
+          : { id: uuid(), type: 'text' as const, content: segment, direction: 'rtl' as const });
+        const contentJson = JSON.stringify(MathRichContentSchema.parse({ version: 1, blocks }));
+        tx.insert(slideBlocks).values({ id: uuid(), slideId, blockType: 'TEXT', contentJson, questionId: null, position: 0, createdAt: timestamp }).run();
+      });
+    });
+    return this.getDeck(deckId);
   }
 
   listDecks(): SlideDeckDto[] {
@@ -110,10 +148,10 @@ export class SlideService {
     const slides = this.slideRepo.listByDeck(id);
     return {
       ...toDeckDto(deck, slides.length),
-      slides: slides.map((s) => ({
-        ...toSlideDto(s, 0),
-        blocks: this.blockRepo.listBySlide(s.id).map(toBlockDto),
-      })),
+      slides: slides.map((s) => {
+        const blocks = this.blockRepo.listBySlide(s.id).map(toBlockDto);
+        return { ...toSlideDto(s, blocks.length), blocks };
+      }),
     };
   }
 
@@ -217,6 +255,10 @@ export class SlideService {
   reorderSlides(input: ReorderSlidesInput): void {
     const deck = this.deckRepo.findById(input.deckId);
     if (!deck) throw new SlideError('DECK_NOT_FOUND', `Slide deck not found: ${input.deckId}`);
+    const existing = this.slideRepo.listByDeck(input.deckId).map((slide) => slide.id);
+    if (input.slideIds.length !== existing.length || new Set(input.slideIds).size !== existing.length || input.slideIds.some((id) => !existing.includes(id))) {
+      throw new SlideError('INVALID_INPUT', 'ترتيب الشرائح لا يطابق شرائح العرض');
+    }
     this.slideRepo.reorder(input.deckId, input.slideIds);
   }
 
@@ -257,6 +299,10 @@ export class SlideService {
   reorderBlocks(input: ReorderSlideBlocksInput): void {
     const slide = this.slideRepo.findById(input.slideId);
     if (!slide) throw new SlideError('SLIDE_NOT_FOUND', `Slide not found: ${input.slideId}`);
+    const existing = this.blockRepo.listBySlide(input.slideId).map((block) => block.id);
+    if (input.blockIds.length !== existing.length || new Set(input.blockIds).size !== existing.length || input.blockIds.some((id) => !existing.includes(id))) {
+      throw new SlideError('INVALID_INPUT', 'ترتيب الكتل لا يطابق محتوى الشريحة');
+    }
     this.blockRepo.reorder(input.slideId, input.blockIds);
   }
 
@@ -293,12 +339,10 @@ export class SlideService {
     const slides = this.slideRepo.listByDeck(deckId);
     return {
       deck: toDeckDto(deck, slides.length),
-      slides: slides.map((s) => ({
-        ...toSlideDto(s, 0),
-        blocks: this.blockRepo.listBySlide(s.id).map((b) => ({
-          ...toBlockDto(b),
-        })),
-      })),
+      slides: slides.map((s) => {
+        const blocks = this.blockRepo.listBySlide(s.id).map(toBlockDto);
+        return { ...toSlideDto(s, blocks.length), blocks };
+      }),
     };
   }
 }

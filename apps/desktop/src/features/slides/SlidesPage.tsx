@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Button,
   Input,
@@ -39,6 +40,7 @@ import {
   useDeleteSlideBlock,
   useReorderSlideBlocks,
   useUpdateSlide,
+  useUpdateSlideBlock,
 } from '../../hooks/useSlides.js';
 
 // ─── Block Type Config ──────────────────────────────────────────────────────
@@ -65,9 +67,10 @@ interface SlideThumbnailProps {
   onDragStart: (e: React.DragEvent, slideId: string) => void;
   onDragOver: (e: React.DragEvent, slideId: string) => void;
   onDrop: (e: React.DragEvent, slideId: string) => void;
+  isDropTarget: boolean;
 }
 
-function SlideThumbnail({ slide, isActive, index, onClick, onDragStart, onDragOver, onDrop }: SlideThumbnailProps) {
+function SlideThumbnail({ slide, isActive, index, onClick, onDragStart, onDragOver, onDrop, isDropTarget }: SlideThumbnailProps) {
   return (
     <div
       draggable
@@ -75,7 +78,7 @@ function SlideThumbnail({ slide, isActive, index, onClick, onDragStart, onDragOv
       onDragOver={(e) => onDragOver(e, slide.id)}
       onDrop={(e) => onDrop(e, slide.id)}
       onClick={onClick}
-      className={`group relative p-3 rounded-lg border cursor-pointer transition-all ${
+      className={`group relative p-3 rounded-lg border cursor-pointer transition-colors ${isDropTarget ? 'ring-2 ring-inset ring-[var(--color-brand-primary)]' : ''} ${
         isActive
           ? 'bg-[var(--color-brand-primary)]/8 border-[var(--color-brand-primary)] shadow-sm dark:bg-[#5CE1E6]/10 dark:border-[#5CE1E6]'
           : 'bg-[var(--color-bg-surface)] border-[var(--color-border-subtle)] hover:border-[var(--color-border-bold)]'
@@ -103,12 +106,14 @@ function SlideThumbnail({ slide, isActive, index, onClick, onDragStart, onDragOv
 interface BlockRendererProps {
   block: SlideBlockDto;
   onDelete: () => void;
+  onEdit: () => void;
   onDragStart: (e: React.DragEvent, blockId: string) => void;
   onDragOver: (e: React.DragEvent, blockId: string) => void;
   onDrop: (e: React.DragEvent, blockId: string) => void;
+  isDropTarget: boolean;
 }
 
-function BlockRenderer({ block, onDelete, onDragStart, onDragOver, onDrop }: BlockRendererProps) {
+function BlockRenderer({ block, onDelete, onEdit, onDragStart, onDragOver, onDrop, isDropTarget }: BlockRendererProps) {
   const blockConfig = BLOCK_TYPES.find((bt) => bt.type === block.blockType);
   const Icon = blockConfig?.icon || FileText;
 
@@ -130,7 +135,7 @@ function BlockRenderer({ block, onDelete, onDragStart, onDragOver, onDrop }: Blo
       onDragStart={(e) => onDragStart(e, block.id)}
       onDragOver={(e) => onDragOver(e, block.id)}
       onDrop={(e) => onDrop(e, block.id)}
-      className="group relative p-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] hover:border-[var(--color-border-bold)] transition-all"
+      className={`group relative p-3 rounded-lg border bg-[var(--color-bg-surface)] hover:border-[var(--color-border-bold)] transition-colors border-[var(--color-border-subtle)] ${isDropTarget ? 'ring-2 ring-inset ring-[var(--color-brand-primary)]' : ''}`}
       data-testid={`slide-block-${block.id}`}
     >
       <div className="flex items-start gap-2">
@@ -147,6 +152,11 @@ function BlockRenderer({ block, onDelete, onDragStart, onDragOver, onDrop }: Blo
           </div>
         </div>
         <button
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="p-1 text-xs text-[var(--color-brand-primary)]"
+          data-testid={`edit-block-${block.id}`}
+        >تعديل</button>
+        <button
           onClick={(e) => { e.stopPropagation(); onDelete(); }}
           className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 dark:hover:bg-red-950/40 text-[var(--color-text-muted)] hover:text-red-500 transition-all shrink-0"
           data-testid={`delete-block-${block.id}`}
@@ -161,10 +171,11 @@ function BlockRenderer({ block, onDelete, onDragStart, onDragOver, onDrop }: Blo
 // ─── Main Slide Authoring Page ──────────────────────────────────────────────
 
 export function SlidesPage() {
+  const [searchParams] = useSearchParams();
   const { data: decks = [], isLoading: decksLoading } = useSlideDecks();
   const createDeck = useCreateSlideDeck();
 
-  const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
+  const [selectedDeckId, setSelectedDeckId] = useState<string | null>(() => searchParams.get('deck'));
   const { data: deck } = useSlideDeck(selectedDeckId);
   const [selectedSlideId, setSelectedSlideId] = useState<string | null>(null);
 
@@ -176,6 +187,7 @@ export function SlidesPage() {
   const deleteBlock = useDeleteSlideBlock();
   const reorderBlocks = useReorderSlideBlocks();
   const updateSlide = useUpdateSlide();
+  const updateBlock = useUpdateSlideBlock();
 
   const [isPresentationMode, setIsPresentationMode] = useState(false);
   const [presentationSlideIndex, setPresentationSlideIndex] = useState(0);
@@ -183,12 +195,34 @@ export function SlidesPage() {
   const [newDeckTitle, setNewDeckTitle] = useState('');
   const [editingSlideTitle, setEditingSlideTitle] = useState<string | null>(null);
   const [slideTitleValue, setSlideTitleValue] = useState('');
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const [blockDraft, setBlockDraft] = useState('');
 
   // Drag state
   const dragTypeRef = useRef<'slide' | 'block' | null>(null);
   const dragIdRef = useRef<string | null>(null);
+  const [slideDropTarget, setSlideDropTarget] = useState<string | null>(null);
+  const [blockDropTarget, setBlockDropTarget] = useState<string | null>(null);
 
   const selectedSlide = deck?.slides?.find((s) => s.id === selectedSlideId);
+
+  const openBlockEditor = (block: SlideBlockDto) => {
+    try {
+      const parsed = JSON.parse(block.contentJson) as MathRichContent;
+      setBlockDraft(parsed.blocks.map((item) => item.type === 'text' ? item.content : item.type === 'math' ? `$$${item.latex}$$` : '').join('\n'));
+    } catch { setBlockDraft(''); }
+    setEditingBlockId(block.id);
+  };
+
+  const saveBlockEdit = async () => {
+    if (!editingBlockId || !blockDraft.trim()) return;
+    const blocks: MathRichContent['blocks'] = blockDraft.split(/(\$\$[\s\S]*?\$\$)/g).filter(Boolean).map((part) =>
+      part.startsWith('$$') && part.endsWith('$$')
+        ? { id: crypto.randomUUID(), type: 'math' as const, latex: part.slice(2, -2).trim(), displayMode: 'block' as const }
+        : { id: crypto.randomUUID(), type: 'text' as const, content: part, direction: 'rtl' as const });
+    await updateBlock.mutateAsync({ id: editingBlockId, input: { contentJson: JSON.stringify({ version: 1, blocks }) } });
+    setEditingBlockId(null);
+  };
 
   const handleCreateDeck = async () => {
     if (!newDeckTitle.trim()) return;
@@ -226,10 +260,12 @@ export function SlidesPage() {
     e.preventDefault();
     if (dragTypeRef.current !== 'slide') return;
     e.dataTransfer.dropEffect = 'move';
+    setSlideDropTarget(_slideId);
   }, []);
 
   const handleSlideDrop = useCallback((e: React.DragEvent, targetSlideId: string) => {
     e.preventDefault();
+    setSlideDropTarget(null);
     if (dragTypeRef.current !== 'slide' || !deck) return;
     const sourceId = dragIdRef.current;
     if (!sourceId || sourceId === targetSlideId) return;
@@ -260,10 +296,12 @@ export function SlidesPage() {
     e.preventDefault();
     if (dragTypeRef.current !== 'block') return;
     e.dataTransfer.dropEffect = 'move';
+    setBlockDropTarget(_blockId);
   }, []);
 
   const handleBlockDrop = useCallback((e: React.DragEvent, targetBlockId: string) => {
     e.preventDefault();
+    setBlockDropTarget(null);
     if (dragTypeRef.current !== 'block' || !selectedSlide) return;
     const sourceId = dragIdRef.current;
     if (!sourceId || sourceId === targetBlockId) return;
@@ -300,7 +338,7 @@ export function SlidesPage() {
   }
 
   return (
-    <div className="h-full flex flex-col" dir="rtl" data-testid="page-slides">
+    <div className="h-full flex flex-col" dir="rtl" data-testid="page-slides" onDragEndCapture={() => { setSlideDropTarget(null); setBlockDropTarget(null); dragTypeRef.current = null; dragIdRef.current = null; }}>
       {/* Presentation Mode Overlay */}
       {isPresentationMode && currentPresentationSlide && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col">
@@ -340,9 +378,9 @@ export function SlidesPage() {
             </div>
           </div>
           <div className="flex-1 flex items-center justify-center p-8">
-            <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl p-12 min-h-[500px]">
+            <div className={`w-full max-w-5xl aspect-video rounded-2xl shadow-2xl p-12 overflow-auto ${deck?.generationSettings?.theme === 'DARK' ? 'bg-gray-900 text-white' : deck?.generationSettings?.theme === 'TIBYAN' ? 'bg-emerald-900 text-white' : 'bg-white text-gray-900'}`}>
               {currentPresentationSlide.title && (
-                <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
+                <h2 className="text-2xl font-bold mb-6 text-center">
                   {currentPresentationSlide.title}
                 </h2>
               )}
@@ -351,7 +389,7 @@ export function SlidesPage() {
                   try {
                     const doc: MathRichContent = JSON.parse(block.contentJson);
                     return (
-                      <div key={block.id} className="text-gray-800">
+                      <div key={block.id}>
                         <MathRichContentViewer content={doc} />
                       </div>
                     );
@@ -458,6 +496,7 @@ export function SlidesPage() {
                     onDragStart={handleSlideDragStart}
                     onDragOver={handleSlideDragOver}
                     onDrop={handleSlideDrop}
+                    isDropTarget={slideDropTarget === s.id}
                   />
                 ))}
               </div>
@@ -562,9 +601,11 @@ export function SlidesPage() {
                           key={block.id}
                           block={block}
                           onDelete={() => deleteBlock.mutate(block.id)}
+                          onEdit={() => openBlockEditor(block)}
                           onDragStart={handleBlockDragStart}
                           onDragOver={handleBlockDragOver}
                           onDrop={handleBlockDrop}
+                          isDropTarget={blockDropTarget === block.id}
                         />
                       ))
                     )}
@@ -632,6 +673,12 @@ export function SlidesPage() {
       </div>
 
       {/* New Deck Modal */}
+      <Modal isOpen={editingBlockId !== null} onClose={() => setEditingBlockId(null)} title="تعديل محتوى الشريحة" size="lg">
+        <div className="space-y-3 p-1">
+          <textarea value={blockDraft} onChange={(event) => setBlockDraft(event.target.value)} rows={9} className="w-full rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-3" data-testid="slide-block-editor" />
+          <div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setEditingBlockId(null)}>إلغاء</Button><Button variant="primary" onClick={saveBlockEdit} disabled={!blockDraft.trim()} loading={updateBlock.isPending}>حفظ</Button></div>
+        </div>
+      </Modal>
       <Modal
         isOpen={showNewDeckModal}
         onClose={() => setShowNewDeckModal(false)}

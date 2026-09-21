@@ -16,13 +16,9 @@ import type { Runtime } from '../runtime.js';
 import { safeIpcCall } from './errors.js';
 import { validateIpcSender } from '../security.js';
 
-let slideService: SlideService | null = null;
-
 function getService(runtime: Runtime): SlideService {
-  if (!slideService) {
-    slideService = new SlideService(runtime.academicDb!.db);
-  }
-  return slideService;
+  runtime.requireActiveAcademicYear();
+  return new SlideService(runtime.academicDb!.db);
 }
 
 export function registerSlideIpcHandlers(
@@ -171,5 +167,4 @@ export function unregisterSlideIpcHandlers(): void {
   Object.values(IPC_CHANNELS)
     .filter((ch) => typeof ch === 'string' && ch.startsWith('slides:'))
     .forEach((ch) => ipcMain.removeHandler(ch as string));
-  slideService = null;
 }

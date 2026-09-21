@@ -3,6 +3,7 @@ import { AiContentService, SourceContextService } from '../src/index.js';
 import { deflateSync } from 'node:zlib';
 
 const source = { id: 'source-id', title: 'Physics', pageCount: 2, gradeLevel: null, subject: null } as any;
+const slideRequest = { sourceDocumentId: source.id, title: 'Motion', gradeLevel: 'SEC_1' as const, slideCount: 1, detailLevel: 'MODERATE' as const, includeInteractive: false, includeExamples: true, includeSummary: false, theme: 'LIGHT' as const, layoutTemplate: 'SIMPLE_EDUCATIONAL' as const };
 const pdf = Buffer.from('%PDF-1.4\n1 0 obj << /Type /Page >> endobj\nstream\nBT (Newton laws of motion) Tj ET\nendstream\n2 0 obj << /Type /Page >> endobj\nstream\nBT (Force equals mass times acceleration) Tj ET\nendstream');
 
 describe('AI source generation boundary', () => {
@@ -33,7 +34,7 @@ describe('AI source generation boundary', () => {
   it('rejects malformed provider output in Core', async () => {
     const context = new SourceContextService(() => source, async () => ({ data: pdf, mimeType: 'application/pdf' }));
     const service = new AiContentService({ generate: async () => ({ slides: [{ title: 'Missing content' }] }) }, context);
-    await expect(service.generateSlides({ sourceDocumentId: source.id })).rejects.toThrow('استجابة الذكاء الاصطناعي غير صالحة');
+    await expect(service.generateSlides(slideRequest)).rejects.toThrow('استجابة الذكاء الاصطناعي غير صالحة');
   });
 
   it('rejects invented page provenance', async () => {
@@ -70,5 +71,18 @@ describe('AI source generation boundary', () => {
     const result = await service.generateExamFromSource({ sourceDocumentId: source.id }, { mcqCount: 5, writtenCount: 3, questionCount: 8 });
     expect(result.data.questions).toHaveLength(8);
     expect(result.data.questions.filter((question) => question.type === 'MULTIPLE_CHOICE')).toHaveLength(5);
+  });
+
+  it('sends slide settings with actual source text and rejects a short deck', async () => {
+    let seen = '';
+    const context = new SourceContextService(() => source, async () => ({ data: pdf, mimeType: 'application/pdf' }));
+    const service = new AiContentService({ generate: async ({ prompt }) => {
+      seen = prompt;
+      return { slides: [{ title: 'Motion', content: 'Newton laws', sourcePage: 1 }] };
+    } }, context);
+    await expect(service.generateSlides({ sourceDocumentId: source.id, title: 'Motion deck', gradeLevel: 'SEC_1', slideCount: 8, detailLevel: 'DETAILED', includeInteractive: true, includeExamples: true, includeSummary: true, theme: 'DARK', layoutTemplate: 'EXPLAIN_EXAMPLE' })).rejects.toThrow('عدد الشرائح');
+    expect(seen).toContain('Newton laws of motion');
+    expect(seen).toContain('DARK');
+    expect(seen).toContain('EXPLAIN_EXAMPLE');
   });
 });
