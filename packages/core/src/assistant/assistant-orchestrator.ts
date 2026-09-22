@@ -24,7 +24,7 @@ import { executeUndo, type UndoResult } from './undo-layer.js';
 import { buildSafeContext, formatContextForPrompt, type SafeContextPayload } from './context-builder.js';
 import { registerAllAssistantTools } from './tools/index.js';
 import { DEFAULT_TIBYAN_AI_MODEL } from '../ai/model-config.js';
-import { AssistantStructuredResponseSchema } from '@tibyan/contracts';
+import { AssistantStructuredResponseSchema, type AssistantAttachmentDto } from '@tibyan/contracts';
 import { classifyConfirmationPolicy } from './risk-classifier.js';
 
 export interface OrchestratorDeps {
@@ -119,6 +119,7 @@ export class AssistantOrchestrator {
     permissions: string[],
     scope?: string,
     entityId?: string,
+    attachments?: AssistantAttachmentDto[],
   ): Promise<OrchestratorResponse> {
     this.ensureToolsRegistered();
 
@@ -138,7 +139,7 @@ export class AssistantOrchestrator {
       sessionId,
       role: 'user',
       type: 'text',
-      content,
+      content: content || (attachments && attachments.length > 0 ? `استيراد الطلاب من الملف: ${attachments[0]?.fileName}` : ''),
       createdAt: now,
     });
 
@@ -191,10 +192,18 @@ export class AssistantOrchestrator {
     const toolList = listToolsSummary();
     const systemPrompt = this.buildSystemPrompt(context, toolList);
 
+    let userPromptText = content;
+    if (attachments && attachments.length > 0) {
+      const attachmentNote = attachments
+        .map((att) => `[ملف مرفق موثوق: ${att.fileName} (معرف المرفق: ${att.attachmentId}، الحجم: ${Math.round(att.sizeBytes / 1024)} كيلوبايت، النوع: ${att.mimeType})]`)
+        .join('\n');
+      userPromptText = `${content || 'استورد الطلاب الموجودين في هذا الملف'}\n\n${attachmentNote}\nلاستيراد أو فحص بيانات هذا الملف، استدعِ أداة preview_student_import مع attachmentId: "${attachments[0]?.attachmentId}" و fileName: "${attachments[0]?.fileName}".`;
+    }
+
     const conversationContents: Array<{ role: string; parts: Array<{ text: string }> }> = [
       { role: 'user', parts: [{ text: systemPrompt }] },
       ...conversationHistory,
-      { role: 'user', parts: [{ text: content }] },
+      { role: 'user', parts: [{ text: userPromptText }] },
     ];
 
     const generatedMessages: AssistantMessageRow[] = [userMessage];
@@ -572,7 +581,7 @@ export class AssistantOrchestrator {
         sessionId: resolvedSessionId,
         role: 'assistant',
         type: 'confirmation',
-        content: 'تم تأكيد الإجراء وتنفيذه.',
+        content: allSucceeded ? 'تم تأكيد الإجراء وتنفيذه.' : 'فشل تنفيذ بعض أو كل الإجراءات بعد التأكيد.',
         confirmationToken: previewId,
         previewId,
         createdAt: new Date().toISOString(),
@@ -601,12 +610,24 @@ export class AssistantOrchestrator {
     this.pendingConfirmations.delete(previewId);
 
     const toolDef = requireTool(preview.toolName);
+    let receiptContent: string;
+    if (result.success) {
+      if (preview.toolName === 'execute_student_import' && result.receipt?.result) {
+        const importData = result.receipt.result as any;
+        receiptContent = `تم استيراد ${importData.importedCount ?? 0} طالب بنجاح (تم تخطي: ${importData.skippedCount ?? 0}، فشل: ${importData.failedCount ?? 0}).`;
+      } else {
+        receiptContent = `تم تنفيذ ${toolDef.descriptionAr} بنجاح.`;
+      }
+    } else {
+      receiptContent = `فشل التنفيذ: ${result.error || 'حدث خطأ أثناء تنفيذ الإجراء'}`;
+    }
+
     const receiptMsg = this.messageRepo.insert({
       id: crypto.randomUUID(),
       sessionId: resolvedSessionId,
       role: 'assistant',
       type: 'execution-receipt',
-      content: result.success ? `تم تنفيذ ${toolDef.descriptionAr} بنجاح.` : `فشل التنفيذ: ${result.error}`,
+      content: receiptContent,
       receiptId: result.receipt?.id,
       undoAvailable: result.receipt?.undoAvailable ?? false,
       undoToken: result.receipt?.undoToken,
@@ -618,7 +639,7 @@ export class AssistantOrchestrator {
       sessionId: resolvedSessionId,
       role: 'assistant',
       type: 'confirmation',
-      content: 'تم تأكيد الإجراء وتنفيذه.',
+      content: result.success ? 'تم تأكيد الإجراء وتنفيذه.' : 'فشل تنفيذ الإجراء بعد التأكيد.',
       confirmationToken: previewId,
       previewId,
       createdAt: new Date().toISOString(),
@@ -731,7 +752,12 @@ ${toolsList}
    أجب باللغة العربية الطبيعية بصيغة:
    {"type": "reply", "reply": "إجابتك باللغة العربية هنا"}
 6. الإجراءات والتعديلات الحساسة (إنشاء، تعديل، حذف، تسجيل حضور، ماليات) تتطلب دائماً معاينة وتأكيد من المعلم.
-7. أعد دائماً استجابة JSON صالحة فقط، دون نصوص خارج كائن JSON.`;
+7. أعد دائماً استجابة JSON صالحة فقط، دون نصوص خارج كائن JSON.
+8. عند إرفاق ملف للطلاب (Excel أو CSV أو PDF) أو طلب استيراد طلاب من ملف:
+   - استدعِ أولاً أداة preview_student_import مع attachmentId المعطى واسم الملف fileName، لتتم قراءة وفحص محتوى الملف الفعلي فوراً دون تعديل في قاعدة البيانات.
+   - ستعيد الأداة معرف معاينة previewId، وإحصاءات كاملة (totalRows، validCount، duplicateCount، invalidCount)، وقائمة الطلاب المفحوصين.
+   - اعرض للمعلم في الرد ملخصاً واضحاً باللغة العربية ببيانات الطلاب (العدد الإجمالي، الصالح، المكرر، غير الصالح) مع استعراض للبيانات.
+   - ثم اقترح استدعاء execute_student_import مع {"previewId": "..."} لطلب تأكيد المعلم قبل إضافتهم الفعلية إلى النظام.`;
   }
 
   private async callGemini(

@@ -183,4 +183,71 @@ describe('PlatformControlChat UI Component', () => {
 
     expect(html).toContain('تعذر الاتصال بالذكاء الاصطناعي');
   });
+
+  it('renders failed execution receipt as a danger card and NEVER as green success card', () => {
+    const failedMessages: AssistantMessage[] = [
+      {
+        id: '22222222-2222-2222-2222-222222222226',
+        sessionId: mockSession.id,
+        role: 'assistant',
+        type: 'execution-receipt',
+        receiptId: '44444444-4444-4444-4444-444444444445',
+        undoAvailable: false,
+        content: 'فشل التنفيذ: محتوى الملف مفقود',
+        createdAt: new Date().toISOString(),
+      },
+    ];
+
+    vi.spyOn(useAssistantModule, 'useAssistant').mockReturnValue({
+      sessions: [mockSession],
+      currentSession: mockSession,
+      messages: failedMessages,
+      loading: false,
+      sending: false,
+      error: null,
+      createSession: vi.fn(),
+      selectSession: vi.fn(),
+      loadSessions: vi.fn(),
+      loadHistory: vi.fn(),
+      sendMessage: vi.fn(),
+      confirmAction: vi.fn(),
+      cancelAction: vi.fn(),
+      undoAction: vi.fn(),
+      deleteSession: vi.fn(),
+    });
+
+    const html = renderToStaticMarkup(<PlatformControlChat />);
+
+    // Must show failure text and danger header
+    expect(html).toContain('فشل تنفيذ الإجراء');
+    expect(html).toContain('فشل التنفيذ: محتوى الملف مفقود');
+    // MUST NOT contain green success text
+    expect(html).not.toContain('تم التنفيذ بنجاح');
+  });
+
+  it('has file input and paperclip button wired for Excel, CSV and PDF', () => {
+    vi.spyOn(useAssistantModule, 'useAssistant').mockReturnValue({
+      sessions: [mockSession],
+      currentSession: mockSession,
+      messages: [],
+      loading: false,
+      sending: false,
+      error: null,
+      createSession: vi.fn(),
+      selectSession: vi.fn(),
+      loadSessions: vi.fn(),
+      loadHistory: vi.fn(),
+      sendMessage: vi.fn(),
+      confirmAction: vi.fn(),
+      cancelAction: vi.fn(),
+      undoAction: vi.fn(),
+      deleteSession: vi.fn(),
+    });
+
+    const html = renderToStaticMarkup(<PlatformControlChat />);
+
+    expect(html).toContain('data-testid="platform-chat-file-input"');
+    expect(html).toContain('data-testid="platform-chat-attach-btn"');
+    expect(html).toContain('accept=".xlsx,.xls,.csv,.pdf"');
+  });
 });

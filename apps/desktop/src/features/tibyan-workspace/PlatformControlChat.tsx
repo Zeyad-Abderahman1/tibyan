@@ -6,6 +6,7 @@ import {
   User,
   Loader2,
   AlertTriangle,
+  AlertCircle,
   CheckCircle,
   Undo2,
   X,
@@ -13,7 +14,9 @@ import {
   RotateCcw,
   Paperclip,
   FileSpreadsheet,
+  UploadCloud,
 } from 'lucide-react';
+import type { AssistantAttachmentDto } from '@tibyan/contracts';
 import { useAssistant } from '../../hooks/useAssistant.js';
 
 const TOOL_LABELS: Record<string, string> = {
@@ -64,7 +67,11 @@ export interface PlatformControlChatProps {
 
 export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformControlChatProps = {}) {
   const [input, setInput] = useState('');
-  const [attachedFile, setAttachedFile] = useState<{ name: string; base64: string } | null>(null);
+  const [attachment, setAttachment] = useState<AssistantAttachmentDto | null>(null);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounterRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -95,45 +102,109 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, sending]);
 
+  const handleProcessFile = useCallback(async (file: File) => {
+    setFileError(null);
+    const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+    const allowed = ['.xlsx', '.xls', '.csv', '.pdf'];
+    if (!allowed.includes(ext)) {
+      setFileError(`نوع الملف غير مدعوم (${ext}). يُرجى استخدام ملف بصيغة Excel (.xlsx, .xls) أو CSV (.csv) أو PDF (.pdf).`);
+      return;
+    }
+
+    const MAX_SIZE = 15 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      setFileError('حجم الملف كبير جداً. الحد الأقصى المسموح به هو 15 ميجابايت.');
+      return;
+    }
+
+    setUploadingAttachment(true);
+    try {
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const res = (reader.result as string).split(',')[1] || '';
+          resolve(res);
+        };
+        reader.onerror = () => reject(new Error('فشل في قراءة الملف'));
+      });
+      reader.readAsDataURL(file);
+      const base64 = await base64Promise;
+
+      const uploadRes = await window.tibyan.assistant.uploadAttachment({
+        fileName: file.name,
+        fileContentBase64: base64,
+        mimeType: file.type || undefined,
+      });
+
+      if (uploadRes.success) {
+        setAttachment(uploadRes.data);
+      } else {
+        setFileError(uploadRes.error?.message || 'فشل في رفع المرفق');
+      }
+    } catch (err: any) {
+      setFileError(err?.message || 'فشل في معالجة الملف');
+    } finally {
+      setUploadingAttachment(false);
+    }
+  }, []);
+
   const handleAttachFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0]!;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = (reader.result as string).split(',')[1] || '';
-        setAttachedFile({ name: file.name, base64 });
-      };
-      reader.readAsDataURL(file);
+      handleProcessFile(file);
+    }
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (dragCounterRef.current === 1) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
+    setIsDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0]!;
+      handleProcessFile(file);
     }
   };
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
-    if ((!text && !attachedFile) || sending) return;
-    const currentAttachment = attachedFile;
-    const userText = text || (currentAttachment ? `أضف الطلاب الموجودين في الملف (${currentAttachment.name})` : '');
+    if ((!text && !attachment) || sending || uploadingAttachment) return;
+    const currentAttachment = attachment;
+    const userText = text || (currentAttachment ? `استورد الطلاب الموجودين في الملف (${currentAttachment.fileName})، اعرض لي معاينة بالبيانات والأخطاء أو التكرارات قبل الإضافة، وبعد تأكيدي أضف الطلاب الصالحين فقط.` : '');
     setInput('');
-    setAttachedFile(null);
+    setAttachment(null);
+    setFileError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
 
     try {
-      let messageContent = userText;
-      if (currentAttachment) {
-        try {
-          const previewRes = await window.tibyan.students.importPreview({
-            fileContentBase64: currentAttachment.base64,
-            fileName: currentAttachment.name,
-          });
-          if (previewRes.success && previewRes.data) {
-            const prev = previewRes.data;
-            messageContent = `${userText}\n\n[ملف مرفق: ${currentAttachment.name} - يتضمن ${prev.validCount} طالب جاهز للإضافة، ${prev.duplicateCount} مكرر]`;
-          }
-        } catch {
-          // Keep base message
-        }
-      }
-
-      const resp = await sendMessage(messageContent, 'PLATFORM_CONTROL', undefined, sessionId || undefined);
+      const attachmentsToSend = currentAttachment ? [currentAttachment] : undefined;
+      const resp = await sendMessage(userText, 'PLATFORM_CONTROL', undefined, sessionId || undefined, attachmentsToSend);
       const activeId = resp.messages?.[0]?.sessionId;
       if (activeId && activeId !== sessionId) {
         onSessionCreated?.(activeId);
@@ -141,7 +212,7 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
     } catch {
       // Error handled by hook
     }
-  }, [input, attachedFile, sending, sendMessage, sessionId, onSessionCreated]);
+  }, [input, attachment, sending, uploadingAttachment, sendMessage, sessionId, onSessionCreated]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -167,7 +238,32 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
   };
 
   return (
-    <div className="flex flex-col h-full bg-[var(--color-bg-base)]" dir="rtl">
+    <div
+      className="relative flex flex-col h-full bg-[var(--color-bg-base)]"
+      dir="rtl"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Drag & Drop Visual Overlay */}
+      {isDragging && (
+        <div
+          className="absolute inset-0 z-50 bg-[var(--color-bg-base)]/90 backdrop-blur-sm border-2 border-dashed border-[var(--color-brand-primary)] rounded-2xl flex flex-col items-center justify-center p-6 text-center pointer-events-none transition-all"
+          data-testid="platform-chat-drop-overlay"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-[var(--color-brand-primary-bg)] flex items-center justify-center mb-4">
+            <UploadCloud className="w-8 h-8 text-[var(--color-brand-primary)]" />
+          </div>
+          <p className="text-lg font-bold text-[var(--color-brand-primary)]">
+            أفلت الملف هنا
+          </p>
+          <p className="text-xs text-[var(--color-text-secondary)] mt-1">
+            ندعم ملفات Excel (.xlsx, .xls) و CSV (.csv) و PDF (.pdf) حتى 15 ميجابايت
+          </p>
+        </div>
+      )}
+
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
@@ -245,33 +341,50 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
               )}
 
               {/* Execution Receipt with Undo */}
-              {msg.type === 'execution-receipt' && (
-                <div className="rounded-2xl border border-[var(--color-status-success)] bg-[var(--color-status-success-bg)] p-4 shadow-sm">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-[var(--color-status-success)]" />
-                      <span className="text-xs font-bold text-[var(--color-status-success)]">
-                        تم التنفيذ بنجاح
-                      </span>
+              {msg.type === 'execution-receipt' && (() => {
+                const isFailed = msg.content.startsWith('فشل التنفيذ') || msg.content.startsWith('حدث خطأ');
+                return (
+                  <div
+                    className={`rounded-2xl border p-4 shadow-sm ${
+                      isFailed
+                        ? 'border-[var(--color-status-danger)] bg-[var(--color-status-danger-bg)]'
+                        : 'border-[var(--color-status-success)] bg-[var(--color-status-success-bg)]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        {isFailed ? (
+                          <AlertCircle className="w-4 h-4 text-[var(--color-status-danger)]" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4 text-[var(--color-status-success)]" />
+                        )}
+                        <span
+                          className={`text-xs font-bold ${
+                            isFailed ? 'text-[var(--color-status-danger)]' : 'text-[var(--color-status-success)]'
+                          }`}
+                        >
+                          {isFailed ? 'فشل تنفيذ الإجراء' : 'تم التنفيذ بنجاح'}
+                        </span>
+                      </div>
+                      {!isFailed && msg.undoAvailable && msg.receiptId && msg.undoToken && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleUndo(msg.receiptId!, msg.undoToken!)}
+                          data-testid="undo-action"
+                          className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                        >
+                          <Undo2 className="w-3.5 h-3.5 ml-1" />
+                          تراجع
+                        </Button>
+                      )}
                     </div>
-                    {msg.undoAvailable && msg.receiptId && msg.undoToken && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleUndo(msg.receiptId!, msg.undoToken!)}
-                        data-testid="undo-action"
-                        className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-                      >
-                        <Undo2 className="w-3.5 h-3.5 ml-1" />
-                        تراجع
-                      </Button>
-                    )}
+                    <p className="text-sm text-[var(--color-text-primary)] whitespace-pre-wrap">
+                      {msg.content}
+                    </p>
                   </div>
-                  <p className="text-sm text-[var(--color-text-primary)] whitespace-pre-wrap">
-                    {msg.content}
-                  </p>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Undo Result Notification */}
               {msg.type === 'undo-result' && (
@@ -332,15 +445,45 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
       {/* Composer */}
       <div className="border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-4">
         <div className="max-w-3xl mx-auto space-y-2">
-          {/* Attachment Chip */}
-          {attachedFile && (
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-[var(--color-brand-subtle)] text-[var(--color-brand-primary)] rounded-lg text-xs font-medium w-fit border border-[var(--color-brand-primary)]/20">
-              <FileSpreadsheet className="w-4 h-4" />
-              <span>{attachedFile.name}</span>
+          {/* Removable Attachment Chip */}
+          {attachment && (
+            <div className="flex items-center gap-2 mb-2 p-2 rounded-xl bg-[var(--color-bg-sunken)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-primary)] animate-fadeIn">
+              <FileSpreadsheet className="w-4 h-4 text-[var(--color-brand-primary)] flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <span className="font-semibold truncate block">{attachment.fileName}</span>
+                <span className="text-[10px] text-[var(--color-text-secondary)]">
+                  {Math.round(attachment.sizeBytes / 1024)} كيلوبايت — جاهز للاستيراد
+                </span>
+              </div>
               <button
-                onClick={() => setAttachedFile(null)}
-                className="p-0.5 hover:bg-black/10 rounded mr-1"
+                type="button"
+                onClick={() => setAttachment(null)}
+                className="p-1 hover:bg-[var(--color-bg-base)] rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-status-danger)] transition-colors"
                 title="إزالة الملف"
+                data-testid="remove-attachment-btn"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {uploadingAttachment && (
+            <div className="flex items-center gap-2 mb-2 p-2 rounded-xl bg-[var(--color-bg-sunken)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-secondary)]">
+              <Loader2 className="w-4 h-4 animate-spin text-[var(--color-brand-primary)]" />
+              <span>جاري فحص ورفع المرفق بأمان...</span>
+            </div>
+          )}
+
+          {fileError && (
+            <div className="flex items-center justify-between gap-2 mb-2 p-2 rounded-xl bg-[var(--color-status-danger-bg)] border border-[var(--color-status-danger)] text-xs text-[var(--color-status-danger)]">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{fileError}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFileError(null)}
+                className="p-1 hover:bg-black/5 rounded text-[var(--color-status-danger)]"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -381,7 +524,7 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
               variant="primary"
               size="sm"
               onClick={handleSend}
-              disabled={(!input.trim() && !attachedFile) || sending}
+              disabled={(!input.trim() && !attachment) || sending || uploadingAttachment}
               className="rounded-xl h-10 w-10 p-0 flex items-center justify-center flex-shrink-0"
               data-testid="platform-chat-send"
             >

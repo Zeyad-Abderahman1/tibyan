@@ -178,6 +178,8 @@ import {
   CreateSessionInput,
   ConfirmationInput,
   UndoInput,
+  AssistantAttachmentDto,
+  UploadAssistantAttachmentInput,
 } from '../models/assistant.dto.js';
 import type { ExamGenerationRequest, SlidesGenerationRequest, ReviewGenerationRequest, NotesGenerationRequest, GeneratedExamContent, ReviewArtifactDto, NotesArtifactDto, ReviewGenerationResult, NotesGenerationResult } from '../models/ai-generation.dto.js';
 import {
@@ -413,6 +415,7 @@ export interface TibyanApi {
     getSession(sessionId: string): Promise<IpcResult<AssistantSession>>;
     deleteSession(sessionId: string): Promise<IpcResult<void>>;
     sendMessage(input: SendMessageInput): Promise<IpcResult<AssistantResponse>>;
+    uploadAttachment(input: UploadAssistantAttachmentInput): Promise<IpcResult<AssistantAttachmentDto>>;
     getHistory(sessionId: string, cursor?: string): Promise<IpcResult<ConversationHistory>>;
     confirmAction(input: ConfirmationInput): Promise<IpcResult<AssistantResponse>>;
     cancelAction(previewId: string): Promise<IpcResult<void>>;

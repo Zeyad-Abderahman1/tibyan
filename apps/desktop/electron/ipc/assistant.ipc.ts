@@ -1,11 +1,15 @@
 import { ipcMain, type BrowserWindow } from 'electron';
 import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
 import {
   IPC_CHANNELS,
   SendMessageInputSchema,
   CreateSessionInputSchema,
   ConfirmationInputSchema,
   UndoInputSchema,
+  UploadAssistantAttachmentInputSchema,
+  type AssistantAttachmentDto,
   GRADE_LEVEL_DEFINITIONS,
   EDUCATION_SYSTEM_DEFINITIONS,
   LANGUAGE_TRACK_DEFINITIONS,
@@ -16,6 +20,41 @@ import type { Runtime } from '../runtime.js';
 import { safeIpcCall } from './errors.js';
 import { validateIpcSender } from '../security.js';
 import { archiveLessonPlanWithUndo, undoArchivedLessonPlan } from './assistant-lesson-plan-undo.js';
+
+interface StoredAttachment {
+  attachmentId: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  buffer: Buffer;
+  createdAt: number;
+}
+
+export const attachmentStore = new Map<string, StoredAttachment>();
+
+interface CachedPreviewRows {
+  previewId: string;
+  rows: any[];
+  fileName?: string;
+  createdAt: number;
+}
+
+export const previewRowsCache = new Map<string, CachedPreviewRows>();
+
+const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+function cleanupExpiredState() {
+  const now = Date.now();
+  for (const [id, item] of attachmentStore.entries()) {
+    if (now - item.createdAt > TWO_HOURS_MS) {
+      attachmentStore.delete(id);
+    }
+  }
+  for (const [id, item] of previewRowsCache.entries()) {
+    if (now - item.createdAt > TWO_HOURS_MS) {
+      previewRowsCache.delete(id);
+    }
+  }
+}
 
 export function getOrchestrator(runtime: Runtime): AssistantOrchestrator {
   if (!runtime.assistantOrchestrator) {
@@ -88,11 +127,27 @@ export function getOrchestrator(runtime: Runtime): AssistantOrchestrator {
             changes: [{ field: 'fileName', label: 'اسم الملف', after: input.fileName }],
           });
         } else if (toolName === 'execute_student_import') {
-          const rows = Array.isArray(input.approvedRows ?? input.rows) ? ((input.approvedRows ?? input.rows) as any[]) : [];
+          let rowsCount = 0;
+          let previewFileName = '';
+          if (input.previewId && typeof input.previewId === 'string') {
+            const cached = previewRowsCache.get(input.previewId);
+            if (cached) {
+              const validRows = cached.rows.filter((r) => r.status === 'READY' || r.selected);
+              rowsCount = validRows.length;
+              previewFileName = cached.fileName ?? '';
+            }
+          }
+          const rawArr = (input.approvedRows ?? input.rows) as unknown[] | undefined;
+          if (rowsCount === 0 && Array.isArray(rawArr)) {
+            rowsCount = rawArr.length;
+          }
           items.push({
-            entityLabel: `استيراد ${rows.length} طالب`,
+            entityLabel: `استيراد ${rowsCount} طالب صالح${previewFileName ? ` من ملف ${previewFileName}` : ''}`,
             changeKind: 'create',
-            changes: [{ field: 'count', label: 'عدد الطلاب المعتمدين', after: rows.length }],
+            changes: [
+              { field: 'count', label: 'عدد الطلاب الصالحين للاستيراد', after: rowsCount },
+              ...(input.previewId ? [{ field: 'previewId', label: 'معرف المعاينة', after: input.previewId }] : []),
+            ],
           });
         } else if (toolName === 'update_group') {
           items.push({
@@ -289,23 +344,68 @@ export function getOrchestrator(runtime: Runtime): AssistantOrchestrator {
           }
           if (toolName === 'preview_student_import' && runtime.academicDb) {
             const service = new StudentImportService(runtime.academicDb.db);
-            let buffer: Buffer;
-            if (input.fileContentBase64) {
+            let buffer: Buffer | undefined;
+            let fileName = (input.fileName as string) || 'students.xlsx';
+
+            if (input.attachmentId && typeof input.attachmentId === 'string') {
+              const att = attachmentStore.get(input.attachmentId);
+              if (att) {
+                buffer = att.buffer;
+                fileName = att.fileName;
+              } else {
+                return { success: false, error: 'المرفق غير موجود أو انتهت صلاحيته' };
+              }
+            } else if (input.fileContentBase64) {
               buffer = Buffer.from(input.fileContentBase64 as string, 'base64');
             } else if (input.filePath && typeof input.filePath === 'string') {
               buffer = fs.readFileSync(input.filePath);
-            } else {
+            }
+
+            if (!buffer) {
               return { success: false, error: 'محتوى الملف مفقود' };
             }
-            const preview = await service.parseAndPreview(buffer, (input.fileName as string) || 'students.xlsx');
-            return { success: true, data: preview };
+
+            const preview = await service.parseAndPreview(buffer, fileName);
+            const previewId = crypto.randomUUID();
+            previewRowsCache.set(previewId, {
+              previewId,
+              rows: preview.rows,
+              fileName,
+              createdAt: Date.now(),
+            });
+
+            return {
+              success: true,
+              data: {
+                previewId,
+                fileName: preview.fileName,
+                totalRows: preview.totalRows,
+                validCount: preview.validCount,
+                duplicateCount: preview.duplicateCount,
+                warningCount: preview.warningCount,
+                invalidCount: preview.invalidCount,
+                rows: preview.rows,
+              },
+            };
           }
           if (toolName === 'execute_student_import' && runtime.academicDb) {
             const service = new StudentImportService(runtime.academicDb.db);
-            const rawRows = (input.approvedRows ?? input.rows ?? []) as any[];
+            let rawRows: any[] = [];
+            if (input.previewId && typeof input.previewId === 'string') {
+              const cached = previewRowsCache.get(input.previewId);
+              if (cached) {
+                rawRows = cached.rows.filter((r: any) => r.status === 'READY' || r.selected);
+              }
+            }
+            if (rawRows.length === 0 && Array.isArray(input.approvedRows ?? input.rows)) {
+              rawRows = (input.approvedRows ?? input.rows) as any[];
+            }
+            if (rawRows.length === 0) {
+              return { success: false, error: 'لا توجد بيانات طلاب صالحة للاستيراد من المعاينة' };
+            }
             const result = await service.executeImport({ rows: rawRows }, actor);
             return {
-              success: true,
+              success: result.importedCount > 0 || (result.skippedCount > 0 && result.failedCount === 0),
               data: result,
               undoSnapshot: { kind: 'import_students', studentIds: result.importedStudentIds },
             };
@@ -1041,6 +1141,53 @@ export function registerAssistantIpcHandlers(runtime: Runtime, mainWindow: Brows
     });
   });
 
+  ipcMain.handle(IPC_CHANNELS.ASSISTANT_UPLOAD_ATTACHMENT, async (event, payload) => {
+    if (!validateIpcSender(event, mainWindow)) throw new Error('UNAUTHORIZED_IPC_SENDER');
+    return safeIpcCall(async () => {
+      runtime.requireAuthenticatedActor();
+      cleanupExpiredState();
+
+      const input = UploadAssistantAttachmentInputSchema.parse(payload);
+      const ext = path.extname(input.fileName).toLowerCase();
+      const allowedExts = ['.xlsx', '.xls', '.csv', '.pdf'];
+      if (!allowedExts.includes(ext)) {
+        throw new Error(`نوع الملف غير مدعوم (${ext}). يُرجى رفع ملف بصيغة Excel (.xlsx, .xls) أو CSV (.csv) أو PDF (.pdf).`);
+      }
+
+      const buffer = Buffer.from(input.fileContentBase64, 'base64');
+      const MAX_SIZE_BYTES = 15 * 1024 * 1024; // 15MB
+      if (buffer.length > MAX_SIZE_BYTES) {
+        throw new Error('حجم الملف كبير جداً. الحد الأقصى المسموح به هو 15 ميجابايت.');
+      }
+
+      const attachmentId = crypto.randomUUID();
+      let mimeType = input.mimeType || 'application/octet-stream';
+      if (ext === '.xlsx') mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      else if (ext === '.xls') mimeType = 'application/vnd.ms-excel';
+      else if (ext === '.csv') mimeType = 'text/csv';
+      else if (ext === '.pdf') mimeType = 'application/pdf';
+
+      attachmentStore.set(attachmentId, {
+        attachmentId,
+        fileName: input.fileName,
+        mimeType,
+        sizeBytes: buffer.length,
+        buffer,
+        createdAt: Date.now(),
+      });
+
+      const attachmentDto: AssistantAttachmentDto = {
+        attachmentId,
+        fileName: input.fileName,
+        mimeType,
+        sizeBytes: buffer.length,
+        purpose: 'student_import',
+      };
+
+      return attachmentDto;
+    });
+  });
+
   ipcMain.handle(IPC_CHANNELS.ASSISTANT_SEND_MESSAGE, async (event, payload) => {
     if (!validateIpcSender(event, mainWindow)) throw new Error('UNAUTHORIZED_IPC_SENDER');
     return safeIpcCall(async () => {
@@ -1056,6 +1203,7 @@ export function registerAssistantIpcHandlers(runtime: Runtime, mainWindow: Brows
         actor.permissions ?? [],
         input.context?.scope,
         input.context?.entityId,
+        input.attachments,
       );
     });
   });
@@ -1089,6 +1237,7 @@ export function registerAssistantIpcHandlers(runtime: Runtime, mainWindow: Brows
   ipcMain.handle(IPC_CHANNELS.ASSISTANT_CANCEL_ACTION, async (event, previewId) => {
     if (!validateIpcSender(event, mainWindow)) throw new Error('UNAUTHORIZED_IPC_SENDER');
     return safeIpcCall(() => {
+      previewRowsCache.delete(previewId);
       getOrchestrator(runtime).cancelAction(previewId);
       return undefined;
     });

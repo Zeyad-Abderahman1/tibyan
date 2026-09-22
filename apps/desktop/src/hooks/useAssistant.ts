@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import type { AssistantSession, AssistantMessage, AssistantResponse } from '@tibyan/contracts';
+import type { AssistantSession, AssistantMessage, AssistantResponse, AssistantAttachmentDto } from '@tibyan/contracts';
 
 export interface UseAssistantReturn {
   sessions: AssistantSession[];
@@ -12,7 +12,13 @@ export interface UseAssistantReturn {
   selectSession: (sessionId: string) => Promise<void>;
   loadSessions: () => Promise<void>;
   loadHistory: (sessionId: string) => Promise<void>;
-  sendMessage: (content: string, scope?: string, entityId?: string, explicitSessionId?: string) => Promise<AssistantResponse>;
+  sendMessage: (
+    content: string,
+    scope?: string,
+    entityId?: string,
+    explicitSessionId?: string,
+    attachments?: AssistantAttachmentDto[],
+  ) => Promise<AssistantResponse>;
   confirmAction: (previewId: string, confirmed: boolean, explicitSessionId?: string) => Promise<void>;
   cancelAction: (previewId: string) => Promise<void>;
   undoAction: (receiptId: string, undoToken: string, explicitSessionId?: string) => Promise<void>;
@@ -74,7 +80,13 @@ export function useAssistant(): UseAssistantReturn {
   }, [loadHistory]);
 
   const sendMessage = useCallback(
-    async (content: string, scope?: string, entityId?: string, explicitSessionId?: string): Promise<AssistantResponse> => {
+    async (
+      content: string,
+      scope?: string,
+      entityId?: string,
+      explicitSessionId?: string,
+      attachments?: AssistantAttachmentDto[],
+    ): Promise<AssistantResponse> => {
       let activeSession = currentSessionRef.current || currentSession;
       let sessionId = explicitSessionId || activeSession?.id;
       if (!sessionId) {
@@ -94,6 +106,7 @@ export function useAssistant(): UseAssistantReturn {
         role: 'user',
         type: 'text',
         content,
+        attachments,
         createdAt: new Date().toISOString(),
       };
 
@@ -107,6 +120,7 @@ export function useAssistant(): UseAssistantReturn {
         const result = await window.tibyan.assistant.sendMessage({
           sessionId,
           content,
+          attachments,
           context: scope ? { scope: scope as any, entityId } : undefined,
         });
 

@@ -8,12 +8,30 @@ export type AssistantMessageRole = z.infer<typeof AssistantMessageRoleSchema>;
 export const AssistantMessageTypeSchema = z.enum(['text', 'tool-call', 'tool-result', 'preview', 'confirmation', 'execution-receipt', 'undo-result', 'error']);
 export type AssistantMessageType = z.infer<typeof AssistantMessageTypeSchema>;
 
+export const AssistantAttachmentSchema = z.object({
+  attachmentId: z.string().uuid(),
+  fileName: z.string(),
+  mimeType: z.string(),
+  sizeBytes: z.number(),
+  purpose: z.string().optional(),
+});
+export type AssistantAttachmentDto = z.infer<typeof AssistantAttachmentSchema>;
+
+export const UploadAssistantAttachmentInputSchema = z.object({
+  fileName: z.string().min(1).max(255),
+  fileContentBase64: z.string().min(1),
+  mimeType: z.string().optional(),
+});
+export type UploadAssistantAttachmentInput = z.infer<typeof UploadAssistantAttachmentInputSchema>;
+
 export const AssistantMessageSchema = z.object({
   id: z.string().uuid(),
   sessionId: z.string().uuid(),
   role: AssistantMessageRoleSchema,
   type: AssistantMessageTypeSchema,
   content: z.string(),
+  success: z.boolean().optional(),
+  attachments: z.array(AssistantAttachmentSchema).optional(),
   toolCallId: z.string().uuid().optional(),
   toolName: z.string().optional(),
   toolInput: z.unknown().optional(),
@@ -181,6 +199,7 @@ export type AssistantContextInput = z.infer<typeof AssistantContextInputSchema>;
 export const SendMessageInputSchema = z.object({
   sessionId: z.string().uuid(),
   content: z.string().min(1).max(4096),
+  attachments: z.array(AssistantAttachmentSchema).optional(),
   context: AssistantContextInputSchema.optional(),
 });
 export type SendMessageInput = z.infer<typeof SendMessageInputSchema>;

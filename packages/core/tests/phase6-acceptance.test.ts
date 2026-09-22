@@ -9,9 +9,6 @@ import {
 } from '@tibyan/db';
 import {
   GRADE_LEVEL_DEFINITIONS,
-  EDUCATION_SYSTEM_DEFINITIONS,
-  LANGUAGE_TRACK_DEFINITIONS,
-  MATH_BRANCH_DEFINITIONS,
 } from '@tibyan/contracts';
 import { AssistantOrchestrator } from '../src/assistant/assistant-orchestrator.js';
 import { listTools, clearAllTools } from '../src/assistant/tool-registry.js';
@@ -29,7 +26,7 @@ describe('Phase 6 — Full Business Access & Bulk Operations Acceptance', () => 
 
   beforeEach(() => {
     systemDb = openSystemDatabase({ filePath: ':memory:' });
-    academicDb = openAcademicDatabase({ filePath: ':memory:' });
+    academicDb = openAcademicDatabase('2026-2027', { filePath: ':memory:', autoMigrate: true });
     userRepo = new UserRepository(systemDb.db);
     studentRepo = new StudentRepository(academicDb.db);
     groupRepo = new GroupRepository(academicDb.db);

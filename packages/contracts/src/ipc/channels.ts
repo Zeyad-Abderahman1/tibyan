@@ -209,6 +209,7 @@ export const IPC_CHANNELS = {
   ASSISTANT_CANCEL_ACTION: 'assistant:cancelAction',
   ASSISTANT_UNDO_ACTION: 'assistant:undoAction',
   ASSISTANT_GET_TOOLS: 'assistant:getTools',
+  ASSISTANT_UPLOAD_ATTACHMENT: 'assistant:uploadAttachment',
 
   // Slides (Phase 6)
   SLIDES_LIST_DECKS: 'slides:listDecks',

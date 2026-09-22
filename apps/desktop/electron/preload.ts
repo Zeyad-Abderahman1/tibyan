@@ -141,6 +141,8 @@ import {
   type CreateSessionInput,
   type ConfirmationInput,
   type UndoInput,
+  type AssistantAttachmentDto,
+  type UploadAssistantAttachmentInput,
   type SlideDeckDto,
   type SlideDeckWithSlides,
   type CreateSlideDeckInput,
@@ -713,6 +715,9 @@ export const tibyanApi: TibyanApi = {
     },
     sendMessage(input: SendMessageInput): Promise<IpcResult<AssistantResponse>> {
       return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_SEND_MESSAGE, input);
+    },
+    uploadAttachment(input: UploadAssistantAttachmentInput): Promise<IpcResult<AssistantAttachmentDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_UPLOAD_ATTACHMENT, input);
     },
     getHistory(sessionId: string, cursor?: string): Promise<IpcResult<ConversationHistory>> {
       return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_GET_HISTORY, sessionId, cursor);
