@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { PdfViewer } from './PdfViewer.js';
 import { ImportDialog } from './ImportDialog.js';
+import { ContextualDynamicIsland } from '../../components/layout/ContextualDynamicIsland.js';
 
 const GRADE_SYSTEMS = [
   { value: '', label: 'جميع الأنظمة' },
@@ -174,6 +175,43 @@ export function CurriculumLibraryPage() {
     return <PdfViewer documentId={viewingPdfId} onClose={() => setViewingPdfId(null)} />;
   }
 
+  const islandActions = [
+    {
+      id: 'library-view',
+      label: 'المكتبة',
+      icon: BookMarked,
+      active: true,
+      onClick: () => setViewMode('grouped'),
+    },
+    {
+      id: 'import-pdf',
+      label: 'استيراد PDF',
+      icon: Upload,
+      onClick: handleBrowseImport,
+    },
+    {
+      id: 'by-grade',
+      label: 'حسب الصف',
+      icon: Layers,
+      onClick: () => setViewMode('grouped'),
+    },
+    {
+      id: 'by-subject',
+      label: 'حسب المادة',
+      icon: FileText,
+      onClick: () => setViewMode('list'),
+    },
+    {
+      id: 'search',
+      label: 'بحث',
+      icon: Search,
+      onClick: () => {
+        const input = document.querySelector('input[placeholder*="بحث"]') as HTMLInputElement;
+        input?.focus();
+      },
+    },
+  ];
+
   return (
     <div
       className="space-y-4"
@@ -183,6 +221,8 @@ export function CurriculumLibraryPage() {
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
     >
+      {/* Layer 3: Contextual Dynamic Island */}
+      <ContextualDynamicIsland title="مكتبة المناهج" actions={islandActions} />
       {/* Hidden file input */}
       <input
         ref={fileInputRef}

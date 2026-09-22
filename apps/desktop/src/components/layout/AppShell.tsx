@@ -1,21 +1,45 @@
+import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { DynamicIslandShell } from './DynamicIslandShell.js';
-import { WorkspaceStage } from './WorkspaceStage.js';
+import { TopUtilityBar } from './TopUtilityBar.js';
+import { RightMainSidebar } from './RightMainSidebar.js';
 
+/**
+ * AppShell:
+ * Coordinates the 4-layer approved desktop architecture:
+ * Layer 1: Top Utility Bar (Identity, Academic Year, Teacher Identity, Theme, Logout)
+ * Layer 2: Right Collapsible Main Navigation (Physical RIGHT in RTL, 8 primary sections)
+ * Layer 3: Contextual Dynamic Island (Rendered inside each page workspace)
+ * Layer 4: Main Workspace (Authoritative single scrolling container)
+ */
 export function AppShell() {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   return (
     <div
       className="h-screen w-full bg-[var(--color-bg-app)] text-[var(--color-text-primary)] flex flex-col overflow-hidden selection:bg-[var(--color-brand-primary)] selection:text-white"
       dir="rtl"
       data-testid="app-shell"
     >
-      {/* Floating Dynamic Island Navigation Header */}
-      <DynamicIslandShell />
+      {/* Layer 1: Top Utility Bar */}
+      <TopUtilityBar />
 
-      {/* Open, Spacious Workspace Stage */}
-      <WorkspaceStage>
-        <Outlet />
-      </WorkspaceStage>
+      {/* Main Container: Right Sidebar + Authoritative Workspace Stage */}
+      <div className="flex-1 flex min-h-0 overflow-hidden" dir="rtl">
+        {/* Layer 4: Authoritative Scrollable Workspace */}
+        <main
+          className={`flex-1 min-h-0 overflow-y-auto overscroll-y-contain py-5 max-w-[1600px] w-full mx-auto focus:outline-none transition-all duration-200 ${
+            isSidebarCollapsed ? 'px-6 sm:px-10 lg:px-14' : 'px-4 sm:px-7 lg:px-10'
+          }`}
+          tabIndex={-1}
+          role="main"
+          data-testid="workspace-stage"
+        >
+          <Outlet />
+        </main>
+
+        {/* Layer 2: Right Collapsible Main Navigation (Physically on the right in RTL flex layout) */}
+        <RightMainSidebar onCollapsedChange={setIsSidebarCollapsed} />
+      </div>
     </div>
   );
 }

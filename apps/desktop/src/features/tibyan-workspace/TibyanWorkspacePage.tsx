@@ -1,6 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
-import { Button } from '@tibyan/design-system';
-import { Bot, Plus, Trash2, MessageSquare, FileText, Presentation, BookOpen, StickyNote, Settings } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  MessageSquare,
+  FileText,
+  Presentation,
+  BookOpen,
+  StickyNote,
+  Settings,
+  History,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import {
   useCreateTaskSession,
   useTibyanConversation,
@@ -16,6 +27,8 @@ import { SlidesToolUI } from './SlidesToolUI.js';
 import { ReviewToolUI } from './ReviewToolUI.js';
 import { NotesToolUI } from './NotesToolUI.js';
 import { PlatformControlChat } from './PlatformControlChat.js';
+import { ContextualDynamicIsland } from '../../components/layout/ContextualDynamicIsland.js';
+import { TibyanBrand, Button, cn } from '@tibyan/design-system';
 
 const TASK_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   EXAM: FileText,
@@ -24,14 +37,6 @@ const TASK_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   NOTES: StickyNote,
   PLATFORM_CONTROL: Settings,
 };
-
-const CAPABILITIES = [
-  { task: 'EXAM' as TaskType, label: 'إنشاء اختبار', icon: FileText },
-  { task: 'SLIDES' as TaskType, label: 'إنشاء شرائح', icon: Presentation },
-  { task: 'REVIEW' as TaskType, label: 'إنشاء مراجعة', icon: BookOpen },
-  { task: 'NOTES' as TaskType, label: 'إنشاء مذكرة', icon: StickyNote },
-  { task: 'PLATFORM_CONTROL' as TaskType, label: 'التحكم في المنصة', icon: Settings },
-];
 
 const SUGGESTION_PROMPTS = [
   { task: 'EXAM' as TaskType, prompt: 'إنشاء اختبار من المنهج' },
@@ -65,6 +70,7 @@ export function TibyanWorkspacePage() {
   const qc = useQueryClient();
   const [activeTask, setActiveTask] = useState<TaskType | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const createSessionMutation = useCreateTaskSession();
@@ -99,6 +105,7 @@ export function TibyanWorkspacePage() {
       setActiveTask(session.contextScope as TaskType);
     }
     setActiveSessionId(sessionId);
+    setIsHistoryOpen(false);
   };
 
   const handleSelectCapability = (task: TaskType) => {
@@ -127,169 +134,221 @@ export function TibyanWorkspacePage() {
     handleNewSession(task);
   };
 
-  return (
-    <div className="h-full flex" dir="rtl" data-testid="page-tibyan-workspace">
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {!activeTask ? (
-          /* Welcome / Empty State */
-          <div className="flex-1 flex flex-col items-center justify-center px-8">
-            <div className="w-20 h-20 rounded-3xl bg-[var(--color-brand-primary-bg)] flex items-center justify-center mb-6">
-              <Bot className="w-10 h-10 text-[var(--color-brand-primary)]" />
-            </div>
-            <h1 className="text-3xl font-bold text-[var(--color-text-primary)] mb-2">تبيان</h1>
-            <p className="text-base text-[var(--color-text-secondary)] mb-8 max-w-md text-center">
-              مساعدك الذكي لإدارة العمل التعليمي
-            </p>
+  // Approved Dynamic Island items for Tibyan:
+  // رئيسي, إنشاء اختبار, إنشاء شرائح, إنشاء مراجعة, إنشاء مذكرة, التحكم في المنصة, السجل
+  const islandActions = [
+    {
+      id: 'home',
+      label: 'رئيسي',
+      icon: Sparkles,
+      active: activeTask === null,
+      onClick: () => {
+        setActiveTask(null);
+        setActiveSessionId(null);
+      },
+    },
+    {
+      id: 'exam',
+      label: 'إنشاء اختبار',
+      icon: FileText,
+      active: activeTask === 'EXAM',
+      onClick: () => handleSelectCapability('EXAM'),
+    },
+    {
+      id: 'slides',
+      label: 'إنشاء شرائح',
+      icon: Presentation,
+      active: activeTask === 'SLIDES',
+      onClick: () => handleSelectCapability('SLIDES'),
+    },
+    {
+      id: 'review',
+      label: 'إنشاء مراجعة',
+      icon: BookOpen,
+      active: activeTask === 'REVIEW',
+      onClick: () => handleSelectCapability('REVIEW'),
+    },
+    {
+      id: 'notes',
+      label: 'إنشاء مذكرة',
+      icon: StickyNote,
+      active: activeTask === 'NOTES',
+      onClick: () => handleSelectCapability('NOTES'),
+    },
+    {
+      id: 'platform-control',
+      label: 'التحكم في المنصة',
+      icon: Settings,
+      active: activeTask === 'PLATFORM_CONTROL',
+      onClick: () => handleSelectCapability('PLATFORM_CONTROL'),
+    },
+    {
+      id: 'history',
+      label: 'السجل',
+      icon: History,
+      badge: (sessions || []).length || undefined,
+      onClick: () => setIsHistoryOpen((prev) => !prev),
+    },
+  ];
 
-            {/* Suggestion prompts */}
-            <div className="grid grid-cols-2 gap-3 max-w-lg w-full">
-              {SUGGESTION_PROMPTS.map((s) => {
-                const Icon = TASK_ICONS[s.task] || MessageSquare;
-                return (
-                  <button
-                    key={s.task}
-                    onClick={() => handleSuggestionClick(s.task)}
-                    className="p-4 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-elevated)] text-right transition-colors group"
-                    data-testid={`suggestion-${s.task}`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Icon className="w-4 h-4 text-[var(--color-brand-primary)]" />
-                      <span className="text-xs font-bold text-[var(--color-brand-primary)]">
-                        {TASK_DEFINITIONS[s.task]?.labelAr}
-                      </span>
-                    </div>
-                    <p className="text-sm text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)] transition-colors">
-                      {s.prompt}
-                    </p>
-                  </button>
-                );
-              })}
+  return (
+    <div className="relative h-full flex flex-col min-h-0 space-y-4" dir="rtl" data-testid="page-tibyan-workspace">
+      {/* Layer 3: Contextual Dynamic Island for Tibyan AI Tools */}
+      <ContextualDynamicIsland title="مساعد تِبيان الذكي" actions={islandActions} />
+
+      {/* Main Tibyan Workspace Canvas */}
+      <div className="relative flex-1 flex min-h-0 overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]">
+        {/* Main Content Viewport */}
+        <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto">
+          {!activeTask ? (
+            /* Home / Centered Welcome State */
+            <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center select-none" data-testid="tibyan-home-view">
+              <div className="mb-4">
+                <TibyanBrand size="lg" showWordmark={false} />
+              </div>
+              <h1 className="text-3xl font-extrabold text-[var(--color-text-primary)] mb-2 tracking-tight">
+                تِبيان
+              </h1>
+              <p className="text-sm text-[var(--color-text-secondary)] mb-8 max-w-md mx-auto leading-relaxed">
+                مساعدك الذكي المتكامل لإدارة الحصص والطلاب والاختبارات والمناهج التعليمية
+              </p>
+
+              {/* Suggestion Prompts Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 max-w-xl w-full">
+                {SUGGESTION_PROMPTS.map((s) => {
+                  const Icon = TASK_ICONS[s.task] || MessageSquare;
+                  return (
+                    <button
+                      key={s.task}
+                      onClick={() => handleSuggestionClick(s.task)}
+                      className="p-4 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface-subtle)]/60 hover:bg-[var(--color-bg-surface-subtle)] text-right transition-all group flex items-start gap-3 shadow-2xs hover:shadow-xs"
+                      data-testid={`suggestion-${s.task}`}
+                    >
+                      <div className="p-2 rounded-lg bg-[var(--color-brand-primary)]/10 text-[var(--color-brand-primary)] dark:bg-[#5CE1E6]/15 dark:text-[#5CE1E6] shrink-0 mt-0.5">
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-[var(--color-brand-primary)] dark:text-[#5CE1E6] mb-0.5">
+                          {TASK_DEFINITIONS[s.task]?.labelAr}
+                        </span>
+                        <p className="text-xs text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)] transition-colors">
+                          {s.prompt}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ) : activeTask === 'PLATFORM_CONTROL' ? (
-          /* Platform Control: Normal Chat */
-          <PlatformControlChat
-            sessionId={activeSessionId}
-            onSessionCreated={(id) => {
+          ) : activeTask === 'PLATFORM_CONTROL' ? (
+            /* Platform Control: Clean Chat Viewport */
+            <PlatformControlChat
+              sessionId={activeSessionId}
+              onSessionCreated={(id) => {
+                setActiveSessionId(id);
+                qc.invalidateQueries({ queryKey: tibyanKeys.history() });
+              }}
+            />
+          ) : (
+            /* Dedicated Tool UI: EXAM / SLIDES / REVIEW / NOTES */
+            renderToolUI(activeTask, activeSessionId, (id) => {
               setActiveSessionId(id);
               qc.invalidateQueries({ queryKey: tibyanKeys.history() });
-            }}
-          />
-        ) : (
-          /* Dedicated Tool UI: EXAM / SLIDES / REVIEW / NOTES */
-          renderToolUI(activeTask, activeSessionId, (id) => {
-            setActiveSessionId(id);
-            qc.invalidateQueries({ queryKey: tibyanKeys.history() });
-          })
-        )}
-      </div>
+            })
+          )}
+        </div>
 
-      {/* Right sidebar: Capabilities + History */}
-      <div className="w-72 border-r border-[var(--color-border-subtle)] bg-[var(--color-bg-sunken)] flex flex-col" dir="rtl" data-testid="tibyan-right-sidebar">
-        {/* Header */}
-        <div className="p-4 border-b border-[var(--color-border-subtle)]">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-xl bg-[var(--color-brand-primary-bg)] flex items-center justify-center">
-              <Bot className="w-4 h-4 text-[var(--color-brand-primary)]" />
-            </div>
-            <span className="text-sm font-bold text-[var(--color-text-primary)]">تبيان</span>
-          </div>
-          <Button
-            variant="primary"
-            size="sm"
-            className="w-full"
-            onClick={() => {
-              setActiveTask(null);
-              setActiveSessionId(null);
-            }}
-            data-testid="btn-new-session"
+        {/* Lightweight History Drawer (Left/Overlay, accessible via Island 'السجل') */}
+        {isHistoryOpen && (
+          <aside
+            className="absolute inset-y-0 start-0 w-80 bg-[var(--color-bg-surface)] border-e border-[var(--color-border-subtle)] shadow-xl z-30 flex flex-col animate-in slide-in-from-left duration-200"
+            data-testid="tibyan-history-drawer"
+            aria-label="سجل محادثات وأدوات تِبيان"
           >
-            <Plus className="w-4 h-4 ml-1" />
-            رئيسي
-          </Button>
-        </div>
+            {/* Drawer Header */}
+            <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-[var(--color-brand-primary)] dark:text-[#5CE1E6]" />
+                <span className="text-sm font-bold text-[var(--color-text-primary)]">سجل المهام</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsHistoryOpen(false)}
+                className="p-1 rounded-md text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-subtle)]"
+                aria-label="إغلاق السجل"
+                data-testid="close-history-drawer-btn"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-        {/* Capabilities */}
-        <div className="p-3">
-          <h3 className="text-xs font-bold text-[var(--color-text-secondary)] mb-2 px-1">
-            الأدوات
-          </h3>
-          <div className="space-y-1">
-            {CAPABILITIES.map((cap) => {
-              const Icon = cap.icon;
-              const isActive = activeTask === cap.task;
-              return (
-                <button
-                  key={cap.task}
-                  onClick={() => handleSelectCapability(cap.task)}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
-                    isActive
-                      ? 'bg-[var(--color-brand-primary-bg)] text-[var(--color-brand-primary)] font-medium'
-                      : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-text-primary)]'
-                  }`}
-                  data-testid={`capability-${cap.task}`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {cap.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+            {/* History Sessions List */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+              {(sessions || []).length === 0 ? (
+                <div className="p-6 text-center text-xs text-[var(--color-text-muted)]">
+                  لا يوجد سجل جلسات سابقة بعد
+                </div>
+              ) : (
+                (sessions || []).map((session) => {
+                  const TaskIcon = TASK_ICONS[session.contextScope || ''] || MessageSquare;
+                  const taskDef = TASK_DEFINITIONS[(session.contextScope || '') as TaskType];
+                  const isActive = session.id === activeSessionId;
 
-        {/* Divider */}
-        <div className="mx-3 border-t border-[var(--color-border-subtle)]" />
-
-        {/* History */}
-        <div className="flex-1 overflow-y-auto p-3">
-          <h3 className="text-xs font-bold text-[var(--color-text-secondary)] mb-2 px-1">
-            السجل
-          </h3>
-          <div className="space-y-1">
-            {(sessions || []).length === 0 ? (
-              <p className="text-xs text-[var(--color-text-tertiary)] px-1 py-2">
-                لا يوجد سجل بعد
-              </p>
-            ) : (
-              (sessions || []).map((session) => {
-                const TaskIcon = TASK_ICONS[session.contextScope || ''] || MessageSquare;
-                const taskDef = TASK_DEFINITIONS[(session.contextScope || '') as TaskType];
-                const isActive = session.id === activeSessionId;
-                return (
-                  <div
-                    key={session.id}
-                    onClick={() => handleSelectSession(session.id)}
-                    className={`group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-                      isActive
-                        ? 'bg-[var(--color-brand-primary-bg)] ring-1 ring-[var(--color-brand-primary)]'
-                        : 'hover:bg-[var(--color-bg-elevated)]'
-                    }`}
-                    data-testid={`history-item-${session.id}`}
-                  >
-                    <TaskIcon className="w-4 h-4 text-[var(--color-text-secondary)] flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-[var(--color-text-primary)] truncate">
-                        {session.title || taskDef?.labelAr || 'محادثة'}
-                      </p>
-                      <span className="text-[10px] text-[var(--color-text-tertiary)]">
-                        {new Date(session.createdAt).toLocaleDateString('ar-EG')}
-                      </span>
-                    </div>
-                    <button
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[var(--color-status-danger-bg)] text-[var(--color-status-danger)] transition-opacity"
-                      onClick={(e) => handleDeleteSession(e, session.id)}
-                      title="حذف"
-                      data-testid={`delete-history-${session.id}`}
+                  return (
+                    <div
+                      key={session.id}
+                      onClick={() => handleSelectSession(session.id)}
+                      className={cn(
+                        'group flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer transition-colors border',
+                        isActive
+                          ? 'bg-[var(--color-brand-primary)]/10 border-[var(--color-brand-primary)]/30 text-[var(--color-brand-primary)] dark:bg-[#5CE1E6]/10 dark:border-[#5CE1E6]/30 dark:text-[#5CE1E6]'
+                          : 'border-transparent hover:bg-[var(--color-bg-surface-subtle)] text-[var(--color-text-primary)]'
+                      )}
+                      data-testid={`history-item-${session.id}`}
                     >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
+                      <TaskIcon className="w-4 h-4 shrink-0 text-[var(--color-text-secondary)]" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold truncate">
+                          {session.title || taskDef?.labelAr || 'جلسة'}
+                        </p>
+                        <span className="text-[10px] text-[var(--color-text-muted)]">
+                          {new Date(session.createdAt).toLocaleDateString('ar-EG')}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-[var(--color-status-danger-bg)] text-[var(--color-status-danger)] transition-opacity"
+                        onClick={(e) => handleDeleteSession(e, session.id)}
+                        title="حذف الجلسة"
+                        data-testid={`delete-history-${session.id}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Drawer Footer */}
+            <div className="p-3 border-t border-[var(--color-border-subtle)]">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full text-xs"
+                onClick={() => {
+                  setActiveTask(null);
+                  setActiveSessionId(null);
+                  setIsHistoryOpen(false);
+                }}
+                data-testid="btn-new-session"
+              >
+                <Plus className="w-3.5 h-3.5 ms-1" />
+                <span>جلسة جديدة</span>
+              </Button>
+            </div>
+          </aside>
+        )}
       </div>
     </div>
   );

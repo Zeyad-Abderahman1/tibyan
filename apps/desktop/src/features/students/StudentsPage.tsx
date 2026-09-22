@@ -37,6 +37,8 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { StudentCreateModal } from './StudentCreateModal.js';
 import { StudentCardPreviewModal } from './cards/StudentCardPreviewModal.js';
 import { StudentImportModal } from './StudentImportModal.js';
+import { ContextualDynamicIsland } from '../../components/layout/ContextualDynamicIsland.js';
+import { Filter, List } from 'lucide-react';
 
 const SYSTEM_OPTIONS = [
   { value: '', label: 'جميع الأنظمة' },
@@ -167,8 +169,53 @@ export function StudentsPage() {
     setIsCardPreviewOpen(true);
   };
 
+  const islandActions = [
+    {
+      id: 'student-list',
+      label: 'قائمة الطلاب',
+      icon: List,
+      active: true,
+      badge: students.length,
+      onClick: () => {},
+    },
+    ...(canWrite
+      ? [
+          {
+            id: 'add-student',
+            label: 'إضافة طالب',
+            icon: UserPlus,
+            onClick: () => setIsCreateModalOpen(true),
+          },
+          {
+            id: 'import-students',
+            label: 'استيراد طلاب',
+            icon: Upload,
+            onClick: () => setIsImportModalOpen(true),
+          },
+        ]
+      : []),
+    {
+      id: 'print-cards',
+      label: 'طباعة البطاقات',
+      icon: CreditCard,
+      onClick: () => handleOpenAllCards(),
+    },
+    {
+      id: 'filters',
+      label: 'فلاتر',
+      icon: Filter,
+      onClick: () => {
+        const el = document.getElementById('students-filter-bar');
+        el?.scrollIntoView({ behavior: 'smooth' });
+      },
+    },
+  ];
+
   return (
     <div className="space-y-4" data-testid="page-students">
+      {/* Layer 3: Contextual Dynamic Island */}
+      <ContextualDynamicIsland title="شؤون الطلاب" actions={islandActions} />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b border-[var(--color-border-subtle)]">
         <div>

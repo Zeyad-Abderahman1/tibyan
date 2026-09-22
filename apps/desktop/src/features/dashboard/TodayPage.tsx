@@ -7,10 +7,12 @@ import {
   AlertCircle,
   RefreshCw,
   CheckCircle2,
+  Eye,
 } from 'lucide-react';
 import { useTodayDashboard } from '../../hooks/useDashboard.js';
 import { ClassScheduleCard } from './ClassScheduleCard.js';
 import { NeedsAttentionCard } from './NeedsAttentionCard.js';
+import { ContextualDynamicIsland } from '../../components/layout/ContextualDynamicIsland.js';
 
 export function TodayPage() {
   const {
@@ -21,6 +23,22 @@ export function TodayPage() {
     refetch,
     isFetching,
   } = useTodayDashboard();
+
+  const islandActions = [
+    {
+      id: 'overview',
+      label: 'نظرة اليوم',
+      icon: Eye,
+      active: true,
+      onClick: () => {},
+    },
+    {
+      id: 'refresh',
+      label: 'تحديث',
+      icon: RefreshCw,
+      onClick: () => refetch(),
+    },
+  ];
 
   if (isLoading) {
     return (
@@ -37,6 +55,7 @@ export function TodayPage() {
   if (isError || !dashboard) {
     return (
       <div className="space-y-6" data-testid="page-today">
+        <ContextualDynamicIsland title="لوحة اليوم" actions={islandActions} />
         <Card variant="default" className="p-8 text-center space-y-3" data-testid="dashboard-error">
           <AlertCircle className="w-8 h-8 text-[var(--color-status-danger)] mx-auto" />
           <h3 className="text-base font-bold text-[var(--color-text-primary)]">
@@ -59,7 +78,10 @@ export function TodayPage() {
   }
 
   return (
-    <div className="space-y-6" data-testid="page-today">
+    <div className="space-y-5" data-testid="page-today">
+      {/* Layer 3: Contextual Dynamic Island */}
+      <ContextualDynamicIsland title="لوحة اليوم" actions={islandActions} />
+
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[var(--color-border-subtle)]">
         <div>

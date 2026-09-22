@@ -31,6 +31,7 @@ import { CompleteSessionModal } from './CompleteSessionModal.js';
 import { CameraScannerModal } from './CameraScannerModal.js';
 import { ParentFollowUpDrawer } from './ParentFollowUpDrawer.js';
 import { SessionReflectionModal } from './SessionReflectionModal.js';
+import { ContextualDynamicIsland } from '../../components/layout/ContextualDynamicIsland.js';
 
 export function AttendancePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -264,8 +265,33 @@ export function AttendancePage() {
     return () => clearTimeout(timer);
   }, [scannerToast]);
 
+  const islandActions = [
+    {
+      id: 'manual-attendance',
+      label: 'تحضير يدوي',
+      icon: CalendarCheck,
+      active: true,
+      onClick: () => {},
+    },
+    {
+      id: 'qr-scanner',
+      label: 'QR Scanner',
+      icon: QrCode,
+      onClick: () => setIsCameraModalOpen(true),
+    },
+    {
+      id: 'today-log',
+      label: 'سجل اليوم',
+      icon: Clock,
+      onClick: () => setIsFollowUpOpen(true),
+    },
+  ];
+
   return (
     <div className="space-y-6" data-testid="page-attendance" dir="rtl">
+      {/* Layer 3: Contextual Dynamic Island */}
+      <ContextualDynamicIsland title="تحضير الطلاب" actions={islandActions} />
+
       {/* Top Header: Title + Context + Action Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[var(--color-border-subtle)]">
         <div className="space-y-1">

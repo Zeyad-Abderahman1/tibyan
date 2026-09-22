@@ -2,8 +2,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { AppShell } from '../src/components/layout/AppShell.js';
-import { Sidebar, NAV_ITEMS } from '../src/components/layout/Sidebar.js';
-import { Topbar } from '../src/components/layout/Topbar.js';
+import { RightMainSidebar, APPROVED_NAV_ITEMS } from '../src/components/layout/RightMainSidebar.js';
+import { TopUtilityBar } from '../src/components/layout/TopUtilityBar.js';
+import { TeacherAvatar } from '../src/components/layout/TeacherAvatar.js';
+import { ContextualDynamicIsland } from '../src/components/layout/ContextualDynamicIsland.js';
 import { Providers } from '../src/app/providers.js';
 import {
   StudentsPlaceholder,
@@ -11,9 +13,8 @@ import {
   router,
 } from '../src/app/router.js';
 
-describe('Task 11: Desktop App Shell & RTL Navigation Suite', () => {
+describe('Desktop App Shell, RTL Navigation & Contextual Island Suite', () => {
   beforeEach(() => {
-
     // Mock window.tibyan for renderer tests
     (global as any).window = (global as any).window || {};
     (global as any).window.tibyan = {
@@ -42,7 +43,7 @@ describe('Task 11: Desktop App Shell & RTL Navigation Suite', () => {
     };
   });
 
-  it('verifies AppShell root direction is strictly RTL and wraps DynamicIslandShell + WorkspaceStage', () => {
+  it('verifies AppShell root direction is strictly RTL and wraps TopUtilityBar, RightMainSidebar + WorkspaceStage', () => {
     const html = renderToStaticMarkup(
       <Providers>
         <MemoryRouter>
@@ -53,77 +54,124 @@ describe('Task 11: Desktop App Shell & RTL Navigation Suite', () => {
 
     expect(html).toContain('dir="rtl"');
     expect(html).toContain('data-testid="app-shell"');
-    expect(html).toContain('data-testid="dynamic-island-shell"');
+    expect(html).toContain('data-testid="top-utility-bar"');
+    expect(html).toContain('data-testid="right-main-sidebar"');
     expect(html).toContain('data-testid="workspace-stage"');
   });
 
-  it('verifies Sidebar is docked permanently on the right with border-e in RTL', () => {
-    const html = renderToStaticMarkup(
-      <MemoryRouter>
-        <Sidebar />
-      </MemoryRouter>
-    );
-
-    // Sidebar uses w-64, flex-col, and border-e (inline-end border)
-    expect(html).toContain('w-64');
-    expect(html).toContain('border-e');
-    expect(html).toContain('select-none');
-  });
-
-  it('verifies Sidebar renders the exact design-system Logo component and title', () => {
-    const html = renderToStaticMarkup(
-      <MemoryRouter>
-        <Sidebar />
-      </MemoryRouter>
-    );
-
-    // Logo image has alt="تِبيان"
-    expect(html).toContain('alt="تِبيان"');
-    expect(html).toContain('تِبيان');
-    expect(html).toContain('نظام إدارة المعلم');
-  });
-
-  it('verifies Sidebar contains all 4 canonical navigation items with keyboard accessible links', () => {
-    expect(NAV_ITEMS).toHaveLength(4);
-    expect(NAV_ITEMS.map((i) => i.to)).toEqual(['/', '/students', '/groups', '/settings']);
+  it('verifies RightMainSidebar contains exactly the approved 8 primary navigation sections in order', () => {
+    expect(APPROVED_NAV_ITEMS).toHaveLength(8);
+    expect(APPROVED_NAV_ITEMS.map((i) => i.to)).toEqual([
+      '/',
+      '/students',
+      '/groups',
+      '/attendance',
+      '/curriculum-library',
+      '/finance',
+      '/assistant',
+      '/settings',
+    ]);
+    expect(APPROVED_NAV_ITEMS.map((i) => i.label)).toEqual([
+      'اليوم',
+      'الطلاب',
+      'المجموعات',
+      'تحضير الطلاب',
+      'مكتبة المناهج',
+      'المالية',
+      'تِبيان',
+      'الإعدادات',
+    ]);
 
     const html = renderToStaticMarkup(
       <MemoryRouter initialEntries={['/']}>
-        <Sidebar />
+        <RightMainSidebar />
       </MemoryRouter>
     );
 
+    expect(html).toContain('data-testid="right-main-sidebar"');
     expect(html).toContain('اليوم');
     expect(html).toContain('الطلاب');
     expect(html).toContain('المجموعات');
+    expect(html).toContain('تحضير الطلاب');
+    expect(html).toContain('مكتبة المناهج');
+    expect(html).toContain('المالية');
+    expect(html).toContain('تِبيان');
     expect(html).toContain('الإعدادات');
+
+    // Forbidden items verification
+    expect(html).not.toContain('الاختبارات');
+    expect(html).not.toContain('الشرائح');
+    expect(html).not.toContain('Math Engine');
+    expect(html).not.toContain('Gemini');
+  });
+
+  it('verifies RightMainSidebar has collapse/expand control and accessible links', () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter initialEntries={['/']}>
+        <RightMainSidebar />
+      </MemoryRouter>
+    );
+
+    expect(html).toContain('data-testid="sidebar-toggle-btn"');
     expect(html).toContain('role="navigation"');
     expect(html).toContain('focus-visible:ring-2');
   });
 
-  it('verifies Topbar renders without hardcoding any academic year', () => {
-    // Initial render before query resolution must not output a hardcoded fake year
+  it('verifies TopUtilityBar contains 0 primary navigation tabs', () => {
     const html = renderToStaticMarkup(
       <Providers>
-        <Topbar />
+        <MemoryRouter>
+          <TopUtilityBar />
+        </MemoryRouter>
       </Providers>
     );
 
-    // Should not render arbitrary hardcoded years when no settings are pre-populated
-    expect(html).toContain('aria-label="شريط الرأس العلوي"');
-    expect(html).not.toContain('2099-3000');
+    expect(html).toContain('data-testid="top-utility-bar"');
+    expect(html).not.toContain('role="navigation"');
+    // Top bar must not contain primary navigation links
+    expect(html).not.toContain('data-testid="sidebar-item-today"');
+    expect(html).not.toContain('data-testid="sidebar-item-students"');
+  });
+
+  it('verifies TeacherAvatar renders initials or photo gracefully', () => {
+    const initialsHtml = renderToStaticMarkup(
+      <TeacherAvatar name="أحمد محمد" role="OWNER" />
+    );
+    expect(initialsHtml).toContain('data-testid="teacher-avatar"');
+    expect(initialsHtml).toContain('أ');
+
+    const photoHtml = renderToStaticMarkup(
+      <TeacherAvatar name="سارة علي" photoUrl="https://example.com/photo.jpg" />
+    );
+    expect(photoHtml).toContain('<img');
+    expect(photoHtml).toContain('src="https://example.com/photo.jpg"');
+    expect(photoHtml).toContain('object-cover');
+  });
+
+  it('verifies ContextualDynamicIsland renders actions with proper styling and accessible role', () => {
+    const actions = [
+      { id: 'view-1', label: 'نظرة عامة', active: true },
+      { id: 'view-2', label: 'إجراء إضافي', active: false },
+    ];
+    const html = renderToStaticMarkup(
+      <ContextualDynamicIsland title="اختبار جزيرة" actions={actions} />
+    );
+
+    expect(html).toContain('data-testid="contextual-dynamic-island"');
+    expect(html).toContain('role="toolbar"');
+    expect(html).toContain('اختبار جزيرة');
+    expect(html).toContain('نظرة عامة');
+    expect(html).toContain('إجراء إضافي');
   });
 
   it('verifies router uses packaged-Electron-safe HashRouter', () => {
     expect(router).toBeDefined();
-    // Verify router is a HashRouter instance
     expect(router.routes).toBeDefined();
     expect(router.routes.length).toBeGreaterThan(0);
     expect(router.routes[0]?.path).toBe('/');
   });
 
   it('verifies placeholder views contain zero mock data or fake business records', () => {
-    // Root index route is now real TodayPage
     const rootRoute = router.routes[0];
     const todayIndexRoute = rootRoute?.children?.find((c) => c.index === true);
     expect(todayIndexRoute).toBeDefined();
@@ -135,7 +183,6 @@ describe('Task 11: Desktop App Shell & RTL Navigation Suite', () => {
     const settingsHtml = renderToStaticMarkup(<SettingsPlaceholder />);
     expect(settingsHtml).toContain('data-testid="page-settings"');
 
-    // Groups route is now real GroupsPage
     const groupChildRoute = rootRoute?.children?.find((c) => c.path === 'groups');
     expect(groupChildRoute).toBeDefined();
   });
@@ -164,10 +211,12 @@ describe('Task 11: Desktop App Shell & RTL Navigation Suite', () => {
     expect(darkHtml).toContain('data-theme="dark"');
   });
 
-  it('verifies Topbar theme toggle button and action controls exist with accessible labels', () => {
+  it('verifies TopUtilityBar theme toggle button and action controls exist with accessible labels', () => {
     const html = renderToStaticMarkup(
       <Providers>
-        <Topbar />
+        <MemoryRouter>
+          <TopUtilityBar />
+        </MemoryRouter>
       </Providers>
     );
 
