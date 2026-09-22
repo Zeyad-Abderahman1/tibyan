@@ -25,6 +25,9 @@ export function AppShell() {
 
       {/* Main Container: Right Sidebar + Authoritative Workspace Stage */}
       <div className="flex-1 flex min-h-0 overflow-hidden" dir="rtl">
+        {/* Layer 2: first in RTL flex order, therefore physically on the right */}
+        <RightMainSidebar onCollapsedChange={setIsSidebarCollapsed} />
+
         {/* Layer 4: Authoritative Scrollable Workspace */}
         <main
           className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain py-6 px-6 min-[1500px]:px-8 max-w-[1600px] w-full mx-auto focus:outline-none transition-all duration-200"
@@ -35,8 +38,6 @@ export function AppShell() {
           <Outlet />
         </main>
 
-        {/* Layer 2: Right Collapsible Main Navigation (Physically on the right in RTL flex layout) */}
-        <RightMainSidebar onCollapsedChange={setIsSidebarCollapsed} />
       </div>
     </div>
   );

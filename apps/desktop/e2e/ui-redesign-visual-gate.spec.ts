@@ -90,6 +90,66 @@ test.describe('Phase 6 UI Redesign — Visual Verification & Navigation Architec
     await expect(page.locator('[data-testid="right-main-sidebar"]')).toBeVisible();
     await expect(page.locator('[data-testid="teacher-avatar"]')).toBeVisible();
 
+    // Seed the real packaged database: one enrolled active student, one active
+    // unenrolled student, and one active group. The dashboard must count both
+    // students, proving the renderer matches the authoritative service result.
+    const authoritative = await page.evaluate(async () => {
+      const group = await window.tibyan.groups.create({
+        name: 'مجموعة اختبار لوحة اليوم',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'SEC_2',
+        languageTrack: 'ARABIC',
+        defaultPaymentType: 'PER_SESSION',
+        defaultPaymentAmount: 80,
+        schedules: [],
+      });
+      const enrolled = await window.tibyan.students.create({
+        fullName: 'طالب مقيد تجريبي',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'SEC_2',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01000000001',
+      });
+      const unenrolled = await window.tibyan.students.create({
+        fullName: 'طالب نشط غير ملحق بمجموعة',
+        educationSystem: 'GENERAL',
+        gradeLevel: 'SEC_2',
+        languageTrack: 'ARABIC',
+        guardianPhone: '01000000002',
+      });
+      if (!group.success || !group.data || !enrolled.success || !enrolled.data || !unenrolled.success) {
+        throw new Error('Failed to seed authoritative dashboard fixture');
+      }
+      const d = new Date();
+      const effectiveDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      await window.tibyan.enrollments.enroll({
+        groupId: group.data.id,
+        studentId: enrolled.data.id,
+        effectiveDate,
+      });
+      const result = await window.tibyan.dashboard.getToday();
+      if (!result.success || !result.data) throw new Error('Dashboard service read failed');
+      return {
+        students: result.data.totalEnrolledStudents,
+        groups: result.data.activeGroupsCount,
+      };
+    });
+    expect(authoritative).toEqual({ students: 2, groups: 1 });
+    await page.reload();
+    await expect(appShell).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="stat-enrolled-students"]')).toHaveText('2');
+    await expect(page.locator('[data-testid="stat-active-groups"]')).toHaveText('1');
+
+    const sidebar = page.locator('[data-testid="right-main-sidebar"]');
+    const workspace = page.locator('[data-testid="workspace-stage"]');
+    const expandedSidebarBox = await sidebar.boundingBox();
+    const expandedWorkspaceBox = await workspace.boundingBox();
+    expect(expandedSidebarBox).not.toBeNull();
+    expect(expandedWorkspaceBox).not.toBeNull();
+    expect(Math.round(expandedSidebarBox!.width)).toBe(224);
+    expect(expandedSidebarBox!.x).toBeGreaterThan(expandedWorkspaceBox!.x);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
     // 01-light-today-expanded-sidebar.png
     await page.waitForTimeout(600);
     await page.screenshot({ path: path.join(docsDir, '01-light-today-expanded-sidebar.png') });
@@ -98,6 +158,10 @@ test.describe('Phase 6 UI Redesign — Visual Verification & Navigation Architec
     const sidebarToggle = page.locator('[data-testid="sidebar-toggle-btn"]');
     await sidebarToggle.click();
     await page.waitForTimeout(400);
+    const collapsedSidebarBox = await sidebar.boundingBox();
+    const collapsedWorkspaceBox = await workspace.boundingBox();
+    expect(Math.round(collapsedSidebarBox!.width)).toBe(64);
+    expect(collapsedWorkspaceBox!.width).toBeGreaterThan(expandedWorkspaceBox!.width);
     await page.screenshot({ path: path.join(docsDir, '02-light-today-collapsed-sidebar.png') });
     // Expand sidebar back
     await sidebarToggle.click();
@@ -186,11 +250,21 @@ test.describe('Phase 6 UI Redesign — Visual Verification & Navigation Architec
     await page.setViewportSize({ width: 1366, height: 768 });
     await page.locator('[data-testid="sidebar-item-today"]').click();
     await page.waitForTimeout(500);
+    const compactSidebarBox = await sidebar.boundingBox();
+    const compactWorkspaceBox = await workspace.boundingBox();
+    expect(compactSidebarBox!.x).toBeGreaterThan(compactWorkspaceBox!.x);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: path.join(docsDir, '14-1366x768-layout.png') });
+
+    // The longest contextual island remains reachable at the compact target.
+    await page.locator('[data-testid="sidebar-item-assistant"]').click();
+    const island = page.locator('[data-testid="contextual-dynamic-island"]');
+    await expect(island).toBeVisible();
+    expect(await island.evaluate((element) => element.scrollWidth >= element.clientWidth)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
     // 15-1600x900-layout.png
     await page.setViewportSize({ width: 1600, height: 900 });
-    await page.locator('[data-testid="sidebar-item-assistant"]').click();
     await page.waitForTimeout(500);
     await page.screenshot({ path: path.join(docsDir, '15-1600x900-layout.png') });
   });

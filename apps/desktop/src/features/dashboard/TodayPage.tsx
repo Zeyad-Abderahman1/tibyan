@@ -21,7 +21,6 @@ export function TodayPage() {
     isError,
     error,
     refetch,
-    isFetching,
   } = useTodayDashboard();
 
   const islandActions = [
@@ -79,9 +78,6 @@ export function TodayPage() {
 
   return (
     <div className="space-y-5" data-testid="page-today">
-      {/* Layer 3: Contextual Dynamic Island */}
-      <ContextualDynamicIsland title="لوحة اليوم" actions={islandActions} />
-
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[var(--color-border-subtle)]">
         <div>
@@ -99,18 +95,10 @@ export function TodayPage() {
           </p>
         </div>
 
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="gap-2 self-start md:self-auto"
-          data-testid="btn-refresh-dashboard"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
-          <span>تحديث</span>
-        </Button>
       </div>
+
+      {/* Layer 3: Contextual Dynamic Island */}
+      <ContextualDynamicIsland title="لوحة اليوم" actions={islandActions} />
 
       {/* Quick-Stats Strip */}
       <div

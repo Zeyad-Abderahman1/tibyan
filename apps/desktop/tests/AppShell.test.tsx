@@ -59,6 +59,20 @@ describe('Desktop App Shell, RTL Navigation & Contextual Island Suite', () => {
     expect(html).toContain('data-testid="workspace-stage"');
   });
 
+  it('places the primary sidebar before the workspace in RTL flex order so it renders physically on the right', () => {
+    const html = renderToStaticMarkup(
+      <Providers>
+        <MemoryRouter>
+          <AppShell />
+        </MemoryRouter>
+      </Providers>
+    );
+
+    expect(html.indexOf('data-testid="right-main-sidebar"')).toBeLessThan(
+      html.indexOf('data-testid="workspace-stage"')
+    );
+  });
+
   it('verifies RightMainSidebar contains exactly the approved 8 primary navigation sections in order', () => {
     expect(APPROVED_NAV_ITEMS).toHaveLength(8);
     expect(APPROVED_NAV_ITEMS.map((i) => i.to)).toEqual([
