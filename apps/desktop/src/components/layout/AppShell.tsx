@@ -12,7 +12,7 @@ import { RightMainSidebar } from './RightMainSidebar.js';
  * Layer 4: Main Workspace (Authoritative single scrolling container)
  */
 export function AppShell() {
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [, setIsSidebarCollapsed] = useState(false);
 
   return (
     <div
@@ -27,9 +27,7 @@ export function AppShell() {
       <div className="flex-1 flex min-h-0 overflow-hidden" dir="rtl">
         {/* Layer 4: Authoritative Scrollable Workspace */}
         <main
-          className={`flex-1 min-h-0 overflow-y-auto overscroll-y-contain py-5 max-w-[1600px] w-full mx-auto focus:outline-none transition-all duration-200 ${
-            isSidebarCollapsed ? 'px-6 sm:px-10 lg:px-14' : 'px-4 sm:px-7 lg:px-10'
-          }`}
+          className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain py-6 px-6 min-[1500px]:px-8 max-w-[1600px] w-full mx-auto focus:outline-none transition-all duration-200"
           tabIndex={-1}
           role="main"
           data-testid="workspace-stage"

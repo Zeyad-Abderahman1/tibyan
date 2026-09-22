@@ -52,7 +52,7 @@ export function TeacherAvatar({
       className={cn(
         'rounded-full flex items-center justify-center font-bold font-sans shrink-0 border select-none transition-colors shadow-2xs',
         role === 'OWNER'
-          ? 'bg-[var(--color-brand-primary)]/10 text-[var(--color-brand-primary)] border-[var(--color-brand-primary)]/20 dark:bg-[#5CE1E6]/15 dark:text-[#5CE1E6] dark:border-[#5CE1E6]/30'
+          ? 'bg-[var(--color-brand-primary)]/10 text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))] border-[var(--color-brand-primary)]/20'
           : 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
         sizeClasses,
         className

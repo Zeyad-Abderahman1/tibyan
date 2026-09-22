@@ -54,7 +54,7 @@ export function TopUtilityBar({ className }: TopUtilityBarProps) {
   return (
     <header
       className={cn(
-        'h-12 w-full shrink-0 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] px-4 sm:px-6 flex items-center justify-between select-none z-30 transition-colors',
+        'h-[var(--topbar-height)] w-full shrink-0 border-b border-[var(--color-border-subtle)] bg-[var(--color-topbar-background)] px-4 sm:px-6 flex items-center justify-between select-none z-30 transition-colors',
         className
       )}
       aria-label="شريط الأدوات العلوي"
@@ -72,7 +72,7 @@ export function TopUtilityBar({ className }: TopUtilityBarProps) {
             className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--color-bg-surface-subtle)] text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]/70"
             data-testid="active-year-display"
           >
-            <Calendar className="w-3.5 h-3.5 text-[var(--color-brand-primary)] dark:text-[#5CE1E6]" aria-hidden="true" />
+            <Calendar className="w-3.5 h-3.5 text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))]" aria-hidden="true" />
             <span className="text-[11px] text-[var(--color-text-muted)] font-normal">العام:</span>
             <span className="font-semibold text-[var(--color-text-primary)] font-mono num-isolate text-xs">
               {activeAcademicYearName}

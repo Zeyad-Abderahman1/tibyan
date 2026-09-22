@@ -88,7 +88,7 @@ export function RightMainSidebar({ className, onCollapsedChange }: RightMainSide
   return (
     <aside
       className={cn(
-        'h-full shrink-0 flex flex-col justify-between border-s border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] select-none transition-all duration-300 z-20',
+        'h-full shrink-0 flex flex-col justify-between border-s border-[var(--color-border-subtle)] bg-[var(--color-sidebar-background)] select-none transition-all duration-300 z-20',
         isCollapsed ? 'w-16' : 'w-56',
         className
       )}
@@ -148,7 +148,7 @@ export function RightMainSidebar({ className, onCollapsedChange }: RightMainSide
                     'group flex items-center rounded-xl text-xs md:text-sm font-medium transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-accent)]',
                     isCollapsed ? 'justify-center p-2.5' : 'gap-3 px-3.5 py-2.5',
                     navActive
-                      ? 'bg-[var(--color-brand-primary)] text-white shadow-xs dark:bg-[#1F6E68] dark:text-white font-semibold'
+                      ? 'bg-[var(--color-sidebar-active)] text-white shadow-xs font-semibold'
                       : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-black/[0.04] dark:hover:bg-white/[0.05]'
                   )
                 }

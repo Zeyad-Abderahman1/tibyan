@@ -34,14 +34,14 @@ export function ContextualDynamicIsland({
   return (
     <div
       className={cn(
-        'w-full flex items-center justify-between gap-3 py-1 select-none',
+        'w-full h-[var(--context-island-height)] flex items-center justify-between gap-3 select-none',
         className
       )}
       data-testid="contextual-dynamic-island"
     >
       <div
         className={cn(
-          'inline-flex items-center gap-1.5 p-1.5 rounded-2xl transition-all duration-200 overflow-x-auto max-w-full scrollbar-none',
+          'h-full inline-flex items-center gap-1.5 px-1.5 rounded-xl transition-all duration-200 overflow-x-auto max-w-full scrollbar-none',
           'bg-[var(--color-bg-island-fallback,#FFFFFF)] dark:bg-[var(--color-bg-island-fallback,#0F1F24)]',
           'supports-[backdrop-filter]:bg-[var(--color-bg-island)] supports-[backdrop-filter]:backdrop-blur-md',
           'border border-[var(--color-border-island)] shadow-[var(--shadow-island)]'
@@ -67,9 +67,9 @@ export function ContextualDynamicIsland({
                 onClick={action.onClick}
                 data-testid={`island-action-${action.id}`}
                 className={cn(
-                  'relative inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-accent)]',
+                  'relative h-9 inline-flex items-center gap-2 px-3 rounded-lg text-sm font-medium transition-all duration-150 shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]',
                   isActive
-                    ? 'bg-[var(--color-brand-primary)] text-white shadow-2xs dark:bg-[#5CE1E6] dark:text-[#0A1417] font-semibold'
+                    ? 'bg-[var(--color-brand-primary)] text-white shadow-2xs font-semibold'
                     : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-black/[0.04] dark:hover:bg-white/[0.06]'
                 )}
               >
@@ -78,7 +78,7 @@ export function ContextualDynamicIsland({
                 {action.badge !== undefined && (
                   <span className={cn(
                     'px-1.5 py-0.2 rounded-full text-[10px] font-mono',
-                    isActive ? 'bg-white/20 text-white dark:bg-black/20 dark:text-black' : 'bg-[var(--color-bg-surface-subtle)] text-[var(--color-text-muted)]'
+                    isActive ? 'bg-white/20 text-white' : 'bg-[var(--color-bg-surface-subtle)] text-[var(--color-text-muted)]'
                   )}>
                     {action.badge}
                   </span>

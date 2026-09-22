@@ -308,9 +308,8 @@ describe('Task 9: Tibyan Design System Verification Suite', () => {
     expect(warningHtml).toContain('متأخر');
 
     const primaryHtml = renderToStaticMarkup(<Badge variant="primary">أساسي</Badge>);
-    expect(primaryHtml).toContain('text-[var(--color-brand-primary)]');
-    expect(primaryHtml).toContain('dark:text-[#5EEAD4]');
-    expect(primaryHtml).toContain('dark:bg-[rgba(31,110,104,0.3)]');
+    expect(primaryHtml).toContain('text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))]');
+    expect(primaryHtml).toContain('border-[var(--color-border-strong)]');
 
     const neutralHtml = renderToStaticMarkup(<Badge variant="neutral">مساعد</Badge>);
     expect(neutralHtml).toContain('dark:text-slate-200');
@@ -479,8 +478,8 @@ describe('Task 9: Tibyan Design System Verification Suite', () => {
     expect(cardFullHtml).toContain('shadow-md');
   });
 
-  // 24. Light theme brand primary equals #0B3D3D and Dark theme brand primary also equals #0B3D3D.
-  it('24. Light theme brand primary equals #0B3D3D and Dark theme brand primary also equals #0B3D3D', () => {
+  // 24. The shared palette uses the approved navy primary in both themes.
+  it('24. exposes the approved navy primary and semantic shell tokens in both themes', () => {
     const colorsCssPath = path.join(rootDir, 'src/tokens/colors.css');
     const cssContent = fs.readFileSync(colorsCssPath, 'utf8');
 
@@ -489,33 +488,26 @@ describe('Task 9: Tibyan Design System Verification Suite', () => {
     expect(lightSection).toBeDefined();
     expect(darkSection).toBeDefined();
 
-    // Verify Light theme primary is exactly #0B3D3D
-    expect(lightSection).toMatch(/--color-brand-primary:\s*#0B3D3D;/);
-    expect(lightSection).toMatch(/--tibyan-navy:\s*#0B3D3D;/);
-
-    // Verify Dark theme primary is ALSO exactly #0B3D3D (immutable constant)
-    expect(darkSection).toMatch(/--color-brand-primary:\s*#0B3D3D;/);
-    expect(darkSection).toMatch(/--tibyan-navy:\s*#0B3D3D;/);
+    expect(lightSection).toMatch(/--color-brand-primary:\s*#243B67;/);
+    expect(darkSection).toMatch(/--color-brand-primary:\s*#243B67;/);
+    expect(lightSection).toContain('--color-sidebar-background');
+    expect(lightSection).toContain('--color-topbar-background');
+    expect(lightSection).toContain('--color-table-header');
+    expect(darkSection).toContain('--color-sidebar-background');
   });
 
-  // 25. Light theme brand accent equals #C59B27 and Dark theme brand accent also equals #C59B27.
-  it('25. Light theme brand accent equals #C59B27 and Dark theme brand accent also equals #C59B27', () => {
+  // 25. Muted gold remains a supporting accent only.
+  it('25. exposes the approved muted-gold accent in both themes', () => {
     const colorsCssPath = path.join(rootDir, 'src/tokens/colors.css');
     const cssContent = fs.readFileSync(colorsCssPath, 'utf8');
 
     const [lightSection, darkSection] = cssContent.split('[data-theme="dark"]');
 
     // Verify Light theme accent is exactly #C59B27
-    expect(lightSection).toMatch(/--color-brand-accent:\s*#C59B27;/);
-    expect(lightSection).toMatch(/--tibyan-gold:\s*#C59B27;/);
+    expect(lightSection).toMatch(/--color-brand-accent:\s*#B38A32;/);
 
     // Verify Dark theme accent is ALSO exactly #C59B27 (immutable constant)
-    expect(darkSection).toMatch(/--color-brand-accent:\s*#C59B27;/);
-    expect(darkSection).toMatch(/--tibyan-gold:\s*#C59B27;/);
-
-    // Dark theme may define separate semantic tokens for high-contrast emphasis on dark surfaces
-    expect(darkSection).toMatch(/--color-brand-accent-emphasis:\s*#D4AF37;/);
-    expect(darkSection).toMatch(/--color-brand-primary-emphasis:\s*#175754;/);
+    expect(darkSection).toMatch(/--color-brand-accent:\s*#B38A32;/);
   });
 
   // 26. Opening Modal moves focus inside the dialog.

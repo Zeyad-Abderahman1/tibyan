@@ -268,7 +268,7 @@ export function TibyanWorkspacePage() {
             {/* Drawer Header */}
             <div className="p-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <History className="w-4 h-4 text-[var(--color-brand-primary)] dark:text-[#5CE1E6]" />
+                <History className="w-4 h-4 text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))]" />
                 <span className="text-sm font-bold text-[var(--color-text-primary)]">سجل المهام</span>
               </div>
               <button
@@ -301,7 +301,7 @@ export function TibyanWorkspacePage() {
                       className={cn(
                         'group flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer transition-colors border',
                         isActive
-                          ? 'bg-[var(--color-brand-primary)]/10 border-[var(--color-brand-primary)]/30 text-[var(--color-brand-primary)] dark:bg-[#5CE1E6]/10 dark:border-[#5CE1E6]/30 dark:text-[#5CE1E6]'
+                          ? 'bg-[var(--color-brand-primary)]/10 border-[var(--color-brand-primary)]/30 text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))]'
                           : 'border-transparent hover:bg-[var(--color-bg-surface-subtle)] text-[var(--color-text-primary)]'
                       )}
                       data-testid={`history-item-${session.id}`}

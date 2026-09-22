@@ -158,7 +158,7 @@ export function TodayPage() {
         {/* Stat 3: Active Groups */}
         <Card variant="default" className="p-4 flex items-center gap-3.5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
           <div className="w-10 h-10 rounded-[var(--radius-md)] bg-[var(--color-bg-surface-subtle)] border border-[var(--color-border-subtle)] flex items-center justify-center shrink-0">
-            <BookOpen className="w-5 h-5 text-[#0B3D3D] dark:text-[#5CE1E6]" />
+            <BookOpen className="w-5 h-5 text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))]" />
           </div>
           <div className="min-w-0">
             <span className="text-xs text-[var(--color-text-muted)] block truncate">
@@ -212,10 +212,10 @@ export function TodayPage() {
           {dashboard.classes.length === 0 ? (
             <Card
               variant="default"
-              className="p-8 text-center space-y-2 text-[var(--color-text-secondary)]"
+              className="min-h-36 p-5 flex flex-col items-center justify-center text-center space-y-2 text-[var(--color-text-secondary)]"
               data-testid="dashboard-classes-empty"
             >
-              <Clock className="w-10 h-10 text-[var(--color-text-muted)] mx-auto" />
+              <Clock className="w-8 h-8 text-[var(--color-text-muted)] mx-auto" />
               <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
                 لا توجد حصص مجدولة لليوم
               </h3>
@@ -251,10 +251,10 @@ export function TodayPage() {
           {dashboard.needsAttention.length === 0 ? (
             <Card
               variant="default"
-              className="p-8 text-center space-y-2 text-[var(--color-text-secondary)]"
+              className="min-h-36 p-5 flex flex-col items-center justify-center text-center space-y-2 text-[var(--color-text-secondary)]"
               data-testid="dashboard-attention-empty"
             >
-              <CheckCircle2 className="w-10 h-10 text-[var(--color-status-success)] mx-auto" />
+              <CheckCircle2 className="w-8 h-8 text-[var(--color-status-success)] mx-auto" />
               <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
                 لا توجد حالات تحتاج متابعة
               </h3>
