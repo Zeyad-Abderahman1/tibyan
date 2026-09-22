@@ -32,6 +32,7 @@ import { StudentResultPage } from '../features/analytics/StudentResultPage.js';
 import { TibyanWorkspacePage } from '../features/tibyan-workspace/TibyanWorkspacePage.js';
 import { SlidesPage } from '../features/slides/SlidesPage.js';
 import { CurriculumLibraryPage } from '../features/curriculum-library/CurriculumLibraryPage.js';
+import { StartupLoadingScreen } from '../components/feedback/StartupLoadingScreen.js';
 
 
 /**
@@ -116,18 +117,7 @@ export function RootLayout() {
 
   // 2. Authoritative resolution loading / splash state
   if (isSetupLoading || isSessionLoading) {
-    return (
-      <div
-        className="h-screen w-screen flex items-center justify-center bg-[var(--color-bg-app)] text-[var(--color-text-primary)]"
-        dir="rtl"
-        data-testid="app-loading"
-      >
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-[var(--color-brand-primary)] border-t-transparent animate-spin" />
-          <span className="text-sm text-[var(--color-text-secondary)] font-medium">جاري تشغيل تِبيان...</span>
-        </div>
-      </div>
-    );
+    return <StartupLoadingScreen />;
   }
 
   // 3. If setup is incomplete, render FirstRunWizard
