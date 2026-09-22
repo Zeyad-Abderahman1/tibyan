@@ -34,9 +34,6 @@ export interface ToolExecutionResult {
 const registeredTools = new Map<string, ToolDefinition>();
 
 export function registerTool(definition: ToolDefinition): void {
-  if (registeredTools.has(definition.name)) {
-    throw new Error(`TOOL_ALREADY_REGISTERED: ${definition.name}`);
-  }
   if (definition.riskLevel === 'prohibited') {
     throw new Error(`PROHIBITED_TOOLS_CANNOT_BE_REGISTERED: ${definition.name}`);
   }

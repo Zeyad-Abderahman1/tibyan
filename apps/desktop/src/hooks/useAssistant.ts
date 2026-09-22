@@ -12,10 +12,10 @@ export interface UseAssistantReturn {
   selectSession: (sessionId: string) => Promise<void>;
   loadSessions: () => Promise<void>;
   loadHistory: (sessionId: string) => Promise<void>;
-  sendMessage: (content: string, scope?: string, entityId?: string) => Promise<AssistantResponse>;
-  confirmAction: (previewId: string, confirmed: boolean) => Promise<void>;
+  sendMessage: (content: string, scope?: string, entityId?: string, explicitSessionId?: string) => Promise<AssistantResponse>;
+  confirmAction: (previewId: string, confirmed: boolean, explicitSessionId?: string) => Promise<void>;
   cancelAction: (previewId: string) => Promise<void>;
-  undoAction: (receiptId: string, undoToken: string) => Promise<void>;
+  undoAction: (receiptId: string, undoToken: string, explicitSessionId?: string) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
 }
 
@@ -27,34 +27,28 @@ export function useAssistant(): UseAssistantReturn {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const messagesRef = useRef<AssistantMessage[]>([]);
+  const currentSessionRef = useRef<AssistantSession | null>(null);
 
   const loadSessions = useCallback(async () => {
     const result = await window.tibyan.assistant.listSessions();
-    if (result.success) setSessions(result.data);
+    if (result.success) {
+      setSessions(result.data);
+    }
   }, []);
 
   const createSession = useCallback(async (title?: string, scope?: string, entityId?: string) => {
-    const result = await window.tibyan.assistant.createSession({ title, context: scope ? { scope: scope as any, entityId } : undefined });
+    const result = await window.tibyan.assistant.createSession({
+      title,
+      context: scope ? { scope: scope as any, entityId } : undefined,
+    });
     if (!result.success) throw new Error(result.error?.message ?? 'فشل إنشاء الجلسة');
     const session = result.data;
+    currentSessionRef.current = session;
     setSessions((prev) => [session, ...prev]);
     setCurrentSession(session);
     setMessages([]);
     messagesRef.current = [];
     return session;
-  }, []);
-
-  const selectSession = useCallback(async (sessionId: string) => {
-    setLoading(true);
-    try {
-      const result = await window.tibyan.assistant.getSession(sessionId);
-      if (result.success) {
-        setCurrentSession(result.data);
-        await loadHistory(sessionId);
-      }
-    } finally {
-      setLoading(false);
-    }
   }, []);
 
   const loadHistory = useCallback(async (sessionId: string) => {
@@ -65,94 +59,226 @@ export function useAssistant(): UseAssistantReturn {
     }
   }, []);
 
-  const sendMessage = useCallback(async (content: string, scope?: string, entityId?: string) => {
-    if (!currentSession) {
-      await createSession(undefined, scope, entityId);
-    }
-    const sessionsResult = await window.tibyan.assistant.listSessions();
-    const sessionId = currentSession?.id ?? (sessionsResult.success ? sessionsResult.data[0]?.id : undefined);
-    if (!sessionId) throw new Error('لا توجد جلسة نشطة');
-
-    setSending(true);
-    setError(null);
+  const selectSession = useCallback(async (sessionId: string) => {
+    setLoading(true);
     try {
-      const result = await window.tibyan.assistant.sendMessage({
+      const result = await window.tibyan.assistant.getSession(sessionId);
+      if (result.success) {
+        currentSessionRef.current = result.data;
+        setCurrentSession(result.data);
+        await loadHistory(sessionId);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [loadHistory]);
+
+  const sendMessage = useCallback(
+    async (content: string, scope?: string, entityId?: string, explicitSessionId?: string): Promise<AssistantResponse> => {
+      let activeSession = currentSessionRef.current || currentSession;
+      let sessionId = explicitSessionId || activeSession?.id;
+      if (!sessionId) {
+        activeSession = await createSession(scope === 'PLATFORM_CONTROL' ? 'التحكم في المنصة' : undefined, scope, entityId);
+        sessionId = activeSession.id;
+      }
+      if (!sessionId) throw new Error('لا توجد جلسة نشطة');
+
+      setSending(true);
+      setError(null);
+
+      // Optimistic user message so teacher immediately sees their submission
+      const optimisticMsgId = crypto.randomUUID();
+      const optimisticMsg: AssistantMessage = {
+        id: optimisticMsgId,
         sessionId,
+        role: 'user',
+        type: 'text',
         content,
-        context: scope ? { scope: scope as any, entityId } : undefined,
+        createdAt: new Date().toISOString(),
+      };
+
+      setMessages((prev) => {
+        const next = [...prev, optimisticMsg];
+        messagesRef.current = next;
+        return next;
       });
 
-      if (result.success) {
-        const response = result.data;
-        if (response.message) {
-          setMessages((prev) => [...prev, response.message!]);
-          messagesRef.current = [...messagesRef.current, response.message!];
-        }
-        return response;
-      }
-      throw new Error(result.error?.message ?? 'فشل إرسال الرسالة');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'خطأ غير متوقع';
-      setError(msg);
-      throw err;
-    } finally {
-      setSending(false);
-    }
-  }, [currentSession, createSession]);
+      try {
+        const result = await window.tibyan.assistant.sendMessage({
+          sessionId,
+          content,
+          context: scope ? { scope: scope as any, entityId } : undefined,
+        });
 
-  const confirmAction = useCallback(async (previewId: string, confirmed: boolean) => {
-    setSending(true);
-    try {
-      const result = await window.tibyan.assistant.confirmAction({ previewId, confirmed });
-      if (result.success) {
-        const response = result.data;
-        if (response.message) {
-          setMessages((prev) => [...prev, response.message!]);
-          messagesRef.current = [...messagesRef.current, response.message!];
+        if (result.success) {
+          const response = result.data;
+          const returnedMessages = response.messages ?? (response.message ? [response.message] : []);
+
+          setMessages((prev) => {
+            // Remove optimistic message and replace with authoritative persisted messages
+            const withoutOptimistic = prev.filter((m) => m.id !== optimisticMsgId);
+            const existingIds = new Set(withoutOptimistic.map((m) => m.id));
+            const newToAppend = returnedMessages.filter((m) => !existingIds.has(m.id));
+            const updated = [...withoutOptimistic, ...newToAppend];
+            messagesRef.current = updated;
+            return updated;
+          });
+
+          if (!response.success && response.error) {
+            setError(response.error.message);
+          }
+
+          return response;
         }
-        return;
+
+        // Provider/IPC error: keep user message visible and append Arabic error message
+        const errMsgText = result.error?.message ?? 'تعذر الاتصال بخدمة تِبيان الذكية.';
+        setError(errMsgText);
+
+        const errorResponseMsg: AssistantMessage = {
+          id: crypto.randomUUID(),
+          sessionId,
+          role: 'assistant',
+          type: 'error',
+          content: errMsgText,
+          createdAt: new Date().toISOString(),
+        };
+
+        setMessages((prev) => {
+          const updated = [...prev, errorResponseMsg];
+          messagesRef.current = updated;
+          return updated;
+        });
+
+        return {
+          success: false,
+          messages: [optimisticMsg, errorResponseMsg],
+          error: {
+            code: (result.error?.code as any) ?? 'GEMINI_UNAVAILABLE',
+            message: errMsgText,
+          },
+        };
+      } catch (err) {
+        const errMsgText = err instanceof Error ? err.message : 'خطأ غير متوقع';
+        setError(errMsgText);
+
+        const errorResponseMsg: AssistantMessage = {
+          id: crypto.randomUUID(),
+          sessionId,
+          role: 'assistant',
+          type: 'error',
+          content: errMsgText,
+          createdAt: new Date().toISOString(),
+        };
+
+        setMessages((prev) => {
+          const updated = [...prev, errorResponseMsg];
+          messagesRef.current = updated;
+          return updated;
+        });
+
+        return {
+          success: false,
+          messages: [optimisticMsg, errorResponseMsg],
+          error: {
+            code: 'UNKNOWN',
+            message: errMsgText,
+          },
+        };
+      } finally {
+        setSending(false);
       }
-      throw new Error(result.error?.message ?? 'فشل تأكيد الإجراء');
-    } finally {
-      setSending(false);
-    }
-  }, []);
+    },
+    [currentSession, createSession],
+  );
+
+  const confirmAction = useCallback(
+    async (previewId: string, confirmed: boolean, explicitSessionId?: string) => {
+      setSending(true);
+      try {
+        const activeSession = currentSessionRef.current || currentSession;
+        const sessionId = explicitSessionId || activeSession?.id;
+        const result = await window.tibyan.assistant.confirmAction({
+          previewId,
+          confirmed,
+          sessionId,
+        });
+
+        if (result.success) {
+          const response = result.data;
+          const returnedMessages = response.messages ?? (response.message ? [response.message] : []);
+
+          if (returnedMessages.length > 0) {
+            setMessages((prev) => {
+              const existingIds = new Set(prev.map((m) => m.id));
+              const newToAppend = returnedMessages.filter((m) => !existingIds.has(m.id));
+              const updated = [...prev, ...newToAppend];
+              messagesRef.current = updated;
+              return updated;
+            });
+          }
+          return;
+        }
+        throw new Error(result.error?.message ?? 'فشل تأكيد الإجراء');
+      } finally {
+        setSending(false);
+      }
+    },
+    [currentSession],
+  );
 
   const cancelAction = useCallback(async (previewId: string) => {
     await window.tibyan.assistant.cancelAction(previewId);
   }, []);
 
-  const undoAction = useCallback(async (receiptId: string, undoToken: string) => {
-    setSending(true);
-    try {
-      const result = await window.tibyan.assistant.undoAction({ receiptId, undoToken });
-      if (result.success) {
-        const receipt = result.data;
-        const undoMsg: AssistantMessage = {
-          id: crypto.randomUUID(),
-          sessionId: currentSession?.id ?? '',
-          role: 'assistant',
-          type: 'undo-result',
-          content: receipt.success ? 'تم التراجع بنجاح' : `فشل التراجع: ${receipt.error}`,
+  const undoAction = useCallback(
+    async (receiptId: string, undoToken: string, explicitSessionId?: string) => {
+      setSending(true);
+      try {
+        const activeSession = currentSessionRef.current || currentSession;
+        const sessionId = explicitSessionId || activeSession?.id;
+        const result = await window.tibyan.assistant.undoAction({
           receiptId,
-          createdAt: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, undoMsg]);
-      }
-    } finally {
-      setSending(false);
-    }
-  }, [currentSession]);
+          undoToken,
+          sessionId,
+        });
 
-  const deleteSession = useCallback(async (sessionId: string) => {
-    await window.tibyan.assistant.deleteSession(sessionId);
-    setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-    if (currentSession?.id === sessionId) {
-      setCurrentSession(null);
-      setMessages([]);
-      messagesRef.current = [];
-    }
-  }, [currentSession]);
+        if (result.success) {
+          const response = result.data;
+          const returnedMessages = response.messages ?? (response.message ? [response.message] : []);
+
+          if (returnedMessages.length > 0) {
+            setMessages((prev) => {
+              const existingIds = new Set(prev.map((m) => m.id));
+              const newToAppend = returnedMessages.filter((m) => !existingIds.has(m.id));
+              const updated = [...prev, ...newToAppend];
+              messagesRef.current = updated;
+              return updated;
+            });
+          }
+        } else {
+          throw new Error(result.error?.message ?? 'فشل التراجع عن الإجراء');
+        }
+      } finally {
+        setSending(false);
+      }
+    },
+    [currentSession],
+  );
+
+  const deleteSession = useCallback(
+    async (sessionId: string) => {
+      await window.tibyan.assistant.deleteSession(sessionId);
+      setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      if (currentSession?.id === sessionId || currentSessionRef.current?.id === sessionId) {
+        currentSessionRef.current = null;
+        setCurrentSession(null);
+        setMessages([]);
+        messagesRef.current = [];
+      }
+    },
+    [currentSession],
+  );
 
   return {
     sessions,

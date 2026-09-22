@@ -141,7 +141,6 @@ import {
   type CreateSessionInput,
   type ConfirmationInput,
   type UndoInput,
-  type ExecutionReceipt,
   type SlideDeckDto,
   type SlideDeckWithSlides,
   type CreateSlideDeckInput,
@@ -718,14 +717,13 @@ export const tibyanApi: TibyanApi = {
     cancelAction(previewId: string): Promise<IpcResult<void>> {
       return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_CANCEL_ACTION, previewId);
     },
-    undoAction(input: UndoInput): Promise<IpcResult<ExecutionReceipt>> {
+    undoAction(input: UndoInput): Promise<IpcResult<AssistantResponse>> {
       return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_UNDO_ACTION, input);
     },
     getTools(): Promise<IpcResult<Array<{ name: string; description: string; riskLevel: string }>>> {
       return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_GET_TOOLS);
     },
   },
-
   slides: {
     listDecks(): Promise<IpcResult<SlideDeckDto[]>> {
       return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_LIST_DECKS);

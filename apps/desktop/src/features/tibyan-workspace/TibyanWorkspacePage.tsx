@@ -6,9 +6,11 @@ import {
   useTibyanConversation,
   useTibyanHistory,
   useDeleteHistoryItem,
+  tibyanKeys,
   TASK_DEFINITIONS,
   type TaskType,
 } from '../../hooks/useTibyanWorkspace.js';
+import { useQueryClient } from '@tanstack/react-query';
 import { ExamToolUI } from './ExamToolUI.js';
 import { SlidesToolUI } from './SlidesToolUI.js';
 import { ReviewToolUI } from './ReviewToolUI.js';
@@ -38,7 +40,11 @@ const SUGGESTION_PROMPTS = [
   { task: 'NOTES' as TaskType, prompt: 'جهز مذكرة للطلاب' },
 ];
 
-function renderToolUI(taskType: TaskType) {
+function renderToolUI(
+  taskType: TaskType,
+  activeSessionId?: string | null,
+  onSessionCreated?: (id: string) => void
+) {
   switch (taskType) {
     case 'EXAM':
       return <ExamToolUI />;
@@ -49,13 +55,14 @@ function renderToolUI(taskType: TaskType) {
     case 'NOTES':
       return <NotesToolUI />;
     case 'PLATFORM_CONTROL':
-      return <PlatformControlChat />;
+      return <PlatformControlChat sessionId={activeSessionId} onSessionCreated={onSessionCreated} />;
     default:
       return null;
   }
 }
 
 export function TibyanWorkspacePage() {
+  const qc = useQueryClient();
   const [activeTask, setActiveTask] = useState<TaskType | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -162,10 +169,19 @@ export function TibyanWorkspacePage() {
           </div>
         ) : activeTask === 'PLATFORM_CONTROL' ? (
           /* Platform Control: Normal Chat */
-          <PlatformControlChat />
+          <PlatformControlChat
+            sessionId={activeSessionId}
+            onSessionCreated={(id) => {
+              setActiveSessionId(id);
+              qc.invalidateQueries({ queryKey: tibyanKeys.history() });
+            }}
+          />
         ) : (
           /* Dedicated Tool UI: EXAM / SLIDES / REVIEW / NOTES */
-          renderToolUI(activeTask)
+          renderToolUI(activeTask, activeSessionId, (id) => {
+            setActiveSessionId(id);
+            qc.invalidateQueries({ queryKey: tibyanKeys.history() });
+          })
         )}
       </div>
 

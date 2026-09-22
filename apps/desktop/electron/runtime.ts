@@ -134,6 +134,7 @@ export class Runtime {
   public analyticsService: AnalyticsService | null = null;
   public curriculumLibraryService!: CurriculumLibraryService;
   public aiContentService!: AiContentService;
+  public assistantOrchestrator: import('@tibyan/core').AssistantOrchestrator | null = null;
 
   constructor(options: RuntimeOptions = {}) {
 
@@ -357,6 +358,7 @@ export class Runtime {
    * Cleanly closes all database connections and resets state.
    */
   public close(): void {
+    this.assistantOrchestrator = null;
     this.clearSession();
     this.unmountAcademicYear();
     closeSystemDatabase();

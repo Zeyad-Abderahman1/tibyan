@@ -5,6 +5,7 @@ import { SlideService, ReviewService, NotesService } from '@tibyan/core';
 import type { Runtime } from '../runtime.js';
 import { safeIpcCall } from './errors.js';
 import { validateIpcSender } from '../security.js';
+import { getOrchestrator } from './assistant.ipc.js';
 
 function reviewDto(value: ReturnType<ReviewService['createGenerated']>) {
   const { contentJson: _contentJson, ...dto } = value;
@@ -13,28 +14,6 @@ function reviewDto(value: ReturnType<ReviewService['createGenerated']>) {
 function notesDto(value: ReturnType<NotesService['createGenerated']>) {
   const { contentJson: _contentJson, ...dto } = value;
   return NotesArtifactSchema.parse(dto);
-}
-
-// Reuse the same lazy orchestrator pattern from assistant.ipc.ts
-let orchestrator: import('@tibyan/core').AssistantOrchestrator | null = null;
-
-function getOrchestrator(runtime: Runtime): import('@tibyan/core').AssistantOrchestrator {
-  if (!orchestrator) {
-    const { AssistantOrchestrator } = require('@tibyan/core');
-    orchestrator = new AssistantOrchestrator({
-      systemDb: runtime.systemDb,
-      geminiCredentialService: runtime.geminiCredentialService,
-      getActiveAcademicYear: () =>
-        runtime.activeAcademicYear
-          ? { id: runtime.activeAcademicYear.id, name: runtime.activeAcademicYear.name }
-          : null,
-      resolveEntityLabel: async () => null,
-      buildToolPreview: async () => [],
-      executeTool: async () => ({ success: false, error: 'Tool execution not implemented in workspace' }),
-      undoTool: async () => ({ success: false, error: 'Undo not implemented in workspace' }),
-    });
-  }
-  return orchestrator!;
 }
 
 export function registerTibyanWorkspaceIpcHandlers(

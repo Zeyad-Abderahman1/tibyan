@@ -6,6 +6,7 @@ import {
   AssistantConfirmationRepository,
 } from '@tibyan/db';
 import {
+  getTool,
   requireTool,
   listToolsSummary,
   type ToolExecutionContext,
@@ -14,10 +15,12 @@ import {
 import { generatePreview, isPreviewExpired, type PreviewResult, type PreviewItem } from './preview-engine.js';
 import { createConfirmationRecord, type ConfirmationRecord } from './confirmation-workflow.js';
 import { executeConfirmedAction, type ExecutionReceiptRecord, type ExecuteActionDeps } from './execute-audit.js';
-import { executeUndo } from './undo-layer.js';
+import { executeUndo, type UndoResult } from './undo-layer.js';
 import { buildSafeContext, formatContextForPrompt, type SafeContextPayload } from './context-builder.js';
 import { registerAllAssistantTools } from './tools/index.js';
 import { DEFAULT_TIBYAN_AI_MODEL } from '../ai/model-config.js';
+import { AssistantStructuredResponseSchema } from '@tibyan/contracts';
+import { classifyConfirmationPolicy } from './risk-classifier.js';
 
 export interface OrchestratorDeps {
   systemDb: { db: unknown };
@@ -31,21 +34,34 @@ export interface OrchestratorDeps {
   undoTool: (receiptId: string, snapshot: unknown) => Promise<{ success: boolean; error?: string }>;
 }
 
+export interface OrchestratorResponse {
+  success: boolean;
+  messages: AssistantMessageRow[];
+  preview?: PreviewResult;
+  receipt?: ExecutionReceiptRecord;
+  undoResult?: UndoResult;
+  error?: {
+    code: import('@tibyan/contracts').AssistantErrorCode;
+    message: string;
+  };
+}
+
 export class AssistantOrchestrator {
   private readonly sessionRepo: AssistantSessionRepository;
   private readonly messageRepo: AssistantMessageRepository;
   private readonly auditRepo: AssistantAuditRepository;
   private readonly confirmRepo: AssistantConfirmationRepository;
-  private readonly pendingPreviews = new Map<string, PreviewResult>();
+  private readonly pendingPreviews = new Map<string, PreviewResult & { sessionId?: string }>();
   private readonly pendingConfirmations = new Map<string, ConfirmationRecord>();
   private readonly undoSnapshots = new Map<string, unknown>();
   private toolsRegistered = false;
 
   constructor(private readonly deps: OrchestratorDeps) {
-    this.sessionRepo = new AssistantSessionRepository(deps.systemDb);
-    this.messageRepo = new AssistantMessageRepository(deps.systemDb);
-    this.auditRepo = new AssistantAuditRepository(deps.systemDb);
-    this.confirmRepo = new AssistantConfirmationRepository(deps.systemDb);
+    const drizzleDb = (deps.systemDb as any)?.db ?? deps.systemDb;
+    this.sessionRepo = new AssistantSessionRepository(drizzleDb);
+    this.messageRepo = new AssistantMessageRepository(drizzleDb);
+    this.auditRepo = new AssistantAuditRepository(drizzleDb);
+    this.confirmRepo = new AssistantConfirmationRepository(drizzleDb);
   }
 
   private ensureToolsRegistered(): void {
@@ -98,15 +114,17 @@ export class AssistantOrchestrator {
     permissions: string[],
     scope?: string,
     entityId?: string,
-  ): Promise<{
-    messages: AssistantMessageRow[];
-    preview?: PreviewResult;
-    receipt?: ExecutionReceiptRecord;
-  }> {
+  ): Promise<OrchestratorResponse> {
     this.ensureToolsRegistered();
 
     const session = this.sessionRepo.findById(sessionId);
-    if (!session) throw new Error('SESSION_NOT_FOUND');
+    if (!session) {
+      return {
+        success: false,
+        messages: [],
+        error: { code: 'SESSION_NOT_FOUND', message: 'الجلسة غير موجودة' },
+      };
+    }
 
     const now = new Date().toISOString();
 
@@ -146,47 +164,151 @@ export class AssistantOrchestrator {
         content: 'لم يتم تكوين مفتاح الذكاء الاصطناعي. يرجى إعداده من الإعدادات أولاً.',
         createdAt: new Date().toISOString(),
       });
-      return { messages: [userMessage, errorMsg] };
+      return {
+        success: false,
+        messages: [userMessage, errorMsg],
+        error: {
+          code: 'GEMINI_CREDENTIAL_MISSING',
+          message: 'لم يتم تكوين مفتاح الذكاء الاصطناعي. يرجى إعداده من الإعدادات أولاً.',
+        },
+      };
     }
 
     const history = this.messageRepo.listBySession(sessionId, 50);
-    const conversationHistory = history.map((m) => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{ text: m.content }],
-    }));
+    // Exclude the newly inserted userMessage from past history to avoid duplication
+    const conversationHistory = history
+      .filter((m) => m.id !== userMessage.id)
+      .map((m) => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.content }],
+      }));
 
     const toolList = listToolsSummary();
     const systemPrompt = this.buildSystemPrompt(context, toolList);
 
-    const messages = [
+    const conversationContents: Array<{ role: string; parts: Array<{ text: string }> }> = [
       { role: 'user', parts: [{ text: systemPrompt }] },
       ...conversationHistory,
       { role: 'user', parts: [{ text: content }] },
     ];
 
+    const generatedMessages: AssistantMessageRow[] = [userMessage];
+    const MAX_TOOL_STEPS = 8;
+    let stepCount = 0;
+    const executedToolSignatures = new Set<string>();
+
     try {
-      const response = await this.callGemini(geminiApiKey, messages);
+      while (stepCount < MAX_TOOL_STEPS) {
+        const responseText = await this.callGemini(geminiApiKey, conversationContents);
+        const parsedResponse = this.parseStructuredResponse(responseText);
 
-      const parsedResponse = this.parseStructuredResponse(response);
+        if (parsedResponse.type === 'reply' || !parsedResponse.toolCalls || parsedResponse.toolCalls.length === 0) {
+          const replyText = parsedResponse.reply || responseText || 'تمت معالجة طلبك بنجاح.';
+          const assistantMsg = this.messageRepo.insert({
+            id: crypto.randomUUID(),
+            sessionId,
+            role: 'assistant',
+            type: 'text',
+            content: replyText,
+            createdAt: new Date().toISOString(),
+          });
+          generatedMessages.push(assistantMsg);
+          return { success: true, messages: generatedMessages };
+        }
 
-      if (parsedResponse.type === 'reply' && parsedResponse.reply) {
-        const assistantMsg = this.messageRepo.insert({
-          id: crypto.randomUUID(),
-          sessionId,
-          role: 'assistant',
-          type: 'text',
-          content: parsedResponse.reply,
-          createdAt: new Date().toISOString(),
-        });
-        return { messages: [userMessage, assistantMsg] };
-      }
+        // Handle tool calls proposed by the model
+        let reachedConfirmation = false;
+        let anyToolExecuted = false;
 
-      if ((parsedResponse.type === 'tool-call' || parsedResponse.type === 'multi-tool-call') && parsedResponse.toolCalls?.length) {
-        const toolProposal = parsedResponse.toolCalls[0]!;
-        const tool = requireTool(toolProposal.toolName);
+        for (const toolProposal of parsedResponse.toolCalls) {
+          stepCount++;
+          if (stepCount > MAX_TOOL_STEPS) {
+            break;
+          }
 
-        if (tool.riskLevel === 'read-only') {
+          const toolSig = `${toolProposal.toolName}:${JSON.stringify(toolProposal.toolInput ?? {})}`;
+          if (executedToolSignatures.has(toolSig)) {
+            // Abort repetitive tool calls
+            continue;
+          }
+          executedToolSignatures.add(toolSig);
+
+          const tool = getTool(toolProposal.toolName);
+          if (!tool) {
+            conversationContents.push({
+              role: 'user',
+              parts: [{ text: `خطأ: الأداة "${toolProposal.toolName}" غير مسجلة في النظام.` }],
+            });
+            continue;
+          }
+
+          // Permission enforcement
+          if (role !== 'OWNER') {
+            const missing = tool.requiredPermissions.filter((p) => !permissions.includes(p));
+            if (missing.length > 0) {
+              const permErrMsg = `ليس لديك الصلاحيات الكافية لتشغيل أداة ${tool.descriptionAr} (${tool.name}). الصلاحيات المطلوبة: ${missing.join(', ')}`;
+              const errorMsg = this.messageRepo.insert({
+                id: crypto.randomUUID(),
+                sessionId,
+                role: 'assistant',
+                type: 'error',
+                content: permErrMsg,
+                createdAt: new Date().toISOString(),
+              });
+              generatedMessages.push(errorMsg);
+              return {
+                success: false,
+                messages: generatedMessages,
+                error: { code: 'PERMISSION_DENIED', message: permErrMsg },
+              };
+            }
+          }
+
+          const confirmationPolicy = classifyConfirmationPolicy(tool, toolProposal.toolInput);
+          if (confirmationPolicy === 'required') {
+            // Generate preview and pause for user confirmation
+            const preview = await generatePreview(
+              {
+                generateId: () => crypto.randomUUID(),
+                buildPreview: (name, input) => this.deps.buildToolPreview(name, input, toolContext),
+                buildSummary: (name, items) => this.buildPreviewSummary(name, items),
+              },
+              tool,
+              toolProposal.toolInput,
+            );
+
+            const previewWithSession = Object.assign(preview, { sessionId });
+            this.pendingPreviews.set(preview.id, previewWithSession);
+            const confirmation = createConfirmationRecord(preview);
+            this.pendingConfirmations.set(preview.id, confirmation);
+
+            const previewMsg = this.messageRepo.insert({
+              id: crypto.randomUUID(),
+              sessionId,
+              role: 'assistant',
+              type: 'preview',
+              content: preview.summary,
+              toolCallId: crypto.randomUUID(),
+              toolName: toolProposal.toolName,
+              toolInputJson: JSON.stringify(toolProposal.toolInput),
+              confirmationToken: preview.id,
+              previewId: preview.id,
+              createdAt: new Date().toISOString(),
+            });
+
+            generatedMessages.push(previewMsg);
+            reachedConfirmation = true;
+            return {
+              success: true,
+              messages: generatedMessages,
+              preview,
+            };
+          }
+
+          // Execute read-only or immediate action
           const result = await this.deps.executeTool(toolProposal.toolName, toolProposal.toolInput, toolContext);
+          anyToolExecuted = true;
+
           const resultMsg = this.messageRepo.insert({
             id: crypto.randomUUID(),
             sessionId,
@@ -196,82 +318,77 @@ export class AssistantOrchestrator {
             toolCallId: crypto.randomUUID(),
             toolName: toolProposal.toolName,
             toolInputJson: JSON.stringify(toolProposal.toolInput),
-            toolOutputJson: JSON.stringify(result.data),
+            toolOutputJson: JSON.stringify(result.data ?? null),
             createdAt: new Date().toISOString(),
           });
+          generatedMessages.push(resultMsg);
 
-          const followUpPrompt = `أداة ${tool.descriptionAr} أعادت النتيجة التالية:\n${JSON.stringify(result.data)}\n\nرجاءًقدم إجابة موجزة للمستخدم بناءً على هذه النتيجة.`;
-          const followUpMessages = [
-            ...messages,
-            { role: 'model', parts: [{ text: `سأستخدم أداة ${tool.descriptionAr}` }] },
-            { role: 'user', parts: [{ text: followUpPrompt }] },
-          ];
-          const followUpResponse = await this.callGemini(geminiApiKey, followUpMessages);
-          const followUpParsed = this.parseStructuredResponse(followUpResponse);
-
-          const finalMsg = this.messageRepo.insert({
-            id: crypto.randomUUID(),
-            sessionId,
-            role: 'assistant',
-            type: 'text',
-            content: followUpParsed.reply ?? followUpResponse,
-            createdAt: new Date().toISOString(),
+          conversationContents.push({
+            role: 'model',
+            parts: [{ text: JSON.stringify({ type: 'tool-call', toolCalls: [toolProposal] }) }],
           });
-
-          return { messages: [userMessage, resultMsg, finalMsg] };
+          conversationContents.push({
+            role: 'user',
+            parts: [
+              {
+                text: `أعادت أداة ${tool.descriptionAr} (${tool.name}) النتيجة التالية:\n${JSON.stringify(result.data ?? result.error)}\n\nإذا كنت بحاجة لمعلومات أخرى استدعِ أداة أخرى، وإلا لخص وقدم الإجابة النهائية للمعلم باللغة العربية.`,
+              },
+            ],
+          });
         }
 
-        const preview = await generatePreview(
+        if (reachedConfirmation) {
+          break;
+        }
+
+        if (!anyToolExecuted) {
+          // No executable tools proposed; terminate loop
+          break;
+        }
+      }
+
+      // If loop finished through tool executions, solicit final synthesis if not already provided
+      const lastMsg = generatedMessages[generatedMessages.length - 1];
+      if (lastMsg && lastMsg.role !== 'assistant') {
+        const finalSynthesis = await this.callGemini(geminiApiKey, [
+          ...conversationContents,
           {
-            generateId: () => crypto.randomUUID(),
-            buildPreview: (toolName, input) => this.deps.buildToolPreview(toolName, input, toolContext),
-            buildSummary: (toolName, items) => this.buildPreviewSummary(toolName, items),
+            role: 'user',
+            parts: [{ text: 'يرجى تقديم إجابة نهائية واضحة ومهذبة للمعلم بناءً على البيانات المستخرجة أعلاه.' }],
           },
-          tool,
-          toolProposal.toolInput,
-        );
-
-        this.pendingPreviews.set(preview.id, preview);
-        const confirmation = createConfirmationRecord(preview);
-        this.pendingConfirmations.set(preview.id, confirmation);
-
-        const previewMsg = this.messageRepo.insert({
+        ]);
+        const finalParsed = this.parseStructuredResponse(finalSynthesis);
+        const finalMsg = this.messageRepo.insert({
           id: crypto.randomUUID(),
           sessionId,
           role: 'assistant',
-          type: 'preview',
-          content: preview.summary,
-          toolCallId: crypto.randomUUID(),
-          toolName: toolProposal.toolName,
-          toolInputJson: JSON.stringify(toolProposal.toolInput),
-          confirmationToken: preview.id,
-          previewId: preview.id,
+          type: 'text',
+          content: finalParsed.reply ?? finalSynthesis ?? 'تم جلب البيانات بنجاح.',
           createdAt: new Date().toISOString(),
         });
-
-        return { messages: [userMessage, previewMsg], preview };
+        generatedMessages.push(finalMsg);
       }
 
-      const fallbackMsg = this.messageRepo.insert({
-        id: crypto.randomUUID(),
-        sessionId,
-        role: 'assistant',
-        type: 'text',
-        content: parsedResponse.reply ?? 'عذراً، لم أتمكن من معالجة طلبك. يرجى المحاولة مرة أخرى.',
-        createdAt: new Date().toISOString(),
-      });
-
-      return { messages: [userMessage, fallbackMsg] };
+      return { success: true, messages: generatedMessages };
     } catch (err) {
+      const errorContent = err instanceof Error ? err.message : 'خطأ غير متوقع';
       const errorMsg = this.messageRepo.insert({
         id: crypto.randomUUID(),
         sessionId,
         role: 'assistant',
         type: 'error',
-        content: err instanceof Error ? err.message : 'خطأ غير متوقع',
+        content: errorContent,
         createdAt: new Date().toISOString(),
       });
-      return { messages: [userMessage, errorMsg] };
+      generatedMessages.push(errorMsg);
+      return {
+        success: false,
+        messages: generatedMessages,
+        error: {
+          code: 'GEMINI_UNAVAILABLE',
+          message: errorContent,
+        },
+      };
     }
   }
 
@@ -282,21 +399,38 @@ export class AssistantOrchestrator {
     actorName: string,
     role: string,
     permissions: string[],
-    sessionId: string,
-  ): Promise<{ messages: AssistantMessageRow[]; receipt?: ExecutionReceiptRecord }> {
+    sessionId?: string,
+  ): Promise<OrchestratorResponse> {
     this.ensureToolsRegistered();
 
     const preview = this.pendingPreviews.get(previewId);
     const confirmation = this.pendingConfirmations.get(previewId);
 
     if (!preview || !confirmation) {
-      throw new Error('CONFIRMATION_NOT_FOUND');
+      return {
+        success: false,
+        messages: [],
+        error: { code: 'CONFIRMATION_NOT_FOUND', message: 'طلب التأكيد غير موجود أو انتهت صلاحيته' },
+      };
+    }
+
+    const resolvedSessionId = sessionId || preview.sessionId || this.sessionRepo.listByUser(userId)[0]?.id;
+    if (!resolvedSessionId) {
+      return {
+        success: false,
+        messages: [],
+        error: { code: 'SESSION_NOT_FOUND', message: 'الجلسة غير موجودة' },
+      };
     }
 
     if (isPreviewExpired(preview)) {
       this.pendingPreviews.delete(previewId);
       this.pendingConfirmations.delete(previewId);
-      throw new Error('CONFIRMATION_EXPIRED');
+      return {
+        success: false,
+        messages: [],
+        error: { code: 'CONFIRMATION_EXPIRED', message: 'انتهت صلاحية طلب التأكيد' },
+      };
     }
 
     if (!confirmed) {
@@ -305,7 +439,7 @@ export class AssistantOrchestrator {
 
       const cancelMsg = this.messageRepo.insert({
         id: crypto.randomUUID(),
-        sessionId,
+        sessionId: resolvedSessionId,
         role: 'assistant',
         type: 'text',
         content: 'تم إلغاء الإجراء.',
@@ -315,7 +449,7 @@ export class AssistantOrchestrator {
       this.auditRepo.insert({
         id: crypto.randomUUID(),
         actorUserId: userId,
-        sessionId,
+        sessionId: resolvedSessionId,
         toolName: preview.toolName,
         action: 'CANCEL',
         inputSummaryJson: JSON.stringify(preview.toolInput).slice(0, 2000),
@@ -324,7 +458,7 @@ export class AssistantOrchestrator {
         createdAt: new Date().toISOString(),
       });
 
-      return { messages: [cancelMsg] };
+      return { success: true, messages: [cancelMsg] };
     }
 
     confirmation.confirmed = true;
@@ -360,19 +494,20 @@ export class AssistantOrchestrator {
       confirmation,
       preview,
       toolContext,
-      sessionId,
+      resolvedSessionId,
       async (input, ctx) => this.deps.executeTool(preview.toolName, input, ctx),
     );
 
     this.pendingPreviews.delete(previewId);
     this.pendingConfirmations.delete(previewId);
 
+    const toolDef = requireTool(preview.toolName);
     const receiptMsg = this.messageRepo.insert({
       id: crypto.randomUUID(),
-      sessionId,
+      sessionId: resolvedSessionId,
       role: 'assistant',
       type: 'execution-receipt',
-      content: result.success ? `تم تنفيذ ${requireTool(preview.toolName).descriptionAr} بنجاح.` : `فشل التنفيذ: ${result.error}`,
+      content: result.success ? `تم تنفيذ ${toolDef.descriptionAr} بنجاح.` : `فشل التنفيذ: ${result.error}`,
       receiptId: result.receipt?.id,
       undoAvailable: result.receipt?.undoAvailable ?? false,
       undoToken: result.receipt?.undoToken,
@@ -381,16 +516,21 @@ export class AssistantOrchestrator {
 
     const confirmMsg = this.messageRepo.insert({
       id: crypto.randomUUID(),
-      sessionId,
+      sessionId: resolvedSessionId,
       role: 'assistant',
       type: 'confirmation',
-      content: confirmed ? 'تم تأكيد الإجراء.' : 'تم رفض الإجراء.',
+      content: 'تم تأكيد الإجراء وتنفيذه.',
       confirmationToken: previewId,
       previewId,
       createdAt: new Date().toISOString(),
     });
 
-    return { messages: [confirmMsg, receiptMsg], receipt: result.receipt };
+    return {
+      success: result.success,
+      messages: [confirmMsg, receiptMsg],
+      receipt: result.receipt,
+      error: result.error ? { code: 'TOOL_EXECUTION_FAILED', message: result.error } : undefined,
+    };
   }
 
   cancelAction(previewId: string): void {
@@ -402,18 +542,29 @@ export class AssistantOrchestrator {
     receiptId: string,
     undoToken: string,
     userId: string,
-    sessionId: string,
-  ): Promise<{ messages: AssistantMessageRow[]; receipt: ExecutionReceiptRecord }> {
+    sessionId?: string,
+  ): Promise<OrchestratorResponse> {
+    const resolvedSessionId = sessionId || this.sessionRepo.listByUser(userId)[0]?.id;
+    if (!resolvedSessionId) {
+      return {
+        success: false,
+        messages: [],
+        error: { code: 'SESSION_NOT_FOUND', message: 'الجلسة غير موجودة' },
+      };
+    }
+
     const result = await executeUndo(
       {
         generateId: () => crypto.randomUUID(),
-        getReceipt: (id) => this._lastReceipt?.id === id ? this._lastReceipt : undefined,
+        getReceipt: (id) => (this._lastReceipt?.id === id ? this._lastReceipt : undefined),
         getUndoSnapshot: (id) => this.undoSnapshots.get(id),
-        persistAudit: (audit) => { this.auditRepo.insert(audit); },
+        persistAudit: (audit) => {
+          this.auditRepo.insert(audit);
+        },
       },
       receiptId,
       undoToken,
-      sessionId,
+      resolvedSessionId,
       userId,
       this.deps.undoTool,
     );
@@ -423,7 +574,7 @@ export class AssistantOrchestrator {
     const toolName = this._lastReceipt?.toolName ?? 'unknown';
     const undoMsg = this.messageRepo.insert({
       id: crypto.randomUUID(),
-      sessionId,
+      sessionId: resolvedSessionId,
       role: 'assistant',
       type: 'undo-result',
       content: result.success ? `تم التراجع عن الإجراء بنجاح.` : `فشل التراجع: ${result.error}`,
@@ -441,37 +592,53 @@ export class AssistantOrchestrator {
       executedAt: result.undoneAt,
     };
 
-    return { messages: [undoMsg], receipt };
+    return {
+      success: result.success,
+      messages: [undoMsg],
+      receipt,
+      undoResult: result,
+      error: result.error ? { code: 'UNDO_FAILED', message: result.error } : undefined,
+    };
   }
 
   private _lastReceipt: ExecutionReceiptRecord | undefined;
 
-  private buildSystemPrompt(ctx: SafeContextPayload, tools: Array<{ name: string; description: string; riskLevel: string }>): string {
+  private buildSystemPrompt(
+    ctx: SafeContextPayload,
+    tools: Array<{ name: string; description: string; riskLevel: string }>,
+  ): string {
     const contextStr = formatContextForPrompt(ctx);
     const toolsList = tools.map((t) => `- ${t.name}: ${t.description} (${t.riskLevel})`).join('\n');
 
-    return `أنت مساعد ذكي للمعلم في نظام تبيان. يمكنك مساعدة المعلم في إدارة بياناته التعليمية.
+    return `أنت "تِبيان" — المساعد الذكي للمعلم في نظام تِبيان لإدارة العمل التعليمي.
+تتحدث باللغة العربية بأسلوب مهني وواضح وموجز.
 
-${contextStr ? `السياق:\n${contextStr}\n` : ''}
+${contextStr ? `السياق الحالي للمنصة:\n${contextStr}\n` : ''}
 
-الأدوات المتاحة:
+الأدوات المتاحة للنظام:
 ${toolsList}
 
-قواعد مهمة:
-1. لا تُخترع معرفات (IDs). استخدم الأدوات للبحث أولاً.
-2. الإجراءات الحساسة تتطلب تأكيداً من المستخدم قبل التنفيذ.
-3. أعد دائماً استجابة JSON مهيكلة بالشكل: {"type": "reply"|"tool-call"|"multi-tool-call", "reply": "...", "toolCalls": [{"toolName": "...", "toolInput": {...}}]}
-4. إذا لم تكن بحاجة لأداة، استخدم type: "reply".
-5. إذا كنت بحاجة لأداة، استخدم type: "tool-call" مع toolName و toolInput.
-6. لا تقم بأي إجراء حساس بدون تأكيد صريح من المستخدم.`;
+تعليمات وقواعد العمل:
+1. عند طلب المعلم لأي معلومة أو بيانات (مثل الطلاب، المجموعات، الحصص، الغياب، الدرجات، المالية):
+   استدعِ الأداة المناسبة بصيغة JSON مهيكلة:
+   {"type": "tool-call", "toolCalls": [{"toolName": "اسم_الأداة", "toolInput": {}}]}
+2. عندما تتوفر لديك البيانات أو يجيب المعلم على سؤال عادي:
+   أجب باللغة العربية الطبيعية بصيغة:
+   {"type": "reply", "reply": "إجابتك باللغة العربية هنا"}
+3. لا تخترع أية معرفات (IDs) أو بيانات غير موجودة، وابحث دائماً بالأدوات أولاً.
+4. الإجراءات والتعديلات الحساسة (إنشاء، تعديل، حذف، تسجيل حضور، ماليات) تتطلب دائماً معاينة وتأكيد من المعلم.
+5. أعد دائماً استجابة JSON صالحة فقط، دون نصوص خارج كائن JSON.`;
   }
 
-  private async callGemini(apiKey: string, messages: Array<{ role: string; parts: Array<{ text: string }> }>): Promise<string> {
+  private async callGemini(
+    apiKey: string,
+    messages: Array<{ role: string; parts: Array<{ text: string }> }>,
+  ): Promise<string> {
     const model = this.deps.model ?? DEFAULT_TIBYAN_AI_MODEL;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 30_000);
+    const timer = setTimeout(() => controller.abort(), 35_000);
 
     try {
       const fetchFn = this.deps.fetchImpl ?? fetch;
@@ -491,14 +658,23 @@ ${toolsList}
       });
 
       if (!response.ok) {
-        throw new Error('تعذر الاتصال بخدمة الذكاء الاصطناعي');
+        if (response.status === 429) {
+          throw new Error('تم تجاوز حصة الاستخدام أو حد الطلبات لنموذج الذكاء الاصطناعي. يرجى المحاولة لاحقاً.');
+        }
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('تعذر الوصول إلى خدمة تِبيان بالمفتاح المحفوظ. تحقق من صحة المفتاح في الإعدادات.');
+        }
+        if (response.status === 404) {
+          throw new Error(`تعذر العثور على نموذج الذكاء الاصطناعي (${model}).`);
+        }
+        throw new Error(`تعذر الاتصال بخدمة تِبيان الذكية (رمز الاستجابة: ${response.status}).`);
       }
 
       const payload = await response.json();
       return payload?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
-        throw new Error('انتهت مهلة الاتصال بخدمة الذكاء الاصطناعي');
+        throw new Error('انتهت مهلة الاتصال بخدمة الذكاء الاصطناعي.');
       }
       throw err;
     } finally {
@@ -506,10 +682,25 @@ ${toolsList}
     }
   }
 
-  private parseStructuredResponse(response: string): { type: string; reply?: string; toolCalls?: Array<{ toolName: string; toolInput: Record<string, unknown> }> } {
+  private parseStructuredResponse(response: string): {
+    type: string;
+    reply?: string;
+    toolCalls?: Array<{ toolName: string; toolInput: Record<string, unknown> }>;
+  } {
     try {
-      const parsed = JSON.parse(response);
+      let cleaned = response.trim();
+      if (cleaned.startsWith('```json')) {
+        cleaned = cleaned.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
+      } else if (cleaned.startsWith('```')) {
+        cleaned = cleaned.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+      }
+
+      const parsed = JSON.parse(cleaned);
       if (parsed && typeof parsed === 'object') {
+        const validated = AssistantStructuredResponseSchema.safeParse(parsed);
+        if (validated.success) {
+          return validated.data as any;
+        }
         if (['reply', 'tool-call', 'multi-tool-call'].includes(parsed.type)) {
           return parsed;
         }

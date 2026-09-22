@@ -173,7 +173,6 @@ import {
   CreateSessionInput,
   ConfirmationInput,
   UndoInput,
-  ExecutionReceipt,
 } from '../models/assistant.dto.js';
 import type { ExamGenerationRequest, SlidesGenerationRequest, ReviewGenerationRequest, NotesGenerationRequest, GeneratedExamContent, ReviewArtifactDto, NotesArtifactDto, ReviewGenerationResult, NotesGenerationResult } from '../models/ai-generation.dto.js';
 import {
@@ -410,7 +409,7 @@ export interface TibyanApi {
     getHistory(sessionId: string, cursor?: string): Promise<IpcResult<ConversationHistory>>;
     confirmAction(input: ConfirmationInput): Promise<IpcResult<AssistantResponse>>;
     cancelAction(previewId: string): Promise<IpcResult<void>>;
-    undoAction(input: UndoInput): Promise<IpcResult<ExecutionReceipt>>;
+    undoAction(input: UndoInput): Promise<IpcResult<AssistantResponse>>;
     getTools(): Promise<IpcResult<Array<{ name: string; description: string; riskLevel: string }>>>;
   };
   slides: {

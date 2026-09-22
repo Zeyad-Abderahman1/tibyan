@@ -115,6 +115,7 @@ export type ConfirmationRequest = z.infer<typeof ConfirmationRequestSchema>;
 export const ConfirmationInputSchema = z.object({
   previewId: z.string().uuid(),
   confirmed: z.boolean(),
+  sessionId: z.string().uuid().optional(),
 });
 export type ConfirmationInput = z.infer<typeof ConfirmationInputSchema>;
 
@@ -139,6 +140,7 @@ export type ExecutionReceipt = z.infer<typeof ExecutionReceiptSchema>;
 export const UndoInputSchema = z.object({
   receiptId: z.string().uuid(),
   undoToken: z.string(),
+  sessionId: z.string().uuid().optional(),
 });
 export type UndoInput = z.infer<typeof UndoInputSchema>;
 
@@ -152,7 +154,20 @@ export type UndoResult = z.infer<typeof UndoResultSchema>;
 
 // ─── Context ────────────────────────────────────────────────────────────────
 
-export const AssistantContextScopeSchema = z.enum(['global', 'student', 'group', 'exam', 'analytics', 'lesson', 'capture']);
+export const AssistantContextScopeSchema = z.enum([
+  'global',
+  'student',
+  'group',
+  'exam',
+  'analytics',
+  'lesson',
+  'capture',
+  'PLATFORM_CONTROL',
+  'EXAM',
+  'SLIDES',
+  'REVIEW',
+  'NOTES',
+]);
 export type AssistantContextScope = z.infer<typeof AssistantContextScopeSchema>;
 
 export const AssistantContextInputSchema = z.object({
@@ -186,10 +201,13 @@ export const AssistantErrorCodeSchema = z.enum([
   'TOOL_NOT_FOUND',
   'TOOL_INVALID_INPUT',
   'TOOL_EXECUTION_FAILED',
+  'PERMISSION_DENIED',
+  'LOOP_LIMIT_EXCEEDED',
   'CONFIRMATION_REQUIRED',
   'CONFIRMATION_STALE',
   'CONFIRMATION_EXPIRED',
   'CONFIRMATION_ALREADY_USED',
+  'CONFIRMATION_NOT_FOUND',
   'UNDO_UNAVAILABLE',
   'UNDO_FAILED',
   'SESSION_NOT_FOUND',
@@ -204,9 +222,11 @@ export type AssistantErrorCode = z.infer<typeof AssistantErrorCodeSchema>;
 
 export const AssistantResponseSchema = z.object({
   success: z.boolean(),
+  messages: z.array(AssistantMessageSchema).default([]),
   message: AssistantMessageSchema.optional(),
   preview: PreviewSchema.optional(),
   receipt: ExecutionReceiptSchema.optional(),
+  undoResult: UndoResultSchema.optional(),
   error: z.object({
     code: AssistantErrorCodeSchema,
     message: z.string(),

@@ -6,20 +6,22 @@ import {
   ConfirmationInputSchema,
   UndoInputSchema,
 } from '@tibyan/contracts';
+import { SlideService } from '@tibyan/core';
 import type { Runtime } from '../runtime.js';
 import { safeIpcCall } from './errors.js';
 import { validateIpcSender } from '../security.js';
 import { archiveLessonPlanWithUndo, undoArchivedLessonPlan } from './assistant-lesson-plan-undo.js';
 
-let orchestrator: import('@tibyan/core').AssistantOrchestrator | null = null;
-
-function getOrchestrator(runtime: Runtime): import('@tibyan/core').AssistantOrchestrator {
-  if (!orchestrator) {
+export function getOrchestrator(runtime: Runtime): import('@tibyan/core').AssistantOrchestrator {
+  if (!runtime.assistantOrchestrator) {
     const { AssistantOrchestrator } = require('@tibyan/core');
-    orchestrator = new AssistantOrchestrator({
+    runtime.assistantOrchestrator = new AssistantOrchestrator({
       systemDb: runtime.systemDb,
       geminiCredentialService: runtime.geminiCredentialService,
-      getActiveAcademicYear: () => runtime.activeAcademicYear ? { id: runtime.activeAcademicYear.id, name: runtime.activeAcademicYear.name } : null,
+      getActiveAcademicYear: () =>
+        runtime.activeAcademicYear
+          ? { id: runtime.activeAcademicYear.id, name: runtime.activeAcademicYear.name }
+          : null,
       resolveEntityLabel: async (scope: string, entityId: string) => {
         try {
           if (scope === 'student' && runtime.studentService) {
@@ -41,13 +43,45 @@ function getOrchestrator(runtime: Runtime): import('@tibyan/core').AssistantOrch
           return null;
         }
       },
-      buildToolPreview: async (toolName: string, input: Record<string, unknown>, _ctx: import('@tibyan/core').ToolExecutionContext) => {
+      buildToolPreview: async (
+        toolName: string,
+        input: Record<string, unknown>,
+        _ctx: import('@tibyan/core').ToolExecutionContext,
+      ) => {
         const items: import('@tibyan/core').PreviewItem[] = [];
-        if (toolName === 'create_lesson_plan') {
+
+        if (toolName === 'create_student') {
           items.push({
-            entityLabel: (input.title as string) ?? 'خطة درس جديدة',
+            entityLabel: (input.fullName as string) ?? 'طالب جديد',
             changeKind: 'create',
-            changes: [{ field: 'title', label: 'العنوان', after: input.title }],
+            changes: [
+              { field: 'fullName', label: 'الاسم الكامل', after: input.fullName },
+              { field: 'phone', label: 'رقم الهاتف', after: input.phone },
+            ],
+          });
+        } else if (toolName === 'update_student') {
+          items.push({
+            entityLabel: 'تحديث بيانات طالب',
+            entityId: input.studentId as string,
+            changeKind: 'update',
+            changes: Object.entries(input)
+              .filter(([k]) => k !== 'studentId')
+              .map(([field, after]) => ({ field, label: field, after })),
+          });
+        } else if (toolName === 'create_group') {
+          items.push({
+            entityLabel: (input.name as string) ?? 'مجموعة جديدة',
+            changeKind: 'create',
+            changes: [{ field: 'name', label: 'اسم المجموعة', after: input.name }],
+          });
+        } else if (toolName === 'update_group') {
+          items.push({
+            entityLabel: 'تحديث مجموعة',
+            entityId: input.groupId as string,
+            changeKind: 'update',
+            changes: Object.entries(input)
+              .filter(([k]) => k !== 'groupId')
+              .map(([field, after]) => ({ field, label: field, after })),
           });
         } else if (toolName === 'enroll_student') {
           items.push({
@@ -65,6 +99,110 @@ function getOrchestrator(runtime: Runtime): import('@tibyan/core').AssistantOrch
             changes: [{ field: 'enrollmentId', label: 'التسجيل', after: input.enrollmentId }],
             irreversible: true,
           });
+        } else if (toolName === 'reschedule_session') {
+          items.push({
+            entityLabel: 'إعادة جدولة حصة',
+            entityId: input.sessionId as string,
+            changeKind: 'update',
+            changes: [
+              { field: 'newDate', label: 'الموعد الجديد', after: input.newDate },
+              { field: 'newStartTime', label: 'وقت البدء', after: input.newStartTime },
+            ],
+          });
+        } else if (toolName === 'cancel_session') {
+          items.push({
+            entityLabel: 'إلغاء حصة',
+            entityId: input.sessionId as string,
+            changeKind: 'update',
+            changes: [{ field: 'reason', label: 'سبب الإلغاء', after: input.reason }],
+          });
+        } else if (toolName === 'complete_session') {
+          items.push({
+            entityLabel: 'إتمام حصة',
+            entityId: input.sessionId as string,
+            changeKind: 'update',
+            changes: [{ field: 'status', label: 'الحالة', after: 'COMPLETED' }],
+          });
+        } else if (toolName === 'create_lesson_plan') {
+          items.push({
+            entityLabel: (input.title as string) ?? 'خطة درس جديدة',
+            changeKind: 'create',
+            changes: [{ field: 'title', label: 'العنوان', after: input.title }],
+          });
+        } else if (toolName === 'update_lesson_plan') {
+          items.push({
+            entityLabel: 'تحديث خطة درس',
+            entityId: input.planId as string,
+            changeKind: 'update',
+            changes: Object.entries(input)
+              .filter(([k]) => k !== 'planId')
+              .map(([field, after]) => ({ field, label: field, after })),
+          });
+        } else if (toolName === 'archive_lesson_plan') {
+          items.push({
+            entityLabel: 'أرشفة خطة درس',
+            entityId: input.planId as string,
+            changeKind: 'update',
+            changes: [{ field: 'status', label: 'الحالة', after: 'ARCHIVED' }],
+          });
+        } else if (toolName === 'create_slide_deck') {
+          items.push({
+            entityLabel: (input.title as string) ?? 'عرض شرائح جديد',
+            changeKind: 'create',
+            changes: [{ field: 'title', label: 'العنوان', after: input.title }],
+          });
+        } else if (toolName === 'delete_slide') {
+          items.push({
+            entityLabel: 'حذف شريحة',
+            entityId: input.slideId as string,
+            changeKind: 'delete',
+            changes: [],
+            irreversible: true,
+          });
+        } else if (toolName === 'record_payment') {
+          items.push({
+            entityLabel: 'تسجيل دفعة مالية',
+            changeKind: 'create',
+            changes: [
+              { field: 'studentId', label: 'الطالب', after: input.studentId },
+              { field: 'amount', label: 'المبلغ', after: input.amount },
+            ],
+          });
+        } else if (toolName === 'create_invoice') {
+          items.push({
+            entityLabel: 'إصدار فاتورة',
+            changeKind: 'create',
+            changes: [
+              { field: 'studentId', label: 'الطالب', after: input.studentId },
+              { field: 'amount', label: 'المبلغ', after: input.amount },
+            ],
+          });
+        } else if (toolName === 'apply_discount') {
+          items.push({
+            entityLabel: 'تطبيق خصم',
+            changeKind: 'create',
+            changes: [
+              { field: 'studentId', label: 'الطالب', after: input.studentId },
+              { field: 'percentage', label: 'النسبة', after: input.percentage },
+            ],
+          });
+        } else if (toolName === 'override_grading_decision') {
+          items.push({
+            entityLabel: 'تعديل درجة سؤال',
+            changeKind: 'update',
+            changes: [
+              { field: 'questionId', label: 'السؤال', after: input.questionId },
+              { field: 'score', label: 'الدرجة الجديدة', after: input.score },
+            ],
+          });
+        } else if (toolName === 'finalize_grading') {
+          items.push({
+            entityLabel: 'اعتماد نتائج التصحيح النهائية',
+            entityId: input.submissionId as string,
+            changeKind: 'update',
+            changes: [{ field: 'status', label: 'الحالة', after: 'FINALIZED' }],
+            irreversible: true,
+          });
         } else {
           items.push({
             entityLabel: toolName,
@@ -74,7 +212,11 @@ function getOrchestrator(runtime: Runtime): import('@tibyan/core').AssistantOrch
         }
         return items;
       },
-      executeTool: async (toolName: string, input: Record<string, unknown>, ctx: import('@tibyan/core').ToolExecutionContext) => {
+      executeTool: async (
+        toolName: string,
+        input: Record<string, unknown>,
+        ctx: import('@tibyan/core').ToolExecutionContext,
+      ) => {
         const actor = {
           userId: ctx.actorUserId,
           fullName: ctx.actorName,
@@ -82,28 +224,235 @@ function getOrchestrator(runtime: Runtime): import('@tibyan/core').AssistantOrch
           permissions: ctx.permissions as any[],
         };
         try {
+          // ─── Students ───────────────────────────────────────────────────
           if (toolName === 'find_students' && runtime.studentService) {
-            const result = await runtime.studentService.searchStudents({ searchQuery: input.query as string }, actor);
+            const result = await runtime.studentService.searchStudents({ searchQuery: (input.query as string) ?? '' }, actor);
             return { success: true, data: result };
           }
           if (toolName === 'get_student_details' && runtime.studentService) {
             const result = await runtime.studentService.getStudentById(input.studentId as string, actor);
             return { success: true, data: result };
           }
+          if (toolName === 'list_student_notes' && runtime.studentService) {
+            const result = await runtime.studentService.listStudentNotes(input.studentId as string, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_student_status' && runtime.studentService) {
+            const student = await runtime.studentService.getStudentById(input.studentId as string, actor);
+            return { success: true, data: { studentId: input.studentId, status: student?.status ?? 'UNKNOWN' } };
+          }
+          if (toolName === 'create_student' && runtime.studentService) {
+            const result = await runtime.studentService.createStudent(input as any, actor);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'create_student', studentId: result.id },
+            };
+          }
+          if (toolName === 'update_student' && runtime.studentService) {
+            const prev = await runtime.studentService.getStudentById(input.studentId as string, actor);
+            const { studentId, ...rest } = input;
+            const result = await runtime.studentService.updateStudent({ studentId: studentId as string, ...rest } as any, actor);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'update_student', studentId, previousData: prev },
+            };
+          }
+          if (toolName === 'add_student_note' && runtime.studentService) {
+            const result = await runtime.studentService.addStudentNote(input as any, actor);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'add_student_note', studentId: input.studentId, noteId: result.id },
+            };
+          }
+
+          // ─── Groups ─────────────────────────────────────────────────────
           if (toolName === 'list_groups' && runtime.groupService) {
             const result = await runtime.groupService.listGroups({}, actor);
             return { success: true, data: result };
+          }
+          if (toolName === 'get_group_details' && runtime.groupService) {
+            const result = await runtime.groupService.getGroupById(input.groupId as string, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_group_schedule' && runtime.groupService) {
+            const slots = await runtime.groupService.listWeeklySchedule(input.groupId as string, actor);
+            return { success: true, data: { groupId: input.groupId, scheduleSlots: slots } };
           }
           if (toolName === 'get_group_enrollments' && runtime.enrollmentService) {
             const result = await runtime.enrollmentService.listGroupEnrollments(input.groupId as string, false, actor);
             return { success: true, data: result };
           }
-          if (toolName === 'list_exams' && runtime.examService) {
-            const result = runtime.examService.listExams();
+          if (toolName === 'create_group' && runtime.groupService) {
+            const result = await runtime.groupService.createGroup(input as any, actor);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'create_group', groupId: result.id },
+            };
+          }
+          if (toolName === 'update_group' && runtime.groupService) {
+            const prev = await runtime.groupService.getGroupById(input.groupId as string, actor);
+            const { groupId, ...rest } = input;
+            const result = await runtime.groupService.updateGroup({ groupId: groupId as string, ...rest } as any, actor);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'update_group', groupId, previousData: prev },
+            };
+          }
+          if (toolName === 'set_group_schedule' && runtime.groupService) {
+            const prev = await runtime.groupService.getGroupById(input.groupId as string, actor);
+            const result = await runtime.groupService.setWeeklySchedule(input as any, actor);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'set_group_schedule', groupId: input.groupId, previousData: prev },
+            };
+          }
+          if (toolName === 'enroll_student' && runtime.enrollmentService) {
+            const result = await runtime.enrollmentService.enrollStudent(input as any, actor);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'enroll_student', enrollmentId: result.id },
+            };
+          }
+          if (toolName === 'end_enrollment' && runtime.enrollmentService) {
+            const result = await runtime.enrollmentService.endEnrollment(input as any, actor);
             return { success: true, data: result };
           }
-          if (toolName === 'get_exam_analytics' && runtime.analyticsService) {
-            const result = runtime.analyticsService.getExamSummary(input.examId as string);
+
+          // ─── Sessions ───────────────────────────────────────────────────
+          if (toolName === 'get_today_sessions' && runtime.sessionService) {
+            const today = new Date().toISOString().split('T')[0]!;
+            const result = await runtime.sessionService.listSessionsForDateRange({ startDate: today, endDate: today }, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_date_range_sessions' && runtime.sessionService) {
+            const result = await runtime.sessionService.listSessionsForDateRange(
+              {
+                startDate: input.startDate as string,
+                endDate: input.endDate as string,
+                groupId: input.groupId as string | undefined,
+              },
+              actor,
+            );
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_session_details' && runtime.sessionService) {
+            const result = await runtime.sessionService.getSessionById(input.sessionId as string, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'reschedule_session' && runtime.sessionService) {
+            const prev = await runtime.sessionService.getSessionById(input.sessionId as string, actor);
+            const result = await runtime.sessionService.rescheduleSession(input as any, actor);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'reschedule_session', sessionId: input.sessionId, previousData: prev },
+            };
+          }
+          if (toolName === 'cancel_session' && runtime.sessionService) {
+            const prev = await runtime.sessionService.getSessionById(input.sessionId as string, actor);
+            const result = await runtime.sessionService.cancelSession(input as any, actor);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'cancel_session', sessionId: input.sessionId, previousData: prev },
+            };
+          }
+          if (toolName === 'complete_session' && runtime.attendanceService) {
+            const result = await runtime.attendanceService.completeSession(input as any, actor);
+            return { success: true, data: result };
+          }
+
+          // ─── Attendance ─────────────────────────────────────────────────
+          if (toolName === 'get_session_attendance' && runtime.attendanceService) {
+            const result = await runtime.attendanceService.getSessionRoster(input.sessionId as string, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_student_attendance' && runtime.attendanceService) {
+            const result = runtime.attendanceService.attendanceRepo.listByStudentId(input.studentId as string, (input.limit as number) ?? 50);
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_attendance_summary' && runtime.attendanceService) {
+            if (input.sessionId) {
+              const summary = runtime.attendanceService.attendanceRepo.countByStatusForSession(input.sessionId as string);
+              return { success: true, data: summary };
+            }
+            const today = new Date().toISOString().split('T')[0]!;
+            const result = await runtime.attendanceService.getEndOfDayFollowUp(today, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_attendance_follow_up' && runtime.attendanceService) {
+            const result = await runtime.attendanceService.getEndOfDayFollowUp((input.date as string) ?? new Date().toISOString().split('T')[0]!, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'record_attendance' && runtime.attendanceService) {
+            const result = await runtime.attendanceService.recordAttendance(input as any, actor);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'record_attendance', recordId: result.id, input },
+            };
+          }
+          if (toolName === 'batch_record_attendance' && runtime.attendanceService) {
+            const result = await runtime.attendanceService.batchRecordAttendance(input as any, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'update_follow_up_status' && runtime.attendanceService) {
+            const result = await runtime.attendanceService.updateFollowUpStatus(input as any, actor);
+            return { success: true, data: result };
+          }
+
+          // ─── Curriculum ─────────────────────────────────────────────────
+          if (toolName === 'list_curriculum_documents' && runtime.curriculumService) {
+            const result = runtime.curriculumService.listCatalogs({}, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_curriculum_metadata' && runtime.curriculumService) {
+            const result = runtime.curriculumService.getCatalog(input.catalogId as string, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_curriculum_tree' && runtime.curriculumService) {
+            const result = runtime.curriculumService.getTree(input.catalogId as string, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_group_curriculum_progress' && runtime.curriculumService) {
+            const result = runtime.curriculumService.getGroupOverview(input.groupId as string, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'list_curriculum_source_documents' && runtime.pdfSourceService) {
+            const result = runtime.pdfSourceService.listSources(input.catalogId as string | undefined);
+            return { success: true, data: result };
+          }
+          if (toolName === 'assign_group_curriculum' && runtime.curriculumService) {
+            const result = runtime.curriculumService.assignGroupCatalog(input as any, actor);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'assign_group_curriculum', groupId: input.groupId },
+            };
+          }
+          if (toolName === 'update_group_curriculum_progress' && runtime.curriculumService) {
+            const result = runtime.curriculumService.updateGroupNodeProgress(input as any, actor);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'update_group_curriculum_progress', groupId: input.groupId, nodeId: input.nodeId },
+            };
+          }
+
+          // ─── Question Bank ──────────────────────────────────────────────
+          if (toolName === 'list_questions' && runtime.questionBankService) {
+            const result = runtime.questionBankService.listQuestions(input as any);
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_question_details' && runtime.questionBankService) {
+            const result = runtime.questionBankService.getQuestion(input.questionId as string);
             return { success: true, data: result };
           }
           if (toolName === 'get_question_bank_stats' && runtime.questionBankService) {
@@ -114,64 +463,291 @@ function getOrchestrator(runtime: Runtime): import('@tibyan/core').AssistantOrch
             }
             return { success: true, data: { totalQuestions: questions.length, byType } };
           }
-          if (toolName === 'list_lesson_plans' && runtime.lessonPlannerService) {
-            const result = runtime.lessonPlannerService.listLessonPlans();
+
+          // ─── Exams ──────────────────────────────────────────────────────
+          if (toolName === 'list_exams' && runtime.examService) {
+            const result = runtime.examService.listExams();
             return { success: true, data: result };
           }
-          if (toolName === 'get_dashboard_today' && runtime.dashboardService) {
-            const result = await runtime.dashboardService.getTodayDashboard();
+          if (toolName === 'get_exam_details' && runtime.examService) {
+            const result = runtime.examService.getExam(input.examId as string);
             return { success: true, data: result };
           }
-          if (toolName === 'get_session_attendance' && runtime.attendanceService) {
-            const result = await runtime.attendanceService.getSessionRoster(input.sessionId as string, actor);
+          if (toolName === 'get_exam_structure' && runtime.examService) {
+            const result = runtime.examService.getExam(input.examId as string);
             return { success: true, data: result };
           }
+          if (toolName === 'get_exam_source_provenance' && runtime.examService) {
+            const exam = runtime.examService.getExam(input.examId as string);
+            return { success: true, data: { examId: input.examId, blueprint: exam?.blueprint } };
+          }
+
+          // ─── Slides ─────────────────────────────────────────────────────
+          if (toolName === 'list_slide_decks' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            const result = slideService.listDecks();
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_slide_deck' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            const result = slideService.getDeck(input.deckId as string);
+            return { success: true, data: result };
+          }
+          if (toolName === 'create_slide_deck' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            const result = slideService.createDeck(input as any);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'create_slide_deck', deckId: result.id },
+            };
+          }
+          if (toolName === 'update_slide_deck' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            const prev = slideService.getDeck(input.deckId as string);
+            const result = slideService.updateDeck(input.deckId as string, input as any);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'update_slide_deck', deckId: input.deckId, previousData: prev },
+            };
+          }
+          if (toolName === 'add_slide_to_deck' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            const result = slideService.addSlide(input as any);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'add_slide_to_deck', slideId: result.id },
+            };
+          }
+          if (toolName === 'update_slide' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            const result = slideService.updateSlide(input.slideId as string, input as any);
+            return { success: true, data: result };
+          }
+          if (toolName === 'delete_slide' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            slideService.deleteSlide(input.slideId as string);
+            return { success: true, data: { deleted: true } };
+          }
+          if (toolName === 'duplicate_slide' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            const result = slideService.duplicateSlide(input.slideId as string);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'duplicate_slide', slideId: result.id },
+            };
+          }
+          if (toolName === 'reorder_slides' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            slideService.reorderSlides(input as any);
+            return { success: true, data: { success: true } };
+          }
+          if (toolName === 'add_block_to_slide' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            const result = slideService.addBlock(input as any);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'add_block_to_slide', blockId: result.id },
+            };
+          }
+          if (toolName === 'update_slide_block' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            const result = slideService.updateBlock(input.blockId as string, input as any);
+            return { success: true, data: result };
+          }
+          if (toolName === 'delete_slide_block' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            slideService.deleteBlock(input.blockId as string);
+            return { success: true, data: { deleted: true } };
+          }
+          if (toolName === 'reorder_slide_blocks' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            slideService.reorderBlocks(input as any);
+            return { success: true, data: { success: true } };
+          }
+          if (toolName === 'move_slide_block' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            const result = slideService.moveBlock(input as any);
+            return { success: true, data: result };
+          }
+
+          // ─── Capture & Grading ──────────────────────────────────────────
+          if (toolName === 'list_capture_sessions' && runtime.captureService) {
+            const result = runtime.captureService.listSessions();
+            return { success: true, data: result };
+          }
+          if (toolName === 'list_submissions' && runtime.captureService) {
+            const result = runtime.captureService.listSubmissions(input.sessionId as string);
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_grading_status' && runtime.gradingService) {
+            const result = runtime.gradingService.getSubmissionStatus(input.submissionId as string);
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_grading_decisions' && runtime.gradingService) {
+            const result = runtime.gradingService.getDecisions(input.submissionId as string);
+            return { success: true, data: result };
+          }
+          if (toolName === 'create_capture_session' && runtime.captureService) {
+            const result = await runtime.captureService.createSession(input as any, actor);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'create_capture_session', sessionId: result.id },
+            };
+          }
+          if (toolName === 'associate_submission' && runtime.captureService) {
+            const result = await runtime.captureService.associateSubmission(input as any, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'review_extracted_answer' && runtime.gradingService) {
+            const result = await runtime.gradingService.reviewAnswer(input as any, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'override_grading_decision' && runtime.gradingService) {
+            const result = await runtime.gradingService.overrideDecision(input as any, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'finalize_grading' && runtime.gradingService) {
+            await runtime.gradingService.finalize(input as any, actor);
+            return { success: true, data: { finalized: true } };
+          }
+
+          // ─── Analytics ──────────────────────────────────────────────────
+          if (toolName === 'get_exam_analytics' && runtime.analyticsService) {
+            const result = runtime.analyticsService.getExamSummary(input.examId as string);
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_score_distribution' && runtime.analyticsService) {
+            const result = runtime.analyticsService.getScoreDistribution(input.examId as string);
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_question_performance' && runtime.analyticsService) {
+            const result = runtime.analyticsService.getQuestionPerformance(input.examId as string);
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_skill_performance' && runtime.analyticsService) {
+            const result = runtime.analyticsService.getSkillPerformance(input.examId as string);
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_student_results' && runtime.analyticsService) {
+            const result = runtime.analyticsService.listStudentResults(input.examId as string);
+            return { success: true, data: result };
+          }
+
+          // ─── Finance ────────────────────────────────────────────────────
           if (toolName === 'get_financial_summary' && runtime.financeService) {
             const result = await runtime.financeService.getStudentFinancialSummary(input.studentId as string);
             return { success: true, data: result };
           }
+          if (toolName === 'get_finance_kpis' && runtime.financeService) {
+            const result = await runtime.financeService.getOverallFinanceKpi();
+            return { success: true, data: result };
+          }
+          if (toolName === 'list_payments' && runtime.financeService) {
+            const result = await runtime.financeService.listStudentPayments(input.studentId as string);
+            return { success: true, data: result };
+          }
+          if (toolName === 'list_invoices' && runtime.financeService) {
+            const result = input.studentId
+              ? runtime.financeService.invoiceRepo.listByStudent(input.studentId as string)
+              : runtime.financeService.invoiceRepo.listAll();
+            return { success: true, data: result };
+          }
+          if (toolName === 'list_discounts' && runtime.financeService) {
+            const result = await runtime.financeService.listDiscounts(input.studentId as string);
+            return { success: true, data: result };
+          }
+          if (toolName === 'record_payment' && runtime.financeService) {
+            const result = await runtime.financeService.recordPayment(input as any, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'create_invoice' && runtime.financeService) {
+            const result = await runtime.financeService.createInvoice(input as any, actor);
+            return { success: true, data: result };
+          }
+          if (toolName === 'apply_discount' && runtime.financeService) {
+            const result = await runtime.financeService.applyDiscount(input as any, actor);
+            return { success: true, data: result };
+          }
+
+          // ─── Lesson Planning ────────────────────────────────────────────
+          if (toolName === 'list_lesson_plans' && runtime.lessonPlannerService) {
+            const result = runtime.lessonPlannerService.listLessonPlans();
+            return { success: true, data: result };
+          }
+          if (toolName === 'get_lesson_plan_details' && runtime.lessonPlannerService) {
+            const result = runtime.lessonPlannerService.getLessonPlanById(input.planId as string);
+            return { success: true, data: result };
+          }
+          if (toolName === 'list_session_reflections' && runtime.sessionReflectionService) {
+            const result = input.sessionId
+              ? [await runtime.sessionReflectionService.getReflectionBySessionId(input.sessionId as string, actor)]
+              : [];
+            return { success: true, data: result };
+          }
           if (toolName === 'create_lesson_plan' && runtime.lessonPlannerService) {
             const result = runtime.lessonPlannerService.createLessonPlan(input as any, actor);
-            return { success: true, data: result, affectedEntities: [{ entityType: 'lesson-plan', entityId: result.id, label: result.title }] };
+            return {
+              success: true,
+              data: result,
+              affectedEntities: [{ entityType: 'lesson-plan', entityId: result.id, label: result.title }],
+              undoSnapshot: { kind: 'create_lesson_plan', planId: result.id },
+            };
           }
           if (toolName === 'update_lesson_plan' && runtime.lessonPlannerService) {
+            const prev = runtime.lessonPlannerService.getLessonPlanById(input.planId as string);
             const { planId, ...rest } = input;
             const result = runtime.lessonPlannerService.updateLessonPlan(planId as string, rest as any, actor);
-            return { success: true, data: result, affectedEntities: [{ entityType: 'lesson-plan', entityId: result.id, label: result.title }] };
-          }
-          if (toolName === 'add_student_note' && runtime.studentService) {
-            const result = await runtime.studentService.addStudentNote(input as any, actor);
-            return { success: true, data: result };
-          }
-          if (toolName === 'record_attendance' && runtime.attendanceService) {
-            const result = await runtime.attendanceService.recordAttendance(input as any, actor);
-            return { success: true, data: result };
-          }
-          if (toolName === 'create_session_reflection' && runtime.sessionReflectionService) {
-            const result = runtime.sessionReflectionService.createReflection(input as any, actor);
-            return { success: true, data: result };
-          }
-          if (toolName === 'update_group_curriculum_progress' && runtime.curriculumService) {
-            const result = runtime.curriculumService.updateGroupNodeProgress(input as any, actor);
-            return { success: true, data: result };
+            return {
+              success: true,
+              data: result,
+              affectedEntities: [{ entityType: 'lesson-plan', entityId: result.id, label: result.title }],
+              undoSnapshot: { kind: 'update_lesson_plan', planId, previousData: prev },
+            };
           }
           if (toolName === 'archive_lesson_plan' && runtime.lessonPlannerService) {
             const { result, undoSnapshot } = archiveLessonPlanWithUndo(runtime.lessonPlannerService, input.planId as string, actor);
             return { success: true, data: result, undoSnapshot };
           }
-          if (toolName === 'enroll_student' && runtime.enrollmentService) {
-            const result = await runtime.enrollmentService.enrollStudent(input as any, actor);
+          if (toolName === 'create_session_reflection' && runtime.sessionReflectionService) {
+            const result = runtime.sessionReflectionService.createReflection(input as any, actor);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'create_session_reflection', reflectionId: result.id },
+            };
+          }
+
+          // ─── System ─────────────────────────────────────────────────────
+          if (toolName === 'get_dashboard_today' && runtime.dashboardService) {
+            const result = await runtime.dashboardService.getTodayDashboard();
             return { success: true, data: result };
           }
-          if (toolName === 'end_enrollment' && runtime.enrollmentService) {
-            const result = await runtime.enrollmentService.endEnrollment(input as any, actor);
-            return { success: true, data: result };
+          if (toolName === 'get_academic_year_info') {
+            return {
+              success: true,
+              data: runtime.activeAcademicYear
+                ? { id: runtime.activeAcademicYear.id, name: runtime.activeAcademicYear.name }
+                : null,
+            };
           }
-          if (toolName === 'update_student' && runtime.studentService) {
-            const { studentId, ...rest } = input;
-            const result = await runtime.studentService.updateStudent({ studentId: studentId as string, ...rest } as any, actor);
-            return { success: true, data: result };
+          if (toolName === 'get_app_info') {
+            return {
+              success: true,
+              data: {
+                name: 'Tibyan',
+                version: '1.0.0',
+                status: 'ONLINE',
+                hasActiveAcademicYear: Boolean(runtime.activeAcademicYear),
+              },
+            };
           }
+
           return { success: false, error: 'الأداة غير مدعومة' };
         } catch (err) {
           return { success: false, error: err instanceof Error ? err.message : 'خطأ غير متوقع' };
@@ -179,9 +755,62 @@ function getOrchestrator(runtime: Runtime): import('@tibyan/core').AssistantOrch
       },
       undoTool: async (_receiptId: string, snapshot: unknown) => {
         try {
-          if (!runtime.lessonPlannerService) throw new Error('خدمة خطط الدروس غير متاحة');
+          if (!snapshot || typeof snapshot !== 'object') {
+            return { success: false, error: 'بيانات التراجع غير صالحة' };
+          }
+          const s = snapshot as Record<string, unknown>;
           const actor = runtime.requireAuthenticatedActor();
-          undoArchivedLessonPlan(runtime.lessonPlannerService, snapshot, actor);
+
+          if (s.kind === 'archive_lesson_plan' && runtime.lessonPlannerService) {
+            undoArchivedLessonPlan(runtime.lessonPlannerService, snapshot, actor);
+            return { success: true };
+          }
+          if (s.kind === 'create_lesson_plan' && runtime.lessonPlannerService) {
+            runtime.lessonPlannerService.archiveLessonPlan(s.planId as string, actor);
+            return { success: true };
+          }
+          if (s.kind === 'update_lesson_plan' && runtime.lessonPlannerService) {
+            const prev = s.previousData as Record<string, unknown>;
+            if (prev) {
+              runtime.lessonPlannerService.updateLessonPlan(s.planId as string, prev as any, actor);
+            }
+            return { success: true };
+          }
+          if (s.kind === 'update_student' && runtime.studentService) {
+            const prev = s.previousData as Record<string, unknown>;
+            if (prev) {
+              await runtime.studentService.updateStudent({ studentId: s.studentId as string, ...prev } as any, actor);
+            }
+            return { success: true };
+          }
+          if (s.kind === 'enroll_student' && runtime.enrollmentService) {
+            await runtime.enrollmentService.endEnrollment({ enrollmentId: s.enrollmentId as string } as any, actor);
+            return { success: true };
+          }
+          if (s.kind === 'create_slide_deck' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            slideService.deleteDeck(s.deckId as string);
+            return { success: true };
+          }
+          if (s.kind === 'add_slide_to_deck' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            slideService.deleteSlide(s.slideId as string);
+            return { success: true };
+          }
+          if (s.kind === 'add_block_to_slide' && runtime.academicDb) {
+            const slideService = new SlideService(runtime.academicDb.db);
+            slideService.deleteBlock(s.blockId as string);
+            return { success: true };
+          }
+          if (s.kind === 'update_group_curriculum_progress' && runtime.curriculumService) {
+            runtime.curriculumService.updateGroupNodeProgress({
+              groupId: s.groupId as string,
+              nodeId: s.nodeId as string,
+              status: 'NOT_STARTED',
+            } as any, actor);
+            return { success: true };
+          }
+
           return { success: true };
         } catch (error) {
           return { success: false, error: error instanceof Error ? error.message : 'تعذر التراجع' };
@@ -189,7 +818,7 @@ function getOrchestrator(runtime: Runtime): import('@tibyan/core').AssistantOrch
       },
     });
   }
-  return orchestrator!;
+  return runtime.assistantOrchestrator!;
 }
 
 export function registerAssistantIpcHandlers(runtime: Runtime, mainWindow: BrowserWindow | null): void {
@@ -261,8 +890,6 @@ export function registerAssistantIpcHandlers(runtime: Runtime, mainWindow: Brows
       const actor = runtime.requireAuthenticatedActor();
       const input = ConfirmationInputSchema.parse(payload);
       const orch = getOrchestrator(runtime);
-      const session = orch.listSessions(actor.userId)[0];
-      if (!session) throw new Error('SESSION_NOT_FOUND');
       return orch.confirmAction(
         input.previewId,
         input.confirmed,
@@ -270,7 +897,7 @@ export function registerAssistantIpcHandlers(runtime: Runtime, mainWindow: Brows
         actor.fullName,
         actor.role,
         actor.permissions ?? [],
-        session.id,
+        input.sessionId,
       );
     });
   });
@@ -289,9 +916,12 @@ export function registerAssistantIpcHandlers(runtime: Runtime, mainWindow: Brows
       const actor = runtime.requireAuthenticatedActor();
       const input = UndoInputSchema.parse(payload);
       const orch = getOrchestrator(runtime);
-      const session = orch.listSessions(actor.userId)[0];
-      if (!session) throw new Error('SESSION_NOT_FOUND');
-      return orch.undoAction(input.receiptId, input.undoToken, actor.userId, session.id);
+      return orch.undoAction(
+        input.receiptId,
+        input.undoToken,
+        actor.userId,
+        input.sessionId,
+      );
     });
   });
 
@@ -304,8 +934,9 @@ export function registerAssistantIpcHandlers(runtime: Runtime, mainWindow: Brows
 }
 
 export function unregisterAssistantIpcHandlers(): void {
-  Object.values(IPC_CHANNELS).filter((ch) => typeof ch === 'string' && ch.startsWith('assistant:')).forEach((ch) => {
-    ipcMain.removeHandler(ch as string);
-  });
-  orchestrator = null;
+  Object.values(IPC_CHANNELS)
+    .filter((ch) => typeof ch === 'string' && ch.startsWith('assistant:'))
+    .forEach((ch) => {
+      ipcMain.removeHandler(ch as string);
+    });
 }

@@ -70,6 +70,15 @@ export class AttendanceRepository {
       .all();
   }
 
+  listByStudentId(studentId: string, limit = 50): AttendanceRecordRow[] {
+    return this.client
+      .select()
+      .from(attendanceRecords)
+      .where(eq(attendanceRecords.studentId, studentId))
+      .limit(limit)
+      .all();
+  }
+
   upsert(record: NewAttendanceRecordRow): AttendanceRecordRow {
     const now = record.updatedAt ?? new Date().toISOString();
     this.client
