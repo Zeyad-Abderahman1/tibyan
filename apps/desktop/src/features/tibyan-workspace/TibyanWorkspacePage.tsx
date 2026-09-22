@@ -197,19 +197,22 @@ export function TibyanWorkspacePage() {
       <ContextualDynamicIsland title="مساعد تِبيان الذكي" actions={islandActions} />
 
       {/* Main Tibyan Workspace Canvas */}
-      <div className="relative flex-1 flex min-h-0 overflow-hidden rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]">
+      <div className={cn(
+        'relative flex min-h-0 overflow-hidden rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]',
+        activeTask ? 'flex-1' : 'shrink-0 min-h-[410px]'
+      )}>
         {/* Main Content Viewport */}
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto">
           {!activeTask ? (
             /* Home / Centered Welcome State */
-            <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center select-none" data-testid="tibyan-home-view">
+            <div className="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center select-none" data-testid="tibyan-home-view">
               <div className="mb-4">
                 <TibyanBrand size="lg" showWordmark={false} />
               </div>
               <h1 className="text-3xl font-extrabold text-[var(--color-text-primary)] mb-2 tracking-tight">
                 تِبيان
               </h1>
-              <p className="text-sm text-[var(--color-text-secondary)] mb-8 max-w-md mx-auto leading-relaxed">
+              <p className="text-sm text-[var(--color-text-secondary)] mb-6 max-w-md mx-auto leading-relaxed">
                 مساعدك الذكي المتكامل لإدارة الحصص والطلاب والاختبارات والمناهج التعليمية
               </p>
 
@@ -221,14 +224,14 @@ export function TibyanWorkspacePage() {
                     <button
                       key={s.task}
                       onClick={() => handleSuggestionClick(s.task)}
-                      className="p-4 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface-subtle)]/60 hover:bg-[var(--color-bg-surface-subtle)] text-right transition-all group flex items-start gap-3 shadow-2xs hover:shadow-xs"
+                      className="p-4 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface-subtle)]/60 hover:bg-[var(--color-bg-surface-subtle)] text-right transition-all group flex items-start gap-3 shadow-2xs hover:shadow-xs"
                       data-testid={`suggestion-${s.task}`}
                     >
-                      <div className="p-2 rounded-lg bg-[var(--color-brand-primary)]/10 text-[var(--color-brand-primary)] dark:bg-[#5CE1E6]/15 dark:text-[#5CE1E6] shrink-0 mt-0.5">
+                      <div className="p-2 rounded-lg bg-[var(--color-brand-primary)]/10 text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))] shrink-0 mt-0.5">
                         <Icon className="w-4 h-4" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-xs font-bold text-[var(--color-brand-primary)] dark:text-[#5CE1E6] mb-0.5">
+                        <span className="text-xs font-bold text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))] mb-0.5">
                           {TASK_DEFINITIONS[s.task]?.labelAr}
                         </span>
                         <p className="text-xs text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)] transition-colors">
