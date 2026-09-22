@@ -63,6 +63,7 @@ import os from 'os';
 import { Runtime } from '../electron/runtime.js';
 import { registerAllIpcHandlers, unregisterAllIpcHandlers } from '../electron/ipc/index.js';
 import { mapErrorToIpcResult } from '../electron/ipc/errors.js';
+import { GeminiProviderHttpError } from '@tibyan/core';
 import { handleMediaProtocolRequest } from '../electron/media-protocol.js';
 import {
   registerPhotoTokenForTesting,
@@ -314,6 +315,18 @@ describe('Task 10 — Typed IPC Bridge & Main Session Authority', () => {
     }
     expect(JSON.stringify(mapped)).not.toContain('SQLITE_CORRUPT');
     expect(JSON.stringify(mapped)).not.toContain('/Users/secret');
+  });
+
+  it('maps AI provider unavailability across generation IPC without exposing the key', () => {
+    const secret = 'secret-key-must-not-leak';
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const result = mapErrorToIpcResult(new GeminiProviderHttpError(503, 'UNAVAILABLE', `Busy ${secret}`, secret));
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error.code).toBe('AI_SERVICE_UNAVAILABLE');
+      expect(JSON.stringify(result)).not.toContain(secret);
+      expect(JSON.stringify(warning.mock.calls)).not.toContain(secret);
+    } finally { warning.mockRestore(); }
   });
 
   it('fresh install runtime initializes with system DB and null active academic DB', () => {
@@ -1591,4 +1604,3 @@ describe('Task 10 — Typed IPC Bridge & Main Session Authority', () => {
     });
   });
 });
-

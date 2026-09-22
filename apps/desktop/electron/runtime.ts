@@ -37,6 +37,7 @@ import {
   PdfSourceService,
   QuestionBankService,
   GeminiCredentialService,
+  createGeminiContentProvider,
   OwnerPasswordService,
   ExamService,
   AiExamService,
@@ -195,20 +196,7 @@ export class Runtime {
     this.pdfSourceService = new PdfSourceService(this.systemDb.db, sourcesDir);
     this.curriculumLibraryService = new CurriculumLibraryService(this.systemDb.db, sourcesDir);
     this.aiContentService = new AiContentService(
-      {
-        generate: async ({ prompt, responseSchema, fileData }) => {
-          const apiKey = this.geminiCredentialService.get();
-          if (!apiKey) throw new Error('Gemini API غير مهيأ');
-          const { GeminiExamProvider } = await import('@tibyan/core');
-          const provider = new GeminiExamProvider();
-          return provider.generate({
-            apiKey,
-            model: 'gemini-2.0-flash',
-            prompt,
-            fileData,
-          }, responseSchema);
-        },
-      },
+      createGeminiContentProvider(this.geminiCredentialService),
       new SourceContextService(
         (id: string) => this.curriculumLibraryService.get(id),
         async (id: string) => this.curriculumLibraryService.readFileBuffer(id),

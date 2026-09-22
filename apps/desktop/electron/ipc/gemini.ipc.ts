@@ -8,7 +8,7 @@ import {
 import { requirePermission, GeminiExamProvider } from '@tibyan/core';
 import { successResult, errorResult, GeminiConnectionResultSchema } from '@tibyan/contracts';
 import type { Runtime } from '../runtime.js';
-import { safeIpcCall } from './errors.js';
+import { safeIpcCall, mapGeminiConnectionError } from './errors.js';
 import { validateIpcSender } from '../security.js';
 
 /** Narrow Main-only credential boundary. No handler ever reads or returns a credential. */
@@ -55,8 +55,8 @@ export function registerGeminiIpcHandlers(runtime: Runtime, mainWindow: BrowserW
       if (!key) return errorResult('AI_NOT_CONFIGURED', 'لم يتم إعداد مفتاح تِبيان الذكي.');
       await new GeminiExamProvider().testConnection(key);
       return successResult(GeminiConnectionResultSchema.parse({ message: 'تم الاتصال بخدمة تِبيان بنجاح.' }));
-    } catch {
-      return errorResult('AI_CONNECTION_FAILED', 'تعذر الاتصال بخدمة تِبيان. تحقق من المفتاح والاتصال بالإنترنت.');
+    } catch (error) {
+      return mapGeminiConnectionError(error);
     }
   });
 }

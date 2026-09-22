@@ -19,6 +19,8 @@ vi.mock('electron', () => ({
 vi.mock('../electron/security.js', () => ({ validateIpcSender: vi.fn(() => senderValid) }));
 
 import { registerGeminiIpcHandlers, unregisterGeminiIpcHandlers } from '../electron/ipc/gemini.ipc.js';
+import { mapGeminiConnectionError } from '../electron/ipc/errors.js';
+import { GeminiProviderHttpError } from '@tibyan/core';
 
 describe('Gemini credential IPC', () => {
   const event = { sender: { id: 1 }, senderFrame: { parent: null } };
@@ -90,5 +92,24 @@ describe('Gemini credential IPC', () => {
     const result: any = await testHandler!(event);
     expect(result.success).toBe(false);
     expect(JSON.stringify(result)).not.toContain('test-key');
+  });
+
+  it.each([
+    [429, 'AI_RATE_LIMIT', 'حصة'],
+    [401, 'AI_CREDENTIAL_ACCESS', 'المفتاح'],
+    [403, 'AI_CREDENTIAL_ACCESS', 'المفتاح'],
+    [404, 'AI_MODEL_CONFIGURATION', 'النموذج'],
+    [503, 'AI_SERVICE_UNAVAILABLE', 'مشغولة'],
+  ])('maps HTTP %s to a safe, distinct Arabic error', (status, code, fragment) => {
+    const secret = 'secret-key-must-not-leak';
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const error = new GeminiProviderHttpError(Number(status), 'PROVIDER_ERROR', `Provider failure ${secret}`, secret);
+      const result: any = mapGeminiConnectionError(error);
+      expect(result.error.code).toBe(code);
+      expect(result.error.message).toContain(fragment);
+      expect(JSON.stringify(warn.mock.calls)).not.toContain(secret);
+      expect(JSON.stringify(result)).not.toContain(secret);
+    } finally { warn.mockRestore(); }
   });
 });

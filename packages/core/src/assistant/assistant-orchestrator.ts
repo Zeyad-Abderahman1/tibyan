@@ -17,6 +17,7 @@ import { executeConfirmedAction, type ExecutionReceiptRecord, type ExecuteAction
 import { executeUndo } from './undo-layer.js';
 import { buildSafeContext, formatContextForPrompt, type SafeContextPayload } from './context-builder.js';
 import { registerAllAssistantTools } from './tools/index.js';
+import { DEFAULT_TIBYAN_AI_MODEL } from '../ai/model-config.js';
 
 export interface OrchestratorDeps {
   systemDb: { db: unknown };
@@ -466,7 +467,7 @@ ${toolsList}
   }
 
   private async callGemini(apiKey: string, messages: Array<{ role: string; parts: Array<{ text: string }> }>): Promise<string> {
-    const model = this.deps.model ?? 'gemini-2.0-flash';
+    const model = this.deps.model ?? DEFAULT_TIBYAN_AI_MODEL;
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
     const controller = new AbortController();
