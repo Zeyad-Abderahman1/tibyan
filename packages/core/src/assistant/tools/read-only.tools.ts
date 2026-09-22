@@ -650,4 +650,95 @@ export function registerReadOnlyTools(): void {
     requiredPermissions: [],
     category: 'dashboard',
   });
+
+  registerTool({
+    name: 'list_grade_levels',
+    description: 'List authoritative supported grade levels (Prep 1 to Sec 3) with stable codes and Arabic names',
+    descriptionAr: 'عرض الصفوف والمراحل الدراسية المعتمدة في النظام برموزها وأسمائها العربية',
+    inputSchema: { stage: 'string?' },
+    outputSchema: { type: 'array', items: { code: 'string', nameAr: 'string', stage: 'string' } },
+    riskLevel: 'read-only',
+    confirmationPolicy: 'none',
+    undoCapability: 'none',
+    requiredPermissions: [],
+    category: 'system',
+  });
+
+  registerTool({
+    name: 'list_education_systems',
+    description: 'List supported education systems (General, Egyptian Baccalaureate)',
+    descriptionAr: 'عرض الأنظمة التعليمية المدعومة في تِبيان',
+    inputSchema: {},
+    outputSchema: { type: 'array', items: { code: 'string', nameAr: 'string' } },
+    riskLevel: 'read-only',
+    confirmationPolicy: 'none',
+    undoCapability: 'none',
+    requiredPermissions: [],
+    category: 'system',
+  });
+
+  registerTool({
+    name: 'list_language_tracks',
+    description: 'List supported language study tracks (Arabic, English/Languages)',
+    descriptionAr: 'عرض المسارات واللغات الدراسية المعتمدة',
+    inputSchema: {},
+    outputSchema: { type: 'array', items: { code: 'string', nameAr: 'string' } },
+    riskLevel: 'read-only',
+    confirmationPolicy: 'none',
+    undoCapability: 'none',
+    requiredPermissions: [],
+    category: 'system',
+  });
+
+  registerTool({
+    name: 'list_math_branches',
+    description: 'List supported mathematics branches (Algebra, Geometry, Calculus, Statistics, etc.)',
+    descriptionAr: 'عرض فروع مادة الرياضيات المعتمدة في تِبيان',
+    inputSchema: {},
+    outputSchema: { type: 'array', items: { code: 'string', nameAr: 'string' } },
+    riskLevel: 'read-only',
+    confirmationPolicy: 'none',
+    undoCapability: 'none',
+    requiredPermissions: [],
+    category: 'system',
+  });
+
+  registerTool({
+    name: 'list_academic_years',
+    description: 'List all academic years registered in the system',
+    descriptionAr: 'عرض جميع الأعوام الدراسية المسجلة في النظام',
+    inputSchema: {},
+    outputSchema: { type: 'array', items: { id: 'string', name: 'string', status: 'string' } },
+    riskLevel: 'read-only',
+    confirmationPolicy: 'none',
+    undoCapability: 'none',
+    requiredPermissions: [],
+    category: 'system',
+  });
+
+  registerTool({
+    name: 'get_application_settings',
+    description: 'Get safe non-sensitive application settings (theme, backup interval, active year)',
+    descriptionAr: 'عرض إعدادات التطبيق العامة والآمنة',
+    inputSchema: {},
+    outputSchema: { theme: 'string', activeYear: 'string' },
+    riskLevel: 'read-only',
+    confirmationPolicy: 'none',
+    undoCapability: 'none',
+    requiredPermissions: [],
+    category: 'system',
+  });
+
+  registerTool({
+    name: 'list_exam_variants',
+    description: 'List generated variants (models A, B, C, D) and answer keys for an exam',
+    descriptionAr: 'عرض نماذج الاختبار المتعددة (أ، ب، ج، د) ومفاتيح الإجابة',
+    inputSchema: { examId: 'string' },
+    outputSchema: { examId: 'string', variants: 'array' },
+    riskLevel: 'read-only',
+    confirmationPolicy: 'none',
+    undoCapability: 'none',
+    requiredPermissions: ['REPORTS_READ'],
+    category: 'exams',
+  });
 }

@@ -15,6 +15,7 @@ import {
   type PhotoSelectionDto,
 } from '@tibyan/contracts';
 import type { Runtime } from '../runtime.js';
+import { StudentImportService } from '@tibyan/core';
 import { safeIpcCall } from './errors.js';
 import { validateIpcSender } from '../security.js';
 
@@ -362,6 +363,50 @@ export function registerStudentsIpcHandlers(runtime: Runtime, mainWindow: Browse
       });
     }
   );
+
+  // 10. Student bulk import preview
+  ipcMain.handle(IPC_CHANNELS.STUDENTS_IMPORT_PREVIEW, async (event, payload: any) => {
+    if (!validateIpcSender(event, mainWindow)) {
+      throw new Error('UNAUTHORIZED_IPC_SENDER');
+    }
+    return safeIpcCall(async () => {
+      runtime.requireAuthenticatedActor();
+      runtime.requireActiveAcademicYear();
+      if (!runtime.studentService || !runtime.academicDb) {
+        throw new Error('SERVICE_UNAVAILABLE');
+      }
+
+      let buffer: Buffer;
+      if (payload?.fileContentBase64) {
+        buffer = Buffer.from(payload.fileContentBase64, 'base64');
+      } else if (payload?.filePath) {
+        buffer = await fs.promises.readFile(path.resolve(payload.filePath));
+      } else {
+        throw new Error('INVALID_INPUT: File data is required');
+      }
+
+      const importService = new StudentImportService(runtime.academicDb.db);
+      return importService.parseAndPreview(buffer, payload?.fileName || 'students.xlsx');
+    });
+  });
+
+  // 11. Student bulk import execute
+  ipcMain.handle(IPC_CHANNELS.STUDENTS_IMPORT_EXECUTE, async (event, payload: any) => {
+    if (!validateIpcSender(event, mainWindow)) {
+      throw new Error('UNAUTHORIZED_IPC_SENDER');
+    }
+    return safeIpcCall(async () => {
+      const actor = runtime.requireAuthenticatedActor();
+      runtime.requireActiveAcademicYear();
+      if (!runtime.academicDb) {
+        throw new Error('SERVICE_UNAVAILABLE');
+      }
+
+      const rows = Array.isArray(payload?.approvedRows) ? payload.approvedRows : [];
+      const importService = new StudentImportService(runtime.academicDb.db);
+      return importService.executeImport({ rows }, actor);
+    });
+  });
 }
 
 export function unregisterStudentsIpcHandlers(): void {
@@ -374,4 +419,6 @@ export function unregisterStudentsIpcHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.STUDENTS_CHOOSE_PHOTO_DIALOG);
   ipcMain.removeHandler(IPC_CHANNELS.STUDENTS_PRINT_CARDS);
   ipcMain.removeHandler(IPC_CHANNELS.STUDENTS_EXPORT_CARDS_PDF);
+  ipcMain.removeHandler(IPC_CHANNELS.STUDENTS_IMPORT_PREVIEW);
+  ipcMain.removeHandler(IPC_CHANNELS.STUDENTS_IMPORT_EXECUTE);
 }

@@ -5,6 +5,7 @@ export * from './auth/permissions.js';
 export * from './auth/auth.service.js';
 export * from './students/photo.service.js';
 export * from './students/student.service.js';
+export * from './students/student-import.service.js';
 export * from './groups/payment-inheritance.js';
 export * from './groups/group.service.js';
 export * from './groups/enrollment.service.js';

@@ -12,7 +12,12 @@ import {
   type ToolExecutionContext,
   type ToolExecutionResult,
 } from './tool-registry.js';
-import { generatePreview, isPreviewExpired, type PreviewResult, type PreviewItem } from './preview-engine.js';
+import {
+  generateCombinedPreview,
+  isPreviewExpired,
+  type PreviewResult,
+  type PreviewItem,
+} from './preview-engine.js';
 import { createConfirmationRecord, type ConfirmationRecord } from './confirmation-workflow.js';
 import { executeConfirmedAction, type ExecutionReceiptRecord, type ExecuteActionDeps } from './execute-audit.js';
 import { executeUndo, type UndoResult } from './undo-layer.js';
@@ -217,22 +222,10 @@ export class AssistantOrchestrator {
         }
 
         // Handle tool calls proposed by the model
-        let reachedConfirmation = false;
-        let anyToolExecuted = false;
+        const confirmationProposals: Array<{ tool: import('./tool-registry.js').ToolDefinition; input: Record<string, unknown> }> = [];
+        const immediateProposals: Array<{ toolProposal: { toolName: string; toolInput: Record<string, unknown> }; tool: import('./tool-registry.js').ToolDefinition }> = [];
 
         for (const toolProposal of parsedResponse.toolCalls) {
-          stepCount++;
-          if (stepCount > MAX_TOOL_STEPS) {
-            break;
-          }
-
-          const toolSig = `${toolProposal.toolName}:${JSON.stringify(toolProposal.toolInput ?? {})}`;
-          if (executedToolSignatures.has(toolSig)) {
-            // Abort repetitive tool calls
-            continue;
-          }
-          executedToolSignatures.add(toolSig);
-
           const tool = getTool(toolProposal.toolName);
           if (!tool) {
             conversationContents.push({
@@ -264,48 +257,66 @@ export class AssistantOrchestrator {
             }
           }
 
-          const confirmationPolicy = classifyConfirmationPolicy(tool, toolProposal.toolInput);
+          const confirmationPolicy = classifyConfirmationPolicy(tool, toolProposal.toolInput ?? {});
           if (confirmationPolicy === 'required') {
-            // Generate preview and pause for user confirmation
-            const preview = await generatePreview(
-              {
-                generateId: () => crypto.randomUUID(),
-                buildPreview: (name, input) => this.deps.buildToolPreview(name, input, toolContext),
-                buildSummary: (name, items) => this.buildPreviewSummary(name, items),
-              },
-              tool,
-              toolProposal.toolInput,
-            );
+            confirmationProposals.push({ tool, input: toolProposal.toolInput ?? {} });
+          } else {
+            immediateProposals.push({ toolProposal: { toolName: toolProposal.toolName, toolInput: toolProposal.toolInput ?? {} }, tool });
+          }
+        }
 
-            const previewWithSession = Object.assign(preview, { sessionId });
-            this.pendingPreviews.set(preview.id, previewWithSession);
-            const confirmation = createConfirmationRecord(preview);
-            this.pendingConfirmations.set(preview.id, confirmation);
+        // If any proposals require confirmation, aggregate ALL of them into ONE combined preview
+        if (confirmationProposals.length > 0) {
+          const preview = await generateCombinedPreview(
+            {
+              generateId: () => crypto.randomUUID(),
+              buildPreview: (name, input) => this.deps.buildToolPreview(name, input, toolContext),
+              buildSummary: (name, items) => this.buildPreviewSummary(name, items),
+            },
+            confirmationProposals,
+          );
 
-            const previewMsg = this.messageRepo.insert({
-              id: crypto.randomUUID(),
-              sessionId,
-              role: 'assistant',
-              type: 'preview',
-              content: preview.summary,
-              toolCallId: crypto.randomUUID(),
-              toolName: toolProposal.toolName,
-              toolInputJson: JSON.stringify(toolProposal.toolInput),
-              confirmationToken: preview.id,
-              previewId: preview.id,
-              createdAt: new Date().toISOString(),
-            });
+          const previewWithSession = Object.assign(preview, { sessionId });
+          this.pendingPreviews.set(preview.id, previewWithSession);
+          const confirmation = createConfirmationRecord(preview);
+          this.pendingConfirmations.set(preview.id, confirmation);
 
-            generatedMessages.push(previewMsg);
-            reachedConfirmation = true;
-            return {
-              success: true,
-              messages: generatedMessages,
-              preview,
-            };
+          const previewMsg = this.messageRepo.insert({
+            id: crypto.randomUUID(),
+            sessionId,
+            role: 'assistant',
+            type: 'preview',
+            content: preview.summary,
+            toolCallId: crypto.randomUUID(),
+            toolName: preview.toolName,
+            toolInputJson: JSON.stringify(preview.toolInput),
+            confirmationToken: preview.id,
+            previewId: preview.id,
+            createdAt: new Date().toISOString(),
+          });
+
+          generatedMessages.push(previewMsg);
+          return {
+            success: true,
+            messages: generatedMessages,
+            preview,
+          };
+        }
+
+        // Otherwise execute all immediate read-only or low-risk actions
+        let anyToolExecuted = false;
+        for (const { toolProposal, tool } of immediateProposals) {
+          stepCount++;
+          if (stepCount > MAX_TOOL_STEPS) {
+            break;
           }
 
-          // Execute read-only or immediate action
+          const toolSig = `${toolProposal.toolName}:${JSON.stringify(toolProposal.toolInput ?? {})}`;
+          if (executedToolSignatures.has(toolSig)) {
+            continue;
+          }
+          executedToolSignatures.add(toolSig);
+
           const result = await this.deps.executeTool(toolProposal.toolName, toolProposal.toolInput, toolContext);
           anyToolExecuted = true;
 
@@ -335,10 +346,6 @@ export class AssistantOrchestrator {
               },
             ],
           });
-        }
-
-        if (reachedConfirmation) {
-          break;
         }
 
         if (!anyToolExecuted) {
@@ -487,6 +494,98 @@ export class AssistantOrchestrator {
 
     this._lastReceipt = undefined;
 
+    if (preview.actions && preview.actions.length > 1) {
+      const executedSnapshots: unknown[] = [];
+      const successfulLabels: string[] = [];
+      const skippedLabels: string[] = [];
+      let allSucceeded = true;
+      let lastErr: string | undefined;
+
+      for (const action of preview.actions) {
+        try {
+          const res = await this.deps.executeTool(action.toolName, action.toolInput, toolContext);
+          if (!res.success) {
+            allSucceeded = false;
+            lastErr = res.error;
+          } else {
+            const data = res.data as Record<string, unknown> | undefined;
+            const label = String(action.toolInput.name ?? action.toolName);
+            if (data?.skipped) {
+              skippedLabels.push(label);
+            } else {
+              successfulLabels.push(label);
+            }
+            if (res.undoSnapshot) {
+              executedSnapshots.push(res.undoSnapshot);
+            }
+          }
+        } catch (e: any) {
+          allSucceeded = false;
+          lastErr = e?.message || String(e);
+        }
+      }
+
+      this.pendingPreviews.delete(previewId);
+      this.pendingConfirmations.delete(previewId);
+
+      const receiptId = crypto.randomUUID();
+      const receipt: ExecutionReceiptRecord = {
+        id: receiptId,
+        toolName: preview.toolName,
+        toolInput: preview.toolInput,
+        previewId,
+        success: allSucceeded,
+        undoAvailable: executedSnapshots.length > 0,
+        undoToken: executedSnapshots.length > 0 ? crypto.randomUUID() : undefined,
+        executedAt: new Date().toISOString(),
+      };
+      this._lastReceipt = receipt;
+      if (executedSnapshots.length > 0) {
+        this.undoSnapshots.set(receiptId, { kind: 'batch', snapshots: executedSnapshots });
+      }
+
+      let summaryContent = '';
+      if (successfulLabels.length > 0 && skippedLabels.length > 0) {
+        summaryContent = `تم إنشاء ${successfulLabels.length} مجموعة (${successfulLabels.join('، ')})، وتم تخطي ${skippedLabels.length} مجموعة موجودة مسبقاً (${skippedLabels.join('، ')}).`;
+      } else if (successfulLabels.length > 0) {
+        summaryContent = `تم إنشاء ${successfulLabels.length} مجموعة بنجاح: ${successfulLabels.join('، ')}.`;
+      } else if (skippedLabels.length > 0) {
+        summaryContent = `تم تخطي جميع المجموعات المطلوبة لأنها موجودة بالفعل: ${skippedLabels.join('، ')}.`;
+      } else {
+        summaryContent = allSucceeded ? 'تم تنفيذ العمليات بنجاح.' : `حدث خطأ أثناء التنفيذ: ${lastErr}`;
+      }
+
+      const receiptMsg = this.messageRepo.insert({
+        id: crypto.randomUUID(),
+        sessionId: resolvedSessionId,
+        role: 'assistant',
+        type: 'execution-receipt',
+        content: summaryContent,
+        receiptId: receipt.id,
+        undoAvailable: receipt.undoAvailable,
+        undoToken: receipt.undoToken,
+        createdAt: new Date().toISOString(),
+      });
+
+      const confirmMsg = this.messageRepo.insert({
+        id: crypto.randomUUID(),
+        sessionId: resolvedSessionId,
+        role: 'assistant',
+        type: 'confirmation',
+        content: 'تم تأكيد الإجراء وتنفيذه.',
+        confirmationToken: previewId,
+        previewId,
+        createdAt: new Date().toISOString(),
+      });
+
+      return {
+        success: allSucceeded,
+        messages: [confirmMsg, receiptMsg],
+        receipt,
+        error: lastErr ? { code: 'TOOL_EXECUTION_FAILED', message: lastErr } : undefined,
+      };
+    }
+
     const result = await executeConfirmedAction(
       execDeps,
       requireTool(preview.toolName),
@@ -619,15 +718,20 @@ ${contextStr ? `السياق الحالي للمنصة:\n${contextStr}\n` : ''}
 ${toolsList}
 
 تعليمات وقواعد العمل:
-1. عند طلب المعلم لأي معلومة أو بيانات (مثل الطلاب، المجموعات، الحصص، الغياب، الدرجات، المالية):
+1. إذا كانت المعلومة موجودة داخل نظام تِبيان، لا تطلب أبداً من المعلم إدخالها يدوياً أو تذكر أنك لا تستطيع الوصول، بل استعلم واسترجعها فوراً باستخدام أدوات النظام المناسبة.
+2. عند السؤال عن الصفوف الدراسية في النظام أو طلب إنشاء مجموعات لكل صف دراسي:
+   - استدعِ أداة list_grade_levels لاسترجاع الصفوف الرسمية المعتمدة في النظام برموزها وأسمائها العربية.
+   - استدعِ أداة list_groups لمعرفة المجموعات القائمة وتجنب تكرار أي مجموعة موجودة بالفعل.
+   - عند طلب إنشاء مجموعات للصفوف الدراسية، اقترح استدعاءات create_group لكل صف دراسي غير موجود دفعة واحدة في مصفوفة toolCalls، مستخدماً الاسم العربي الرسمي للصف (مثل "الصف الأول الثانوي" أو "الصف الأول الإعدادي") ورمز الصف المناسب.
+3. لأي طلب يتضمن كياناً غير محدد المعرف (طالب، مجموعة، حصة)، ابحث أولاً باستخدام أدوات القوائم والبحث، وحلّل الأسماء إلى معرفات تلقائياً دون إجبار المعلم على معرفة الرموز الداخلية.
+4. عند طلب المعلم لأي معلومة أو بيانات:
    استدعِ الأداة المناسبة بصيغة JSON مهيكلة:
    {"type": "tool-call", "toolCalls": [{"toolName": "اسم_الأداة", "toolInput": {}}]}
-2. عندما تتوفر لديك البيانات أو يجيب المعلم على سؤال عادي:
+5. عندما تتوفر لديك البيانات أو يجيب المعلم على سؤال عادي:
    أجب باللغة العربية الطبيعية بصيغة:
    {"type": "reply", "reply": "إجابتك باللغة العربية هنا"}
-3. لا تخترع أية معرفات (IDs) أو بيانات غير موجودة، وابحث دائماً بالأدوات أولاً.
-4. الإجراءات والتعديلات الحساسة (إنشاء، تعديل، حذف، تسجيل حضور، ماليات) تتطلب دائماً معاينة وتأكيد من المعلم.
-5. أعد دائماً استجابة JSON صالحة فقط، دون نصوص خارج كائن JSON.`;
+6. الإجراءات والتعديلات الحساسة (إنشاء، تعديل، حذف، تسجيل حضور، ماليات) تتطلب دائماً معاينة وتأكيد من المعلم.
+7. أعد دائماً استجابة JSON صالحة فقط، دون نصوص خارج كائن JSON.`;
   }
 
   private async callGemini(

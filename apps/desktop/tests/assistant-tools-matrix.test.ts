@@ -52,8 +52,8 @@ describe('Assistant Tool Matrix & Zero Unimplemented Tools Invariant', () => {
     const readTools = allTools.filter((t) => t.riskLevel === 'read-only');
     const mutationTools = allTools.filter((t) => t.riskLevel !== 'read-only');
 
-    expect(readTools.length).toBe(49);
-    expect(mutationTools.length).toBe(40);
-    expect(allTools.length).toBe(89);
+    expect(readTools.length).toBe(56);
+    expect(mutationTools.length).toBe(42);
+    expect(allTools.length).toBe(98);
   });
 });

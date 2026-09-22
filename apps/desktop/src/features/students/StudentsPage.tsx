@@ -9,6 +9,7 @@ import {
   AlertCircle,
   RefreshCw,
   CreditCard,
+  Upload,
 } from 'lucide-react';
 import {
   Card,
@@ -35,6 +36,7 @@ import { useStudentsList } from '../../hooks/useStudents.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { StudentCreateModal } from './StudentCreateModal.js';
 import { StudentCardPreviewModal } from './cards/StudentCardPreviewModal.js';
+import { StudentImportModal } from './StudentImportModal.js';
 
 const SYSTEM_OPTIONS = [
   { value: '', label: 'جميع الأنظمة' },
@@ -96,6 +98,7 @@ export function StudentsPage() {
   const [status, setStatus] = useState<string>('ACTIVE');
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
   const [cardPreviewStudents, setCardPreviewStudents] = useState<StudentDto[]>([]);
   const [isCardPreviewOpen, setIsCardPreviewOpen] = useState(false);
@@ -201,15 +204,26 @@ export function StudentsPage() {
           )}
 
           {canWrite && (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => setIsCreateModalOpen(true)}
-              data-testid="add-student-btn"
-            >
-              <UserPlus size={16} className="me-1.5" />
-              إضافة طالب جديد
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsImportModalOpen(true)}
+                data-testid="import-students-btn"
+              >
+                <Upload size={16} className="me-1.5 text-[var(--color-brand-primary)]" />
+                استيراد طلاب
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsCreateModalOpen(true)}
+                data-testid="add-student-btn"
+              >
+                <UserPlus size={16} className="me-1.5" />
+                إضافة طالب جديد
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -519,6 +533,17 @@ export function StudentsPage() {
         onClose={() => setIsCardPreviewOpen(false)}
         students={cardPreviewStudents}
       />
+
+      {/* Student Bulk Import Modal */}
+      {canWrite && (
+        <StudentImportModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={() => {
+            refetch();
+          }}
+        />
+      )}
     </div>
   );
 }

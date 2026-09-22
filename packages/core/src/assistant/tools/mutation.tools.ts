@@ -529,4 +529,30 @@ export function registerMutationTools(): void {
     requiredPermissions: ['GROUPS_WRITE'],
     category: 'grading',
   });
+
+  registerTool({
+    name: 'preview_student_import',
+    description: 'Parse student file data and preview rows before importing',
+    descriptionAr: 'معاينة وفحص بيانات ملف الطلاب قبل الاستيراد',
+    inputSchema: { fileContentBase64: 'string?', fileName: 'string?', rawText: 'string?' },
+    outputSchema: { totalRows: 'number', validCount: 'number', duplicateCount: 'number' },
+    riskLevel: 'low-risk',
+    confirmationPolicy: 'required',
+    undoCapability: 'none',
+    requiredPermissions: ['STUDENTS_WRITE'],
+    category: 'students',
+  });
+
+  registerTool({
+    name: 'execute_student_import',
+    description: 'Execute bulk creation of validated student records',
+    descriptionAr: 'تنفيذ استيراد وإضافة مجموعة من الطلاب دفعة واحدة',
+    inputSchema: { rows: 'array' },
+    outputSchema: { importedCount: 'number', skippedCount: 'number', failedCount: 'number' },
+    riskLevel: 'sensitive',
+    confirmationPolicy: 'required',
+    undoCapability: 'snapshot',
+    requiredPermissions: ['STUDENTS_WRITE'],
+    category: 'students',
+  });
 }

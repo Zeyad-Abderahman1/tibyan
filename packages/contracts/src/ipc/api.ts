@@ -21,6 +21,11 @@ import {
   PhotoSelectionDto,
 } from '../models/student.dto.js';
 import {
+  StudentImportPreviewDto,
+  StudentImportRowDto,
+  StudentImportResultDto,
+} from '../models/student-import.dto.js';
+import {
   GroupDto,
   CreateGroupInput,
   UpdateGroupInput,
@@ -224,6 +229,8 @@ export interface TibyanApi {
     choosePhotoDialog(): Promise<IpcResult<PhotoSelectionDto | null>>;
     printCards(): Promise<IpcResult<void>>;
     exportCardsPdf(input?: { defaultFilename?: string; targetPath?: string }): Promise<IpcResult<{ canceled: boolean; filePath: string }>>;
+    importPreview(payload: { fileContentBase64?: string; filePath?: string; fileName: string }): Promise<IpcResult<StudentImportPreviewDto>>;
+    importExecute(payload: { approvedRows: StudentImportRowDto[] }): Promise<IpcResult<StudentImportResultDto>>;
   };
   groups: {
     list(): Promise<IpcResult<GroupDto[]>>;

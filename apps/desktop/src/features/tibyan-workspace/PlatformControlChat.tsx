@@ -11,6 +11,8 @@ import {
   X,
   Wrench,
   RotateCcw,
+  Paperclip,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { useAssistant } from '../../hooks/useAssistant.js';
 
@@ -62,8 +64,10 @@ export interface PlatformControlChatProps {
 
 export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformControlChatProps = {}) {
   const [input, setInput] = useState('');
+  const [attachedFile, setAttachedFile] = useState<{ name: string; base64: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     messages,
@@ -91,13 +95,45 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, sending]);
 
+  const handleAttachFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0]!;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = (reader.result as string).split(',')[1] || '';
+        setAttachedFile({ name: file.name, base64 });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSend = useCallback(async () => {
     const text = input.trim();
-    if (!text || sending) return;
+    if ((!text && !attachedFile) || sending) return;
+    const currentAttachment = attachedFile;
+    const userText = text || (currentAttachment ? `أضف الطلاب الموجودين في الملف (${currentAttachment.name})` : '');
     setInput('');
+    setAttachedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
 
     try {
-      const resp = await sendMessage(text, 'PLATFORM_CONTROL', undefined, sessionId || undefined);
+      let messageContent = userText;
+      if (currentAttachment) {
+        try {
+          const previewRes = await window.tibyan.students.importPreview({
+            fileContentBase64: currentAttachment.base64,
+            fileName: currentAttachment.name,
+          });
+          if (previewRes.success && previewRes.data) {
+            const prev = previewRes.data;
+            messageContent = `${userText}\n\n[ملف مرفق: ${currentAttachment.name} - يتضمن ${prev.validCount} طالب جاهز للإضافة، ${prev.duplicateCount} مكرر]`;
+          }
+        } catch {
+          // Keep base message
+        }
+      }
+
+      const resp = await sendMessage(messageContent, 'PLATFORM_CONTROL', undefined, sessionId || undefined);
       const activeId = resp.messages?.[0]?.sessionId;
       if (activeId && activeId !== sessionId) {
         onSessionCreated?.(activeId);
@@ -105,7 +141,7 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
     } catch {
       // Error handled by hook
     }
-  }, [input, sending, sendMessage, sessionId, onSessionCreated]);
+  }, [input, attachedFile, sending, sendMessage, sessionId, onSessionCreated]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -295,14 +331,47 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
 
       {/* Composer */}
       <div className="border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-4">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto space-y-2">
+          {/* Attachment Chip */}
+          {attachedFile && (
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-[var(--color-brand-subtle)] text-[var(--color-brand-primary)] rounded-lg text-xs font-medium w-fit border border-[var(--color-brand-primary)]/20">
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>{attachedFile.name}</span>
+              <button
+                onClick={() => setAttachedFile(null)}
+                className="p-0.5 hover:bg-black/10 rounded mr-1"
+                title="إزالة الملف"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           <div className="flex gap-2 items-end bg-[var(--color-bg-base)] rounded-2xl border border-[var(--color-border-subtle)] p-2 focus-within:ring-2 focus-within:ring-[var(--color-brand-primary)] transition-all">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv,.pdf"
+              className="hidden"
+              onChange={handleAttachFile}
+              data-testid="platform-chat-file-input"
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              className="rounded-xl h-10 w-10 p-0 flex items-center justify-center flex-shrink-0 text-[var(--color-text-secondary)] hover:text-[var(--color-brand-primary)]"
+              title="إرفاق ملف طلاب (.xlsx, .csv, .pdf)"
+              data-testid="platform-chat-attach-btn"
+            >
+              <Paperclip className="w-4 h-4" />
+            </Button>
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="اكتب طلبك باللغة العربية (مثال: اعرض عدد الطلاب في كل مجموعة)..."
+              placeholder="اكتب طلبك باللغة العربية (مثال: أنشئ مجموعة لكل صف دراسي)..."
               className="flex-1 resize-none rounded-xl bg-transparent px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none min-h-[44px] max-h-[180px] leading-relaxed"
               rows={1}
               dir="rtl"
@@ -312,7 +381,7 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
               variant="primary"
               size="sm"
               onClick={handleSend}
-              disabled={!input.trim() || sending}
+              disabled={(!input.trim() && !attachedFile) || sending}
               className="rounded-xl h-10 w-10 p-0 flex items-center justify-center flex-shrink-0"
               data-testid="platform-chat-send"
             >

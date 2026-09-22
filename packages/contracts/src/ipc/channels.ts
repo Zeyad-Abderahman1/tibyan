@@ -21,6 +21,8 @@ export const IPC_CHANNELS = {
   STUDENTS_CHOOSE_PHOTO_DIALOG: 'students:choosePhotoDialog',
   STUDENTS_PRINT_CARDS: 'students:printCards',
   STUDENTS_EXPORT_CARDS_PDF: 'students:exportCardsPdf',
+  STUDENTS_IMPORT_PREVIEW: 'students:importPreview',
+  STUDENTS_IMPORT_EXECUTE: 'students:importExecute',
 
   // Groups
   GROUPS_LIST: 'groups:list',

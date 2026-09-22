@@ -1,20 +1,24 @@
 import { ipcMain, type BrowserWindow } from 'electron';
+import fs from 'node:fs';
 import {
   IPC_CHANNELS,
   SendMessageInputSchema,
   CreateSessionInputSchema,
   ConfirmationInputSchema,
   UndoInputSchema,
+  GRADE_LEVEL_DEFINITIONS,
+  EDUCATION_SYSTEM_DEFINITIONS,
+  LANGUAGE_TRACK_DEFINITIONS,
+  MATH_BRANCH_DEFINITIONS,
 } from '@tibyan/contracts';
-import { SlideService } from '@tibyan/core';
+import { SlideService, AssistantOrchestrator, StudentImportService } from '@tibyan/core';
 import type { Runtime } from '../runtime.js';
 import { safeIpcCall } from './errors.js';
 import { validateIpcSender } from '../security.js';
 import { archiveLessonPlanWithUndo, undoArchivedLessonPlan } from './assistant-lesson-plan-undo.js';
 
-export function getOrchestrator(runtime: Runtime): import('@tibyan/core').AssistantOrchestrator {
+export function getOrchestrator(runtime: Runtime): AssistantOrchestrator {
   if (!runtime.assistantOrchestrator) {
-    const { AssistantOrchestrator } = require('@tibyan/core');
     runtime.assistantOrchestrator = new AssistantOrchestrator({
       systemDb: runtime.systemDb,
       geminiCredentialService: runtime.geminiCredentialService,
@@ -72,7 +76,23 @@ export function getOrchestrator(runtime: Runtime): import('@tibyan/core').Assist
           items.push({
             entityLabel: (input.name as string) ?? 'مجموعة جديدة',
             changeKind: 'create',
-            changes: [{ field: 'name', label: 'اسم المجموعة', after: input.name }],
+            changes: [
+              { field: 'name', label: 'اسم المجموعة', after: input.name },
+              ...(input.gradeLevel ? [{ field: 'gradeLevel', label: 'المرحلة / الصف', after: input.gradeLevel }] : []),
+            ],
+          });
+        } else if (toolName === 'preview_student_import') {
+          items.push({
+            entityLabel: `معاينة استيراد ملف: ${(input.fileName as string) || 'ملف طلاب'}`,
+            changeKind: 'create',
+            changes: [{ field: 'fileName', label: 'اسم الملف', after: input.fileName }],
+          });
+        } else if (toolName === 'execute_student_import') {
+          const rows = Array.isArray(input.approvedRows ?? input.rows) ? ((input.approvedRows ?? input.rows) as any[]) : [];
+          items.push({
+            entityLabel: `استيراد ${rows.length} طالب`,
+            changeKind: 'create',
+            changes: [{ field: 'count', label: 'عدد الطلاب المعتمدين', after: rows.length }],
           });
         } else if (toolName === 'update_group') {
           items.push({
@@ -267,6 +287,29 @@ export function getOrchestrator(runtime: Runtime): import('@tibyan/core').Assist
               undoSnapshot: { kind: 'add_student_note', studentId: input.studentId, noteId: result.id },
             };
           }
+          if (toolName === 'preview_student_import' && runtime.academicDb) {
+            const service = new StudentImportService(runtime.academicDb.db);
+            let buffer: Buffer;
+            if (input.fileContentBase64) {
+              buffer = Buffer.from(input.fileContentBase64 as string, 'base64');
+            } else if (input.filePath && typeof input.filePath === 'string') {
+              buffer = fs.readFileSync(input.filePath);
+            } else {
+              return { success: false, error: 'محتوى الملف مفقود' };
+            }
+            const preview = await service.parseAndPreview(buffer, (input.fileName as string) || 'students.xlsx');
+            return { success: true, data: preview };
+          }
+          if (toolName === 'execute_student_import' && runtime.academicDb) {
+            const service = new StudentImportService(runtime.academicDb.db);
+            const rawRows = (input.approvedRows ?? input.rows ?? []) as any[];
+            const result = await service.executeImport({ rows: rawRows }, actor);
+            return {
+              success: true,
+              data: result,
+              undoSnapshot: { kind: 'import_students', studentIds: result.importedStudentIds },
+            };
+          }
 
           // ─── Groups ─────────────────────────────────────────────────────
           if (toolName === 'list_groups' && runtime.groupService) {
@@ -286,7 +329,47 @@ export function getOrchestrator(runtime: Runtime): import('@tibyan/core').Assist
             return { success: true, data: result };
           }
           if (toolName === 'create_group' && runtime.groupService) {
-            const result = await runtime.groupService.createGroup(input as any, actor);
+            // Check if group already exists to prevent duplicate creation
+            const existingGroups = await runtime.groupService.listGroups({ status: 'ACTIVE' }, actor);
+            const groupName = String(input.name ?? '').trim();
+            const existing = existingGroups.find((g) => g.name.trim().toLowerCase() === groupName.toLowerCase());
+            if (existing) {
+              return {
+                success: true,
+                data: {
+                  ...existing,
+                  alreadyExists: true,
+                  skipped: true,
+                  message: `المجموعة '${existing.name}' موجودة بالفعل في النظام، تم تخطي تكرارها.`,
+                },
+              };
+            }
+
+            // Resolve gradeLevel if needed
+            let gradeLevel = input.gradeLevel as any;
+            if (!gradeLevel || !GRADE_LEVEL_DEFINITIONS.some((g) => g.code === gradeLevel)) {
+              const match = GRADE_LEVEL_DEFINITIONS.find(
+                (g) =>
+                  g.nameAr === groupName ||
+                  g.code === gradeLevel ||
+                  groupName.includes(g.nameAr) ||
+                  (typeof gradeLevel === 'string' && g.nameAr.includes(gradeLevel))
+              );
+              gradeLevel = match ? match.code : 'SEC_1';
+            }
+
+            const payload: any = {
+              name: groupName,
+              educationSystem: input.educationSystem ?? 'GENERAL',
+              gradeLevel,
+              languageTrack: input.languageTrack ?? 'ARABIC',
+              focusMathBranch: input.focusMathBranch ?? null,
+              defaultPaymentType: input.defaultPaymentType ?? 'MONTHLY',
+              defaultPaymentAmount: Number(input.defaultPaymentAmount ?? 0),
+              schedules: Array.isArray(input.schedules) ? input.schedules : [],
+            };
+
+            const result = await runtime.groupService.createGroup(payload, actor);
             return {
               success: true,
               data: result,
@@ -480,6 +563,18 @@ export function getOrchestrator(runtime: Runtime): import('@tibyan/core').Assist
           if (toolName === 'get_exam_source_provenance' && runtime.examService) {
             const exam = runtime.examService.getExam(input.examId as string);
             return { success: true, data: { examId: input.examId, blueprint: exam?.blueprint } };
+          }
+          if (toolName === 'list_exam_variants' && runtime.examService) {
+            const exam = runtime.examService.getExam(input.examId as string);
+            return {
+              success: true,
+              data: {
+                examId: input.examId,
+                examTitle: exam?.title ?? '',
+                variants: exam?.versions ?? [],
+                total: exam?.versions?.length ?? 0,
+              },
+            };
           }
 
           // ─── Slides ─────────────────────────────────────────────────────
@@ -747,6 +842,67 @@ export function getOrchestrator(runtime: Runtime): import('@tibyan/core').Assist
               },
             };
           }
+          if (toolName === 'list_grade_levels') {
+            return {
+              success: true,
+              data: {
+                gradeLevels: GRADE_LEVEL_DEFINITIONS,
+                total: GRADE_LEVEL_DEFINITIONS.length,
+              },
+            };
+          }
+          if (toolName === 'list_education_systems') {
+            return {
+              success: true,
+              data: {
+                educationSystems: EDUCATION_SYSTEM_DEFINITIONS,
+                total: EDUCATION_SYSTEM_DEFINITIONS.length,
+              },
+            };
+          }
+          if (toolName === 'list_language_tracks') {
+            return {
+              success: true,
+              data: {
+                languageTracks: LANGUAGE_TRACK_DEFINITIONS,
+                total: LANGUAGE_TRACK_DEFINITIONS.length,
+              },
+            };
+          }
+          if (toolName === 'list_math_branches') {
+            return {
+              success: true,
+              data: {
+                mathBranches: MATH_BRANCH_DEFINITIONS,
+                total: MATH_BRANCH_DEFINITIONS.length,
+              },
+            };
+          }
+          if (toolName === 'list_academic_years') {
+            const years = runtime.academicYearRepo ? runtime.academicYearRepo.listAll() : [];
+            return {
+              success: true,
+              data: {
+                academicYears: years.map((y) => ({
+                  id: y.id,
+                  name: y.name,
+                  isActive: y.isActive,
+                  isArchived: y.isArchived,
+                })),
+                activeYear: runtime.activeAcademicYear ? { id: runtime.activeAcademicYear.id, name: runtime.activeAcademicYear.name } : null,
+              },
+            };
+          }
+          if (toolName === 'get_application_settings') {
+            return {
+              success: true,
+              data: {
+                activeAcademicYear: runtime.activeAcademicYear ? { id: runtime.activeAcademicYear.id, name: runtime.activeAcademicYear.name } : null,
+                isSetupComplete: Boolean(runtime.activeAcademicYear),
+                systemStatus: 'ONLINE',
+              },
+            };
+          }
 
           return { success: false, error: 'الأداة غير مدعومة' };
         } catch (err) {
@@ -760,6 +916,34 @@ export function getOrchestrator(runtime: Runtime): import('@tibyan/core').Assist
           }
           const s = snapshot as Record<string, unknown>;
           const actor = runtime.requireAuthenticatedActor();
+
+          if (s.kind === 'batch' && Array.isArray(s.snapshots)) {
+            for (const subSnapshot of (s.snapshots as unknown[]).slice().reverse()) {
+              if (subSnapshot && typeof subSnapshot === 'object') {
+                const sub = subSnapshot as Record<string, unknown>;
+                if (sub.kind === 'create_group' && runtime.groupService && sub.groupId) {
+                  await runtime.groupService.updateGroup({ groupId: sub.groupId as string, status: 'ARCHIVED' } as any, actor);
+                } else if (sub.kind === 'import_students' && runtime.studentService && Array.isArray(sub.studentIds)) {
+                  for (const sid of sub.studentIds as string[]) {
+                    await runtime.studentService.updateStudent({ studentId: sid, status: 'ARCHIVED' } as any, actor);
+                  }
+                } else if (sub.kind === 'create_student' && runtime.studentService && sub.studentId) {
+                  await runtime.studentService.updateStudent({ studentId: sub.studentId as string, status: 'ARCHIVED' } as any, actor);
+                }
+              }
+            }
+            return { success: true };
+          }
+          if (s.kind === 'create_group' && runtime.groupService && s.groupId) {
+            await runtime.groupService.updateGroup({ groupId: s.groupId as string, status: 'ARCHIVED' } as any, actor);
+            return { success: true };
+          }
+          if (s.kind === 'import_students' && runtime.studentService && Array.isArray(s.studentIds)) {
+            for (const sid of s.studentIds as string[]) {
+              await runtime.studentService.updateStudent({ studentId: sid, status: 'ARCHIVED' } as any, actor);
+            }
+            return { success: true };
+          }
 
           if (s.kind === 'archive_lesson_plan' && runtime.lessonPlannerService) {
             undoArchivedLessonPlan(runtime.lessonPlannerService, snapshot, actor);

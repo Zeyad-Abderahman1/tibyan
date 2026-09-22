@@ -25,3 +25,4 @@ export * from './assistant.dto.js';
 export * from './slide.dto.js';
 export * from './curriculum-library.dto.js';
 export * from './ai-generation.dto.js';
+export * from './student-import.dto.js';

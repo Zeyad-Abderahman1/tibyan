@@ -228,6 +228,12 @@ export const tibyanApi: TibyanApi = {
     exportCardsPdf(input?: { defaultFilename?: string; targetPath?: string }): Promise<IpcResult<{ canceled: boolean; filePath: string }>> {
       return ipcRenderer.invoke(IPC_CHANNELS.STUDENTS_EXPORT_CARDS_PDF, input);
     },
+    importPreview(payload: any): any {
+      return ipcRenderer.invoke(IPC_CHANNELS.STUDENTS_IMPORT_PREVIEW, payload);
+    },
+    importExecute(payload: any): any {
+      return ipcRenderer.invoke(IPC_CHANNELS.STUDENTS_IMPORT_EXECUTE, payload);
+    },
   },
 
   groups: {

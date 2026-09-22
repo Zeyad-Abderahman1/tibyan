@@ -151,13 +151,13 @@ test.describe('Phase 6 — Curriculum Library & Tibyan Workspace Visual Gate', (
     // Screenshot 4: Tibyan workspace
     await page.screenshot({ path: path.join(docsDir, '04-tibyan-central-workspace.png') });
 
-    // ── 6. Verify right-side task menu ──
-    // Task sidebar cards are rendered without a wrapper data-testid
-    const examTask = page.locator('[data-testid="task-card-EXAM"]');
-    const slidesTask = page.locator('[data-testid="task-card-SLIDES"]');
-    const reviewTask = page.locator('[data-testid="task-card-REVIEW"]');
-    const notesTask = page.locator('[data-testid="task-card-NOTES"]');
-    const platformTask = page.locator('[data-testid="task-card-PLATFORM_CONTROL"]');
+    // ── 6. Verify right-side capabilities sidebar ──
+    // Phase 6 Final: right sidebar uses capability-* buttons (not task-card-*)
+    const examTask = page.locator('[data-testid="capability-EXAM"]');
+    const slidesTask = page.locator('[data-testid="capability-SLIDES"]');
+    const reviewTask = page.locator('[data-testid="capability-REVIEW"]');
+    const notesTask = page.locator('[data-testid="capability-NOTES"]');
+    const platformTask = page.locator('[data-testid="capability-PLATFORM_CONTROL"]');
 
     await expect(examTask).toBeVisible();
     await expect(slidesTask).toBeVisible();
@@ -170,7 +170,7 @@ test.describe('Phase 6 — Curriculum Library & Tibyan Workspace Visual Gate', (
 
     // ── 7. Choose Exam creation ──
     await examTask.click();
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(800);
 
     // Screenshot 6: Exam source selection
     await page.screenshot({ path: path.join(docsDir, '06-exam-source-selection.png') });
