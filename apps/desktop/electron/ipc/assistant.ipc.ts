@@ -9,6 +9,7 @@ import {
 import type { Runtime } from '../runtime.js';
 import { safeIpcCall } from './errors.js';
 import { validateIpcSender } from '../security.js';
+import { archiveLessonPlanWithUndo, undoArchivedLessonPlan } from './assistant-lesson-plan-undo.js';
 
 let orchestrator: import('@tibyan/core').AssistantOrchestrator | null = null;
 
@@ -155,8 +156,8 @@ function getOrchestrator(runtime: Runtime): import('@tibyan/core').AssistantOrch
             return { success: true, data: result };
           }
           if (toolName === 'archive_lesson_plan' && runtime.lessonPlannerService) {
-            const result = runtime.lessonPlannerService.archiveLessonPlan(input.planId as string, actor);
-            return { success: true, data: result };
+            const { result, undoSnapshot } = archiveLessonPlanWithUndo(runtime.lessonPlannerService, input.planId as string, actor);
+            return { success: true, data: result, undoSnapshot };
           }
           if (toolName === 'enroll_student' && runtime.enrollmentService) {
             const result = await runtime.enrollmentService.enrollStudent(input as any, actor);
@@ -176,7 +177,16 @@ function getOrchestrator(runtime: Runtime): import('@tibyan/core').AssistantOrch
           return { success: false, error: err instanceof Error ? err.message : 'خطأ غير متوقع' };
         }
       },
-      undoTool: async () => ({ success: false, error: 'التراجع غير مدعوم حالياً' }),
+      undoTool: async (_receiptId: string, snapshot: unknown) => {
+        try {
+          if (!runtime.lessonPlannerService) throw new Error('خدمة خطط الدروس غير متاحة');
+          const actor = runtime.requireAuthenticatedActor();
+          undoArchivedLessonPlan(runtime.lessonPlannerService, snapshot, actor);
+          return { success: true };
+        } catch (error) {
+          return { success: false, error: error instanceof Error ? error.message : 'تعذر التراجع' };
+        }
+      },
     });
   }
   return orchestrator!;

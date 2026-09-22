@@ -62,7 +62,8 @@ export async function executeConfirmedAction(
   try {
     const result = await executor(input, context);
     const receiptId = deps.generateId();
-    const undoToken = tool.undoCapability !== 'none' ? deps.generateId() : undefined;
+    const undoAvailable = tool.undoCapability !== 'none' && result.success && result.undoSnapshot !== undefined;
+    const undoToken = undoAvailable ? deps.generateId() : undefined;
 
     const receipt: ExecutionReceiptRecord = {
       id: receiptId,
@@ -72,14 +73,14 @@ export async function executeConfirmedAction(
       success: result.success,
       result: result.data,
       error: result.error,
-      undoAvailable: tool.undoCapability !== 'none' && result.success,
+      undoAvailable,
       undoToken,
       executedAt: new Date().toISOString(),
     };
 
     deps.persistReceipt(receipt);
 
-    if (result.undoSnapshot && undoToken) {
+    if (undoAvailable && undoToken) {
       deps.persistUndoSnapshot(receiptId, result.undoSnapshot);
     }
 
