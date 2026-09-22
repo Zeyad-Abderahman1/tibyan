@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReviewArtifactDto, ReviewGenerationResult } from '@tibyan/contracts';
-import { Card, Button, Badge, Input, Select } from '@tibyan/design-system';
+import { Card, Button, Badge, Input, Select, MathRichContentViewer } from '@tibyan/design-system';
+import { toStudyRichContent } from './studyRichContent.js';
 import { BookOpen, Loader2, Sparkles, Save, CheckCircle } from 'lucide-react';
 import { SourcePicker, type SourceSelection } from './SourcePicker.js';
 
@@ -262,7 +263,9 @@ export function ReviewToolUI() {
                 >
                   <Input value={section.title} onChange={(event) => setGeneratedSections((items) => items.map((item) => item.id === section.id ? {...item,title:event.target.value} : item))} className="mb-2" aria-label="عنوان القسم" />
                   <textarea value={section.content} onChange={(event) => setGeneratedSections((items) => items.map((item) => item.id === section.id ? {...item,content:event.target.value} : item))} className="w-full min-h-24 p-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]" aria-label="محتوى القسم" />
+                  <MathRichContentViewer content={toStudyRichContent(section.content)} />
                   {section.modelAnswer !== undefined && <textarea value={section.modelAnswer} onChange={(event) => setGeneratedSections((items) => items.map((item) => item.id === section.id ? {...item,modelAnswer:event.target.value} : item))} className="w-full min-h-16 p-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]" aria-label="الإجابة النموذجية" />}
+                  {section.modelAnswer && <MathRichContentViewer content={toStudyRichContent(section.modelAnswer)} />}
                   <span className="text-xs text-[var(--color-text-secondary)]">صفحة {section.sourcePage}</span>
                 </div>
               ))}

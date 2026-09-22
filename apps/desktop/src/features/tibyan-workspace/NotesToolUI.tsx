@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { NotesArtifactDto, NotesGenerationResult } from '@tibyan/contracts';
-import { Card, Button, Badge, Input, Select } from '@tibyan/design-system';
+import { Card, Button, Badge, Input, Select, MathRichContentViewer } from '@tibyan/design-system';
+import { toStudyRichContent } from './studyRichContent.js';
 import { StickyNote, Loader2, Sparkles, Save, CheckCircle } from 'lucide-react';
 import { SourcePicker, type SourceSelection } from './SourcePicker.js';
 
@@ -279,6 +280,7 @@ export function NotesToolUI() {
                     <Input value={section.title} onChange={(event) => setGeneratedSections((items) => items.map((item) => item.id === section.id ? {...item,title:event.target.value} : item))} aria-label="عنوان القسم" />
                   </div>
                   <textarea value={section.content} onChange={(event) => setGeneratedSections((items) => items.map((item) => item.id === section.id ? {...item,content:event.target.value} : item))} className="w-full min-h-24 p-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]" aria-label="محتوى القسم" />
+                  <MathRichContentViewer content={toStudyRichContent(section.content)} />
                   <span className="text-xs text-[var(--color-text-secondary)]">صفحة {section.sourcePage}</span>
                 </div>
               ))}
