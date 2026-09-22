@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   UserPlus,
@@ -33,6 +34,7 @@ import type {
   StudentFilterInput,
 } from '@tibyan/contracts';
 import { useStudentsList } from '../../hooks/useStudents.js';
+import { invalidateDashboardQueries } from '../../hooks/useDashboard.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { StudentCreateModal } from './StudentCreateModal.js';
 import { StudentCardPreviewModal } from './cards/StudentCardPreviewModal.js';
@@ -89,6 +91,7 @@ const TRACK_LABELS: Record<string, string> = {
 
 export function StudentsPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { session } = useAuth();
   const canWrite = session?.role === 'OWNER' || session?.permissions?.includes('STUDENTS_WRITE');
 
@@ -588,6 +591,7 @@ export function StudentsPage() {
           onClose={() => setIsImportModalOpen(false)}
           onSuccess={() => {
             refetch();
+            void invalidateDashboardQueries(queryClient);
           }}
         />
       )}

@@ -9,7 +9,7 @@ import type {
   PhotoSelectionDto,
   IpcResult,
 } from '@tibyan/contracts';
-import { dashboardKeys } from './useDashboard.js';
+import { invalidateDashboardQueries } from './useDashboard.js';
 
 export const studentKeys = {
   all: ['students'] as const,
@@ -84,6 +84,7 @@ export function useCreateStudent() {
       if (res.success) {
         queryClient.invalidateQueries({ queryKey: studentKeys.lists() });
         queryClient.setQueryData(studentKeys.detail(res.data.id), res.data);
+        void invalidateDashboardQueries(queryClient);
       }
     },
   });
@@ -103,7 +104,7 @@ export function useUpdateStudent() {
       if (res.success) {
         queryClient.invalidateQueries({ queryKey: studentKeys.lists() });
         queryClient.invalidateQueries({ queryKey: studentKeys.detail(vars.studentId) });
-        queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
+        void invalidateDashboardQueries(queryClient);
       }
     },
   });
@@ -122,7 +123,7 @@ export function useAddStudentNote() {
     onSuccess: (res, vars) => {
       if (res.success) {
         queryClient.invalidateQueries({ queryKey: studentKeys.notes(vars.studentId) });
-        queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
+        void invalidateDashboardQueries(queryClient);
       }
     },
   });

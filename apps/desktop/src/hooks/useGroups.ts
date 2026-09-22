@@ -29,7 +29,7 @@ export const sessionKeys = {
   range: (params: ListSessionsByDateRangeInput) => [...sessionKeys.all, 'range', params] as const,
 };
 
-import { dashboardKeys } from './useDashboard.js';
+import { dashboardKeys, invalidateDashboardQueries } from './useDashboard.js';
 export { dashboardKeys };
 
 /**
@@ -128,6 +128,7 @@ export function useCreateGroup() {
       if (res.success) {
         queryClient.invalidateQueries({ queryKey: groupKeys.lists() });
         queryClient.setQueryData(groupKeys.detail(res.data.id), res.data);
+        void invalidateDashboardQueries(queryClient);
       }
     },
   });

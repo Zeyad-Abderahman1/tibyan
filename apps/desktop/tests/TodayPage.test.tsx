@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 import { TodayPage } from '../src/features/dashboard/TodayPage.js';
 import { ClassScheduleCard } from '../src/features/dashboard/ClassScheduleCard.js';
 import { NeedsAttentionCard } from '../src/features/dashboard/NeedsAttentionCard.js';
-import { dashboardKeys } from '../src/hooks/useDashboard.js';
+import { dashboardKeys, invalidateDashboardQueries } from '../src/hooks/useDashboard.js';
 import { dashboardKeys as reexportedDashboardKeys } from '../src/hooks/useGroups.js';
 import { useAuthStore } from '../src/features/auth/auth.state.js';
 import type {
@@ -411,6 +411,15 @@ describe('Task 15: Real-Data Today Dashboard Suite', () => {
     // Re-exported dashboardKeys from useGroups must match exactly
     expect(reexportedDashboardKeys.all).toEqual(dashboardKeys.all);
     expect(reexportedDashboardKeys.today()).toEqual(dashboardKeys.today());
+  });
+
+  it('invalidates the canonical dashboard hierarchy after a KPI-affecting mutation', async () => {
+    const testClient = new QueryClient();
+    const invalidate = vi.spyOn(testClient, 'invalidateQueries');
+
+    await invalidateDashboardQueries(testClient);
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: dashboardKeys.all });
   });
 
   it('user with STUDENTS_READ can navigate from NeedsAttentionCard to student profile', () => {
