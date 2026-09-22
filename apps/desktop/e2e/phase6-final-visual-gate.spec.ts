@@ -140,9 +140,7 @@ test.describe('Phase 6 Final — Corrected UI Visual Gate', () => {
     await page.evaluate(() => { window.location.hash = '#/exams'; });
     await page.waitForTimeout(1000);
     const examBuilder = page.locator('[data-testid="page-exam-builder"]');
-    const examVisible = await examBuilder.isVisible({ timeout: 5000 }).catch(() => false);
-    // The exam builder page should still be accessible by direct URL
-    expect(examVisible || true).toBeTruthy(); // Route exists even if page has different testid
+    await expect(examBuilder).toBeVisible({ timeout: 5000 });
 
     // ── 7. Dark mode ──
     const themeToggleBtn = page.locator('[data-testid="topbar-theme-toggle-btn"]');

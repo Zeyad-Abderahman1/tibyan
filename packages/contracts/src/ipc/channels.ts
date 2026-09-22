@@ -249,6 +249,12 @@ export const IPC_CHANNELS = {
   AI_GENERATE_NOTES: 'ai:generateNotes',
   AI_GENERATE_SLIDES: 'ai:generateSlides',
   AI_GENERATE_EXAM: 'ai:generateExam',
+  AI_LIST_REVIEWS: 'ai:listReviews',
+  AI_GET_REVIEW: 'ai:getReview',
+  AI_SAVE_REVIEW: 'ai:saveReview',
+  AI_LIST_NOTES: 'ai:listNotes',
+  AI_GET_NOTES: 'ai:getNotes',
+  AI_SAVE_NOTES: 'ai:saveNotes',
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];

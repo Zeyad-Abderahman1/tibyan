@@ -84,3 +84,20 @@ export type GeneratedExamContent = z.infer<typeof GeneratedExamContentSchema>;
 export type GeneratedSlidesContent = z.infer<typeof GeneratedSlidesContentSchema>;
 export type GeneratedReviewContent = z.infer<typeof GeneratedReviewContentSchema>;
 export type GeneratedNotesContent = z.infer<typeof GeneratedNotesContentSchema>;
+
+export const ReviewArtifactSchema = z.object({
+  id: sourceId, sourceDocumentId: sourceId, title: z.string(), reviewType: ReviewGenerationRequestSchema.shape.reviewType,
+  detailLevel: ReviewGenerationRequestSchema.shape.detailLevel, scope: z.string().nullable(),
+  questionCount: z.number().int(), includeModelAnswers: z.boolean(),
+  content: ReviewGenerationResultSchema, createdAt: z.string(), updatedAt: z.string(),
+}).strict();
+export type ReviewArtifactDto = z.infer<typeof ReviewArtifactSchema>;
+export const NotesArtifactSchema = z.object({
+  id: sourceId, sourceDocumentId: sourceId, title: z.string(), gradeLevel: NotesGenerationRequestSchema.shape.gradeLevel,
+  scope: z.string().nullable(), detailStyle: NotesGenerationRequestSchema.shape.detailStyle,
+  includeExercises: z.boolean(), includeModelSolutions: z.boolean(),
+  content: NotesGenerationResultSchema, createdAt: z.string(), updatedAt: z.string(),
+}).strict();
+export type NotesArtifactDto = z.infer<typeof NotesArtifactSchema>;
+export const SaveReviewArtifactSchema = z.object({ id: sourceId, content: ReviewGenerationResultSchema }).strict();
+export const SaveNotesArtifactSchema = z.object({ id: sourceId, content: NotesGenerationResultSchema }).strict();

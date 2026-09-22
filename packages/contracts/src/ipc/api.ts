@@ -175,7 +175,7 @@ import {
   UndoInput,
   ExecutionReceipt,
 } from '../models/assistant.dto.js';
-import type { ExamGenerationRequest, SlidesGenerationRequest, ReviewGenerationRequest, NotesGenerationRequest, GeneratedExamContent } from '../models/ai-generation.dto.js';
+import type { ExamGenerationRequest, SlidesGenerationRequest, ReviewGenerationRequest, NotesGenerationRequest, GeneratedExamContent, ReviewArtifactDto, NotesArtifactDto, ReviewGenerationResult, NotesGenerationResult } from '../models/ai-generation.dto.js';
 import {
   CurriculumGradeGroup,
   ImportCurriculumLibraryInput,
@@ -450,8 +450,14 @@ export interface TibyanApi {
     renameHistoryItem(sessionId: string, title: string): Promise<IpcResult<void>>;
   };
   ai: {
-    generateReview(input: ReviewGenerationRequest): Promise<IpcResult<any>>;
-    generateNotes(input: NotesGenerationRequest): Promise<IpcResult<any>>;
+    generateReview(input: ReviewGenerationRequest): Promise<IpcResult<ReviewArtifactDto>>;
+    generateNotes(input: NotesGenerationRequest): Promise<IpcResult<NotesArtifactDto>>;
+    listReviews(): Promise<IpcResult<ReviewArtifactDto[]>>;
+    getReview(id: string): Promise<IpcResult<ReviewArtifactDto | null>>;
+    saveReview(id: string, content: ReviewGenerationResult): Promise<IpcResult<ReviewArtifactDto>>;
+    listNotes(): Promise<IpcResult<NotesArtifactDto[]>>;
+    getNotes(id: string): Promise<IpcResult<NotesArtifactDto | null>>;
+    saveNotes(id: string, content: NotesGenerationResult): Promise<IpcResult<NotesArtifactDto>>;
     generateSlides(input: SlidesGenerationRequest): Promise<IpcResult<SlideDeckWithSlides>>;
     generateExam(input: ExamGenerationRequest): Promise<IpcResult<GeneratedExamContent>>;
   };

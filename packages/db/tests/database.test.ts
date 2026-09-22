@@ -32,6 +32,20 @@ import {
 import { students, groupEnrollments } from '../src/schema/index.js';
 
 describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Triggers', () => {
+  it('creates Review and Notes artifact tables on fresh and upgraded Academic databases', () => {
+    const fresh = createRawDatabase(':memory:');
+    migrateAcademicDatabase(fresh);
+    const names = fresh.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map((row: any) => row.name);
+    expect(names).toContain('review_artifacts');
+    expect(names).toContain('notes_artifacts');
+    fresh.close();
+
+    const upgraded = createRawDatabase(':memory:');
+    runMigrations(upgraded, ACADEMIC_MIGRATIONS.filter((migration) => migration.id <= '0011_slide_decks'));
+    expect(migrateAcademicDatabase(upgraded)).toEqual(['0012_review_artifacts', '0013_notes_artifacts']);
+    expect(migrateAcademicDatabase(upgraded)).toEqual([]);
+    upgraded.close();
+  });
   let tempDir: string;
 
   beforeEach(() => {
@@ -103,6 +117,8 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0009_exotic_carmella_unuscione',
       '0010_phase5_capture_grading_analytics',
       '0011_slide_decks',
+      '0012_review_artifacts',
+      '0013_notes_artifacts',
     ]);
 
     expect(getAppliedMigrations(sysRaw)).toEqual(['0000_initial_schema', '0001_audit_triggers', '0002_overrated_naoko', '0003_uneven_vengeance', '0004_certain_stellaris', '0005_assistant_tables', '0006_curriculum_library_metadata']);
@@ -119,6 +135,8 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0009_exotic_carmella_unuscione',
       '0010_phase5_capture_grading_analytics',
       '0011_slide_decks',
+      '0012_review_artifacts',
+      '0013_notes_artifacts',
     ]);
 
     sysRaw.close();
@@ -154,6 +172,8 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0009_exotic_carmella_unuscione',
       '0010_phase5_capture_grading_analytics',
       '0011_slide_decks',
+      '0012_review_artifacts',
+      '0013_notes_artifacts',
     ]);
 
     sysRaw.close();
@@ -994,7 +1014,7 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     const appliedDuringUpgrade = migrateAcademicDatabase(rawDb);
 
     // 4. Verify every later migration, including the Phase 4 exam schema, is applied.
-    expect(appliedDuringUpgrade).toEqual(['0002_glamorous_sunspot', '0003_neat_krista_starr', '0004_cold_bullseye', '0005_rainy_silvermane', '0006_parched_xavin', '0007_awesome_sunspot', '0008_nifty_magus', '0009_exotic_carmella_unuscione', '0010_phase5_capture_grading_analytics', '0011_slide_decks']);
+    expect(appliedDuringUpgrade).toEqual(['0002_glamorous_sunspot', '0003_neat_krista_starr', '0004_cold_bullseye', '0005_rainy_silvermane', '0006_parched_xavin', '0007_awesome_sunspot', '0008_nifty_magus', '0009_exotic_carmella_unuscione', '0010_phase5_capture_grading_analytics', '0011_slide_decks', '0012_review_artifacts', '0013_notes_artifacts']);
     const colsAfter = rawDb.prepare("PRAGMA table_info(sessions)").all() as Array<{ name: string }>;
     expect(colsAfter.map((c) => c.name)).toContain('cancellation_reason');
 
@@ -1032,6 +1052,8 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
       '0009_exotic_carmella_unuscione',
       '0010_phase5_capture_grading_analytics',
       '0011_slide_decks',
+      '0012_review_artifacts',
+      '0013_notes_artifacts',
     ]);
     const migrationRecords = rawDb
       .prepare("SELECT COUNT(*) as count FROM __tibyan_migrations WHERE id = '0002_glamorous_sunspot'")

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { ReviewArtifactDto, ReviewGenerationResult } from '@tibyan/contracts';
 import { Card, Button, Badge, Input, Select } from '@tibyan/design-system';
 import { BookOpen, Loader2, Sparkles, Save, CheckCircle } from 'lucide-react';
 import { SourcePicker, type SourceSelection } from './SourcePicker.js';
@@ -21,10 +22,15 @@ interface ReviewSection {
   title: string;
   content: string;
   sourcePage: number;
+  type: ReviewGenerationResult['sections'][number]['type'];
+  modelAnswer?: string;
 }
 
 export function ReviewToolUI() {
   const [selectedSource, setSelectedSource] = useState<SourceSelection | null>(null);
+  const [title, setTitle] = useState('مراجعة جديدة');
+  const [artifactId, setArtifactId] = useState<string | null>(null);
+  const [savedReviews, setSavedReviews] = useState<ReviewArtifactDto[]>([]);
   const [reviewType, setReviewType] = useState('MIXED');
   const [questionCount, setQuestionCount] = useState(10);
   const [detailLevel, setDetailLevel] = useState('MODERATE');
@@ -36,6 +42,19 @@ export function ReviewToolUI() {
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
+  useEffect(() => { void window.tibyan.ai.listReviews().then((result) => { if (result.success) setSavedReviews(result.data); }); }, []);
+
+  const openReview = async (id: string) => {
+    const result = await window.tibyan.ai.getReview(id);
+    if (!result.success || !result.data) { setGenerationError('تعذر فتح المراجعة المحفوظة'); return; }
+    const review = result.data;
+    setArtifactId(review.id); setTitle(review.title); setReviewType(review.reviewType);
+    setDetailLevel(review.detailLevel); setQuestionCount(review.questionCount);
+    setScope(review.scope ?? ''); setIncludeAnswers(review.includeModelAnswers);
+    setGeneratedSections(review.content.sections.map((section, index) => ({...section, id: `${review.id}-${index}`})));
+    setSavedMessage(null); setGenerationError(null);
+  };
+
   const handleGenerate = async () => {
     if (!selectedSource || !selectedSource.id) return;
     setIsGenerating(true);
@@ -43,7 +62,7 @@ export function ReviewToolUI() {
     try {
       const result = await window.tibyan.ai.generateReview({
         sourceDocumentId: selectedSource.id,
-        title: 'مراجعة جديدة', reviewType: reviewType as any,
+        title, reviewType: reviewType as ReviewArtifactDto['reviewType'],
         detailLevel: detailLevel as any, questionCount, includeModelAnswers: includeAnswers,
         scope: scope || undefined,
       });
@@ -52,7 +71,7 @@ export function ReviewToolUI() {
         throw new Error(result.error?.message || 'فشل توليد المراجعة');
       }
 
-      const parsed = (result.data as any).content.sections;
+      const parsed = result.data.content.sections;
 
       if (!Array.isArray(parsed) || parsed.length === 0) {
         setGenerationError('لم يتم توليد أقسام المراجعة. تأكد من أن المصدر يحتوي على محتوى كافٍ.');
@@ -64,8 +83,12 @@ export function ReviewToolUI() {
         title: s.title,
         content: s.content,
         sourcePage: s.sourcePage,
+        type: s.type,
+        modelAnswer: s.modelAnswer,
       }));
 
+      setArtifactId(result.data.id);
+      setSavedReviews((previous) => [result.data, ...previous.filter((item) => item.id !== result.data.id)]);
       setGeneratedSections(sections);
     } catch (err: any) {
       setGenerationError(err?.message || 'حدث خطأ أثناء توليد المراجعة');
@@ -75,32 +98,15 @@ export function ReviewToolUI() {
   };
 
   const handleSave = async () => {
-    if (generatedSections.length === 0 || !selectedSource?.id) return;
+    if (generatedSections.length === 0 || !artifactId) return;
     setIsSaving(true);
     setGenerationError(null);
     try {
-      const sessionResult = await window.tibyan.tibyan.createTaskSession({
-        taskType: 'REVIEW',
-        title: `مراجعة - ${selectedSource.title || new Date().toLocaleDateString('ar')}`,
-      });
-      if (!sessionResult.success) {
-        throw new Error(sessionResult.error?.message || 'فشل إنشاء الجلسة');
-      }
-
-      const fullContent = generatedSections
-        .map((s) => `## ${s.title}\n\n${s.content}`)
-        .join('\n\n---\n\n');
-
-      const assistantResult = await window.tibyan.assistant.sendMessage({
-        sessionId: sessionResult.data.id,
-        content: fullContent,
-        context: { scope: 'global', entityId: selectedSource.id },
-      });
-
-      if (assistantResult.success) {
+      const result = await window.tibyan.ai.saveReview(artifactId, {sections: generatedSections.map(({id: _id, ...section}) => section)});
+      if (result.success) {
         setSavedMessage('تم حفظ المراجعة بنجاح');
       } else {
-        throw new Error(assistantResult.error?.message || 'فشل حفظ المراجعة');
+        throw new Error(result.error?.message || 'فشل حفظ المراجعة');
       }
     } catch (err: any) {
       setGenerationError(err?.message || 'حدث خطأ أثناء الحفظ');
@@ -127,6 +133,8 @@ export function ReviewToolUI() {
           </div>
         </div>
 
+        {savedReviews.length > 0 && <Select value="" onChange={(event) => { if (event.target.value) void openReview(event.target.value); }} options={[{value:'',label:'فتح مراجعة محفوظة'}, ...savedReviews.map((review) => ({value:review.id,label:review.title}))]} data-testid="saved-reviews" />}
+
         {/* Source */}
         <SourcePicker
           selectedSource={selectedSource}
@@ -141,6 +149,7 @@ export function ReviewToolUI() {
             إعدادات المراجعة
           </h3>
           <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2"><label className="text-xs font-semibold text-[var(--color-text-secondary)]">عنوان المراجعة</label><Input value={title} onChange={(event) => setTitle(event.target.value)} data-testid="review-title" /></div>
             <div>
               <label className="text-xs font-semibold text-[var(--color-text-secondary)]">
                 نوع المراجعة
@@ -251,12 +260,10 @@ export function ReviewToolUI() {
                   className="p-4 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]"
                   data-testid={`review-section-${section.id}`}
                 >
-                  <h4 className="text-sm font-bold text-[var(--color-text-primary)] mb-2">
-                    {section.title}
-                  </h4>
-                  <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
-                    {section.content}
-                  </p>
+                  <Input value={section.title} onChange={(event) => setGeneratedSections((items) => items.map((item) => item.id === section.id ? {...item,title:event.target.value} : item))} className="mb-2" aria-label="عنوان القسم" />
+                  <textarea value={section.content} onChange={(event) => setGeneratedSections((items) => items.map((item) => item.id === section.id ? {...item,content:event.target.value} : item))} className="w-full min-h-24 p-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]" aria-label="محتوى القسم" />
+                  {section.modelAnswer !== undefined && <textarea value={section.modelAnswer} onChange={(event) => setGeneratedSections((items) => items.map((item) => item.id === section.id ? {...item,modelAnswer:event.target.value} : item))} className="w-full min-h-16 p-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]" aria-label="الإجابة النموذجية" />}
+                  <span className="text-xs text-[var(--color-text-secondary)]">صفحة {section.sourcePage}</span>
                 </div>
               ))}
             </div>

@@ -1,10 +1,19 @@
 import { ipcMain, type BrowserWindow } from 'electron';
 import { z } from 'zod';
-import { IPC_CHANNELS, ExamGenerationRequestSchema, SlidesGenerationRequestSchema, ReviewGenerationRequestSchema, NotesGenerationRequestSchema } from '@tibyan/contracts';
+import { IPC_CHANNELS, ExamGenerationRequestSchema, SlidesGenerationRequestSchema, ReviewGenerationRequestSchema, NotesGenerationRequestSchema, ReviewArtifactSchema, NotesArtifactSchema, SaveReviewArtifactSchema, SaveNotesArtifactSchema } from '@tibyan/contracts';
 import { SlideService, ReviewService, NotesService } from '@tibyan/core';
 import type { Runtime } from '../runtime.js';
 import { safeIpcCall } from './errors.js';
 import { validateIpcSender } from '../security.js';
+
+function reviewDto(value: ReturnType<ReviewService['createGenerated']>) {
+  const { contentJson: _contentJson, ...dto } = value;
+  return ReviewArtifactSchema.parse(dto);
+}
+function notesDto(value: ReturnType<NotesService['createGenerated']>) {
+  const { contentJson: _contentJson, ...dto } = value;
+  return NotesArtifactSchema.parse(dto);
+}
 
 // Reuse the same lazy orchestrator pattern from assistant.ipc.ts
 let orchestrator: import('@tibyan/core').AssistantOrchestrator | null = null;
@@ -103,7 +112,7 @@ export function registerTibyanWorkspaceIpcHandlers(
       runtime.requireActiveAcademicYear();
       const request = ReviewGenerationRequestSchema.parse(payload);
       const generated = await runtime.aiContentService.generateReview(request);
-      return new ReviewService(runtime.academicDb!.db).createGenerated(request, generated.data);
+      return reviewDto(new ReviewService(runtime.academicDb!.db).createGenerated(request, generated.data));
     });
   });
 
@@ -114,7 +123,7 @@ export function registerTibyanWorkspaceIpcHandlers(
       runtime.requireActiveAcademicYear();
       const request = NotesGenerationRequestSchema.parse(payload);
       const generated = await runtime.aiContentService.generateNotes(request);
-      return new NotesService(runtime.academicDb!.db).createGenerated(request, generated.data);
+      return notesDto(new NotesService(runtime.academicDb!.db).createGenerated(request, generated.data));
     });
   });
 
@@ -140,6 +149,33 @@ export function registerTibyanWorkspaceIpcHandlers(
       );
     });
   });
+
+  const reviewService = () => { runtime.requireAuthenticatedActor(); runtime.requireActiveAcademicYear(); return new ReviewService(runtime.academicDb!.db); };
+  const notesService = () => { runtime.requireAuthenticatedActor(); runtime.requireActiveAcademicYear(); return new NotesService(runtime.academicDb!.db); };
+  ipcMain.handle(IPC_CHANNELS.AI_LIST_REVIEWS, (event) => {
+    if (!validateIpcSender(event, mainWindow)) throw new Error('UNAUTHORIZED_IPC_SENDER');
+    return safeIpcCall(() => reviewService().list().map(reviewDto));
+  });
+  ipcMain.handle(IPC_CHANNELS.AI_GET_REVIEW, (event, id) => {
+    if (!validateIpcSender(event, mainWindow)) throw new Error('UNAUTHORIZED_IPC_SENDER');
+    return safeIpcCall(() => { const row = reviewService().get(z.string().uuid().parse(id)); return row ? reviewDto(row) : null; });
+  });
+  ipcMain.handle(IPC_CHANNELS.AI_SAVE_REVIEW, (event, payload) => {
+    if (!validateIpcSender(event, mainWindow)) throw new Error('UNAUTHORIZED_IPC_SENDER');
+    return safeIpcCall(() => { const {id, content} = SaveReviewArtifactSchema.parse(payload); return reviewDto(reviewService().saveContent(id, content)); });
+  });
+  ipcMain.handle(IPC_CHANNELS.AI_LIST_NOTES, (event) => {
+    if (!validateIpcSender(event, mainWindow)) throw new Error('UNAUTHORIZED_IPC_SENDER');
+    return safeIpcCall(() => notesService().list().map(notesDto));
+  });
+  ipcMain.handle(IPC_CHANNELS.AI_GET_NOTES, (event, id) => {
+    if (!validateIpcSender(event, mainWindow)) throw new Error('UNAUTHORIZED_IPC_SENDER');
+    return safeIpcCall(() => { const row = notesService().get(z.string().uuid().parse(id)); return row ? notesDto(row) : null; });
+  });
+  ipcMain.handle(IPC_CHANNELS.AI_SAVE_NOTES, (event, payload) => {
+    if (!validateIpcSender(event, mainWindow)) throw new Error('UNAUTHORIZED_IPC_SENDER');
+    return safeIpcCall(() => { const {id, content} = SaveNotesArtifactSchema.parse(payload); return notesDto(notesService().saveContent(id, content)); });
+  });
 }
 
 export function unregisterTibyanWorkspaceIpcHandlers(): void {
@@ -152,4 +188,10 @@ export function unregisterTibyanWorkspaceIpcHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.AI_GENERATE_NOTES);
   ipcMain.removeHandler(IPC_CHANNELS.AI_GENERATE_SLIDES);
   ipcMain.removeHandler(IPC_CHANNELS.AI_GENERATE_EXAM);
+  ipcMain.removeHandler(IPC_CHANNELS.AI_LIST_REVIEWS);
+  ipcMain.removeHandler(IPC_CHANNELS.AI_GET_REVIEW);
+  ipcMain.removeHandler(IPC_CHANNELS.AI_SAVE_REVIEW);
+  ipcMain.removeHandler(IPC_CHANNELS.AI_LIST_NOTES);
+  ipcMain.removeHandler(IPC_CHANNELS.AI_GET_NOTES);
+  ipcMain.removeHandler(IPC_CHANNELS.AI_SAVE_NOTES);
 }

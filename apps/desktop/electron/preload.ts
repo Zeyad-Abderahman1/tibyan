@@ -826,10 +826,10 @@ export const tibyanApi: TibyanApi = {
   },
 
   ai: {
-    generateReview(input: import('@tibyan/contracts').ReviewGenerationRequest): Promise<IpcResult<any>> {
+    generateReview(input: import('@tibyan/contracts').ReviewGenerationRequest): Promise<IpcResult<import('@tibyan/contracts').ReviewArtifactDto>> {
       return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_REVIEW, input);
     },
-    generateNotes(input: import('@tibyan/contracts').NotesGenerationRequest): Promise<IpcResult<any>> {
+    generateNotes(input: import('@tibyan/contracts').NotesGenerationRequest): Promise<IpcResult<import('@tibyan/contracts').NotesArtifactDto>> {
       return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_NOTES, input);
     },
     generateSlides(input: import('@tibyan/contracts').SlidesGenerationRequest): Promise<IpcResult<SlideDeckWithSlides>> {
@@ -838,6 +838,12 @@ export const tibyanApi: TibyanApi = {
     generateExam(input: import('@tibyan/contracts').ExamGenerationRequest): Promise<IpcResult<import('@tibyan/contracts').GeneratedExamContent>> {
       return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_EXAM, input);
     },
+    listReviews(): Promise<IpcResult<import('@tibyan/contracts').ReviewArtifactDto[]>> { return ipcRenderer.invoke(IPC_CHANNELS.AI_LIST_REVIEWS); },
+    getReview(id: string): Promise<IpcResult<import('@tibyan/contracts').ReviewArtifactDto | null>> { return ipcRenderer.invoke(IPC_CHANNELS.AI_GET_REVIEW, id); },
+    saveReview(id: string, content: import('@tibyan/contracts').ReviewGenerationResult): Promise<IpcResult<import('@tibyan/contracts').ReviewArtifactDto>> { return ipcRenderer.invoke(IPC_CHANNELS.AI_SAVE_REVIEW, {id, content}); },
+    listNotes(): Promise<IpcResult<import('@tibyan/contracts').NotesArtifactDto[]>> { return ipcRenderer.invoke(IPC_CHANNELS.AI_LIST_NOTES); },
+    getNotes(id: string): Promise<IpcResult<import('@tibyan/contracts').NotesArtifactDto | null>> { return ipcRenderer.invoke(IPC_CHANNELS.AI_GET_NOTES, id); },
+    saveNotes(id: string, content: import('@tibyan/contracts').NotesGenerationResult): Promise<IpcResult<import('@tibyan/contracts').NotesArtifactDto>> { return ipcRenderer.invoke(IPC_CHANNELS.AI_SAVE_NOTES, {id, content}); },
   },
 };
 

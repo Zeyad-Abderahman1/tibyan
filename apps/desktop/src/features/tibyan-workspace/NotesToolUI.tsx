@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { NotesArtifactDto, NotesGenerationResult } from '@tibyan/contracts';
 import { Card, Button, Badge, Input, Select } from '@tibyan/design-system';
 import { StickyNote, Loader2, Sparkles, Save, CheckCircle } from 'lucide-react';
 import { SourcePicker, type SourceSelection } from './SourcePicker.js';
@@ -23,11 +24,13 @@ interface NoteSection {
   title: string;
   content: string;
   sourcePage: number;
-  type: 'heading' | 'content' | 'example' | 'exercise';
+  type: NotesGenerationResult['sections'][number]['type'];
 }
 
 export function NotesToolUI() {
   const [selectedSource, setSelectedSource] = useState<SourceSelection | null>(null);
+  const [artifactId, setArtifactId] = useState<string | null>(null);
+  const [savedNotes, setSavedNotes] = useState<NotesArtifactDto[]>([]);
   const [title, setTitle] = useState('');
   const [gradeLevel, setGradeLevel] = useState('SEC_1');
   const [detailStyle, setDetailStyle] = useState('MODERATE');
@@ -40,6 +43,19 @@ export function NotesToolUI() {
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
+  useEffect(() => { void window.tibyan.ai.listNotes().then((result) => { if (result.success) setSavedNotes(result.data); }); }, []);
+
+  const openNotes = async (id: string) => {
+    const result = await window.tibyan.ai.getNotes(id);
+    if (!result.success || !result.data) { setGenerationError('تعذر فتح المذكرة المحفوظة'); return; }
+    const notes = result.data;
+    setArtifactId(notes.id); setTitle(notes.title); setGradeLevel(notes.gradeLevel);
+    setDetailStyle(notes.detailStyle); setScope(notes.scope ?? '');
+    setIncludeExercises(notes.includeExercises); setIncludeModelSolutions(notes.includeModelSolutions);
+    setGeneratedSections(notes.content.sections.map((section, index) => ({...section,id:`${notes.id}-${index}`})));
+    setSavedMessage(null); setGenerationError(null);
+  };
+
   const handleGenerate = async () => {
     if (!selectedSource || !selectedSource.id) return;
     setIsGenerating(true);
@@ -47,7 +63,7 @@ export function NotesToolUI() {
     try {
       const result = await window.tibyan.ai.generateNotes({
         sourceDocumentId: selectedSource.id,
-        title: title || 'مذكرة دراسية', gradeLevel: gradeLevel as any, detailStyle: detailStyle as any,
+        title: title || 'مذكرة دراسية', gradeLevel: gradeLevel as NotesArtifactDto['gradeLevel'], detailStyle: detailStyle as NotesArtifactDto['detailStyle'],
         includeExercises, includeModelSolutions,
         scope: scope || undefined,
       });
@@ -56,7 +72,7 @@ export function NotesToolUI() {
         throw new Error(result.error?.message || 'فشل توليد المذكرة');
       }
 
-      const parsed = (result.data as any).content.sections;
+      const parsed = result.data.content.sections;
 
       if (!Array.isArray(parsed) || parsed.length === 0) {
         setGenerationError('لم يتم توليد أقسام المذكرة. تأكد من أن المصدر يحتوي على محتوى كافٍ.');
@@ -71,6 +87,8 @@ export function NotesToolUI() {
         type: s.type,
       }));
 
+      setArtifactId(result.data.id);
+      setSavedNotes((previous) => [result.data, ...previous.filter((item) => item.id !== result.data.id)]);
       setGeneratedSections(sections);
     } catch (err: any) {
       setGenerationError(err?.message || 'حدث خطأ أثناء توليد المذكرة');
@@ -80,32 +98,15 @@ export function NotesToolUI() {
   };
 
   const handleSave = async () => {
-    if (generatedSections.length === 0 || !selectedSource?.id) return;
+    if (generatedSections.length === 0 || !artifactId) return;
     setIsSaving(true);
     setGenerationError(null);
     try {
-      const sessionResult = await window.tibyan.tibyan.createTaskSession({
-        taskType: 'NOTES',
-        title: `مذكرة - ${title || selectedSource.title || new Date().toLocaleDateString('ar')}`,
-      });
-      if (!sessionResult.success) {
-        throw new Error(sessionResult.error?.message || 'فشل إنشاء الجلسة');
-      }
-
-      const fullContent = generatedSections
-        .map((s) => `## ${s.title}\n\n${s.content}`)
-        .join('\n\n---\n\n');
-
-      const assistantResult = await window.tibyan.assistant.sendMessage({
-        sessionId: sessionResult.data.id,
-        content: fullContent,
-        context: { scope: 'global', entityId: selectedSource.id },
-      });
-
-      if (assistantResult.success) {
+      const result = await window.tibyan.ai.saveNotes(artifactId, {sections: generatedSections.map(({id: _id, ...section}) => section)});
+      if (result.success) {
         setSavedMessage('تم حفظ المذكرة بنجاح');
       } else {
-        throw new Error(assistantResult.error?.message || 'فشل حفظ المذكرة');
+        throw new Error(result.error?.message || 'فشل حفظ المذكرة');
       }
     } catch (err: any) {
       setGenerationError(err?.message || 'حدث خطأ أثناء الحفظ');
@@ -140,6 +141,8 @@ export function NotesToolUI() {
             </p>
           </div>
         </div>
+
+        {savedNotes.length > 0 && <Select value="" onChange={(event) => { if (event.target.value) void openNotes(event.target.value); }} options={[{value:'',label:'فتح مذكرة محفوظة'}, ...savedNotes.map((notes) => ({value:notes.id,label:notes.title}))]} data-testid="saved-notes" />}
 
         {/* Source */}
         <SourcePicker
@@ -273,13 +276,10 @@ export function NotesToolUI() {
                 >
                   <div className="flex items-center gap-2 mb-2">
                     <span>{getSectionIcon(section.type)}</span>
-                    <h4 className="text-sm font-bold text-[var(--color-text-primary)]">
-                      {section.title}
-                    </h4>
+                    <Input value={section.title} onChange={(event) => setGeneratedSections((items) => items.map((item) => item.id === section.id ? {...item,title:event.target.value} : item))} aria-label="عنوان القسم" />
                   </div>
-                  <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
-                    {section.content}
-                  </p>
+                  <textarea value={section.content} onChange={(event) => setGeneratedSections((items) => items.map((item) => item.id === section.id ? {...item,content:event.target.value} : item))} className="w-full min-h-24 p-2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)]" aria-label="محتوى القسم" />
+                  <span className="text-xs text-[var(--color-text-secondary)]">صفحة {section.sourcePage}</span>
                 </div>
               ))}
             </div>

@@ -26,4 +26,5 @@ export * from './academic/capture.repository.js';
 export * from './academic/grading.repository.js';
 export * from './academic/slide.repository.js';
 export * from './academic/review.repository.js';
+export * from './academic/notes-artifact.repository.js';
 
