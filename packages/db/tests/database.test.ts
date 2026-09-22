@@ -45,6 +45,13 @@ describe('Task 3: Dual Database Architecture, Drizzle Schemas & Immutability Tri
     expect(migrateAcademicDatabase(upgraded)).toEqual(['0012_review_artifacts', '0013_notes_artifacts']);
     expect(migrateAcademicDatabase(upgraded)).toEqual([]);
     upgraded.close();
+
+    const phase5 = createRawDatabase(':memory:');
+    runMigrations(phase5, ACADEMIC_MIGRATIONS.filter((migration) => migration.id <= '0010_phase5_capture_grading_analytics'));
+    phase5.prepare("INSERT INTO academic_audit_log (id, actor_type, actor_name_snapshot, action, entity_type, entity_id, created_at) VALUES (?, 'SYSTEM', 'SYSTEM', 'VERIFY', 'TEST', ?, ?)").run('phase5-audit', 'phase5-record', new Date().toISOString());
+    expect(migrateAcademicDatabase(phase5)).toEqual(['0011_slide_decks', '0012_review_artifacts', '0013_notes_artifacts']);
+    expect(phase5.prepare("SELECT entity_id AS entityId FROM academic_audit_log WHERE id = ?").get('phase5-audit')).toEqual({entityId:'phase5-record'});
+    phase5.close();
   });
   let tempDir: string;
 
