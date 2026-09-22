@@ -23,9 +23,9 @@ export function TeacherAvatar({
   const initial = name.trim().charAt(0) || 'م';
 
   const sizeClasses = {
-    sm: 'w-7 h-7 text-xs',
-    md: 'w-9 h-9 text-sm',
-    lg: 'w-12 h-12 text-base',
+    sm: 'w-[38px] h-[38px] text-sm',
+    md: 'w-12 h-12 text-base',
+    lg: 'w-14 h-14 text-lg',
   }[size];
 
   if (photoUrl) {

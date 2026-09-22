@@ -54,14 +54,14 @@ export function TopUtilityBar({ className }: TopUtilityBarProps) {
   return (
     <header
       className={cn(
-        'h-[var(--topbar-height)] w-full shrink-0 border-b border-[var(--color-border-subtle)] bg-[var(--color-topbar-background)] px-4 sm:px-6 flex items-center justify-between select-none z-30 transition-colors',
+        'h-[var(--topbar-height)] w-full shrink-0 border-b border-[var(--color-border-subtle)] bg-[var(--color-topbar-background)] px-5 sm:px-7 flex items-center justify-between select-none z-30 transition-colors',
         className
       )}
       aria-label="شريط الأدوات العلوي"
       data-testid="top-utility-bar"
     >
       {/* Right side in RTL: Brand Logo / Wordmark */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         <div data-testid="topbar-brand">
           <TibyanBrand size="sm" showWordmark={true} showSubtitle={false} />
         </div>
@@ -69,12 +69,12 @@ export function TopUtilityBar({ className }: TopUtilityBarProps) {
         {/* Active Academic Year Badge */}
         {activeAcademicYearName ? (
           <div
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--color-bg-surface-subtle)] text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]/70"
+            className="hidden sm:flex min-h-9 items-center gap-2 px-3 py-1.5 rounded-md bg-[var(--color-bg-surface-subtle)] text-[var(--color-text-secondary)] border border-[var(--color-border-subtle)]/70"
             data-testid="active-year-display"
           >
-            <Calendar className="w-3.5 h-3.5 text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))]" aria-hidden="true" />
-            <span className="text-[11px] text-[var(--color-text-muted)] font-normal">العام:</span>
-            <span className="font-semibold text-[var(--color-text-primary)] font-mono num-isolate text-xs">
+            <Calendar className="w-4 h-4 text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))]" aria-hidden="true" />
+            <span className="text-xs text-[var(--color-text-muted)] font-normal">العام:</span>
+            <span className="font-semibold text-[var(--color-text-primary)] font-mono num-isolate text-sm">
               {activeAcademicYearName}
             </span>
           </div>
@@ -86,11 +86,11 @@ export function TopUtilityBar({ className }: TopUtilityBarProps) {
       </div>
 
       {/* Left side in RTL: Teacher identity, theme toggle, logout */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-4">
         {/* Teacher / Assistant Identity */}
         {session && (
           <div
-            className="flex items-center gap-2.5 pe-3 border-e border-[var(--color-border-subtle)]"
+            className="flex items-center gap-3 pe-4 border-e border-[var(--color-border-subtle)]"
             data-testid="topbar-user-info"
           >
             <TeacherAvatar
@@ -99,10 +99,10 @@ export function TopUtilityBar({ className }: TopUtilityBarProps) {
               size="sm"
             />
             <div className="flex flex-col text-right leading-tight">
-              <span className="text-xs font-semibold text-[var(--color-text-primary)] max-w-[120px] truncate">
+              <span className="text-sm font-semibold text-[var(--color-text-primary)] max-w-[150px] truncate">
                 {session.fullName}
               </span>
-              <span className="text-[10px] text-[var(--color-text-muted)] font-normal">
+              <span className="text-xs text-[var(--color-text-muted)] font-normal">
                 {session.role === 'OWNER' ? 'المعلم المسؤول' : 'مساعد'}
               </span>
             </div>
@@ -117,7 +117,7 @@ export function TopUtilityBar({ className }: TopUtilityBarProps) {
               className="p-1.5 text-[var(--color-text-secondary)] hover:text-[var(--color-status-danger)] hover:bg-[var(--color-status-danger-bg)] rounded-md transition-colors"
               data-testid="topbar-logout-btn"
             >
-              <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
+              <LogOut className="w-4 h-4" aria-hidden="true" />
             </Button>
 
             {logoutError && (
@@ -144,9 +144,9 @@ export function TopUtilityBar({ className }: TopUtilityBarProps) {
           data-testid="topbar-theme-toggle-btn"
         >
           {resolvedTheme === 'dark' ? (
-            <Sun className="w-4 h-4 text-[var(--color-brand-accent)] transition-transform duration-300 hover:rotate-45" aria-hidden="true" />
+            <Sun className="w-[18px] h-[18px] text-[var(--color-brand-accent)] transition-transform duration-300 hover:rotate-45" aria-hidden="true" />
           ) : (
-            <Moon className="w-4 h-4 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-transform duration-300" aria-hidden="true" />
+            <Moon className="w-[18px] h-[18px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-transform duration-300" aria-hidden="true" />
           )}
         </Button>
       </div>

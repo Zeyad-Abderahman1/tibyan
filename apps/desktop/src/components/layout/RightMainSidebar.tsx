@@ -109,7 +109,7 @@ export function RightMainSidebar({ className, onCollapsedChange }: RightMainSide
             type="button"
             onClick={toggleCollapsed}
             className={cn(
-              'p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-subtle)] transition-colors mx-auto',
+              'p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-subtle)] transition-colors mx-auto',
               !isCollapsed && 'me-1 ms-auto'
             )}
             aria-label={isCollapsed ? 'توسيع القائمة الجانبية' : 'طي القائمة الجانبية'}
@@ -145,7 +145,7 @@ export function RightMainSidebar({ className, onCollapsedChange }: RightMainSide
                 data-active={isActive ? 'true' : undefined}
                 className={({ isActive: navActive }) =>
                   cn(
-                    'group flex items-center rounded-xl text-xs md:text-sm font-medium transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-accent)]',
+                    'group flex items-center min-h-11 rounded-xl text-sm font-medium transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-accent)]',
                     isCollapsed ? 'justify-center p-2.5' : 'gap-3 px-3.5 py-2.5',
                     navActive
                       ? 'bg-[var(--color-sidebar-active)] text-white shadow-xs font-semibold'
@@ -153,7 +153,7 @@ export function RightMainSidebar({ className, onCollapsedChange }: RightMainSide
                   )
                 }
               >
-                <Icon className={cn('w-4 h-4 shrink-0 transition-transform duration-200', isActive && 'scale-105')} aria-hidden="true" />
+                <Icon className={cn('w-[18px] h-[18px] shrink-0 transition-transform duration-200', isActive && 'scale-105')} aria-hidden="true" />
                 {!isCollapsed && (
                   <span className="tracking-tight truncate">{item.label}</span>
                 )}

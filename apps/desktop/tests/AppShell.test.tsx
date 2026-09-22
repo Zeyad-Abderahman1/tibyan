@@ -162,6 +162,23 @@ describe('Desktop App Shell, RTL Navigation & Contextual Island Suite', () => {
     expect(photoHtml).toContain('object-cover');
   });
 
+  it('renders the enlarged teacher identity at the approved top-bar scale', () => {
+    const avatarHtml = renderToStaticMarkup(
+      <TeacherAvatar name="أحمد محمد" role="OWNER" size="sm" />
+    );
+    expect(avatarHtml).toContain('w-[38px]');
+    expect(avatarHtml).toContain('h-[38px]');
+
+    const topbarHtml = renderToStaticMarkup(
+      <Providers>
+        <MemoryRouter>
+          <TopUtilityBar />
+        </MemoryRouter>
+      </Providers>
+    );
+    expect(topbarHtml).toContain('h-[var(--topbar-height)]');
+  });
+
   it('verifies ContextualDynamicIsland renders actions with proper styling and accessible role', () => {
     const actions = [
       { id: 'view-1', label: 'نظرة عامة', active: true },

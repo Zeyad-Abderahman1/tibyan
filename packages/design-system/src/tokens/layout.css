@@ -15,10 +15,10 @@
   --space-10: 2.5rem;
 
   /* Control and Shell Geometry */
-  --control-height-compact: 2rem;
-  --control-height-default: 2.5rem;
-  --control-height-large: 3rem;
-  --topbar-height: 3rem;
+  --control-height-compact: 2.25rem;
+  --control-height-default: 2.75rem;
+  --control-height-large: 3.25rem;
+  --topbar-height: 3.625rem;
   --sidebar-width-expanded: 14rem;
   --sidebar-width-collapsed: 4rem;
   --context-island-height: 3.25rem;

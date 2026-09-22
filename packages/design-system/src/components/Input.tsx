@@ -64,7 +64,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             aria-invalid={error ? 'true' : undefined}
             aria-describedby={describedByIds}
             className={cn(
-              'w-full bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] text-sm rounded-[var(--radius-md)] px-3 py-2',
+              'w-full min-h-[var(--control-height-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] text-[15px] rounded-[var(--radius-md)] px-3 py-2',
               'border border-[var(--color-border-subtle)] transition-colors',
               'placeholder:text-[var(--color-text-muted)]',
               'focus-visible:outline-none focus-visible:border-[var(--color-brand-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]',

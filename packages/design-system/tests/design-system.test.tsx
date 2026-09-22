@@ -34,6 +34,19 @@ import {
 describe('Task 9: Tibyan Design System Verification Suite', () => {
   const rootDir = path.resolve(__dirname, '..');
 
+  it('uses the comfortable desktop scale for Arabic text and controls', () => {
+    const typography = fs.readFileSync(path.join(rootDir, 'src/tokens/typography.css'), 'utf8');
+    const layout = fs.readFileSync(path.join(rootDir, 'src/tokens/layout.css'), 'utf8');
+
+    expect(typography).toContain('--font-size-body: 1rem;');
+    expect(typography).toContain('--font-size-body-sm: 0.9375rem;');
+    expect(typography).toContain('--font-size-caption: 0.8125rem;');
+    expect(layout).toContain('--control-height-compact: 2.25rem;');
+    expect(layout).toContain('--control-height-default: 2.75rem;');
+    expect(layout).toContain('--control-height-large: 3.25rem;');
+    expect(layout).toContain('--topbar-height: 3.625rem;');
+  });
+
   // 1. Exact official PNG asset hash/bytes remain unchanged from the Task 1 approved asset.
   it('1. Exact official PNG asset hash/bytes remain unchanged from the Task 1 approved asset', () => {
     const designSystemLogoPath = path.join(rootDir, 'src/assets/tibyan-official-logo.png');
