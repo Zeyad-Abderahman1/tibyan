@@ -37,6 +37,7 @@ import {
   PdfSourceService,
   QuestionBankService,
   GeminiCredentialService,
+  OwnerPasswordService,
   ExamService,
   AiExamService,
   CaptureService,
@@ -105,6 +106,7 @@ export class Runtime {
   public systemAuditRepo!: SystemAuditRepository;
   public globalSettingsRepo!: GlobalSettingsRepository;
   public geminiCredentialService!: GeminiCredentialService;
+  public ownerPasswordService!: OwnerPasswordService;
   public authService!: AuthService;
   public backupService!: BackupService;
 
@@ -171,6 +173,10 @@ export class Runtime {
         decryptString: (value) => safeStorage.decryptString(Buffer.from(value, 'base64')),
       },
     );
+    this.ownerPasswordService = new OwnerPasswordService({
+      get: (key) => this.globalSettingsRepo.get(key),
+      set: (key, value) => this.globalSettingsRepo.set(key, value),
+    });
     this.authService = new AuthService(this.systemDb.db);
 
     this.backupService = new BackupService({

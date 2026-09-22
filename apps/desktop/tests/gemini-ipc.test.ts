@@ -29,8 +29,10 @@ describe('Gemini credential IPC', () => {
     senderValid = true;
     runtime = {
       requireAuthenticatedActor: vi.fn(() => ({ role: 'OWNER', permissions: [] })),
+      ownerPasswordService: { requireValid: vi.fn() },
       geminiCredentialService: {
-        status: vi.fn(() => ({ configured: true })),
+        status: vi.fn(() => ({ configured: true, maskedKey: '****-key' })),
+        get: vi.fn(() => 'test-key'),
         save: vi.fn(),
         clear: vi.fn(),
       },
@@ -42,7 +44,7 @@ describe('Gemini credential IPC', () => {
     const handler = handlers.get(IPC_CHANNELS.GEMINI_GET_STATUS)!;
     const result: any = await handler(event);
 
-    expect(result).toEqual({ success: true, data: { configured: true } });
+    expect(result).toEqual({ success: true, data: { configured: true, maskedKey: '****-key' } });
     expect(JSON.stringify(result)).not.toContain('apiKey');
   });
 
@@ -58,5 +60,35 @@ describe('Gemini credential IPC', () => {
   it('removes registered handlers at shutdown', () => {
     unregisterGeminiIpcHandlers();
     expect(handlers.size).toBe(0);
+  });
+
+  it('requires the owner password before replacing or removing a key', async () => {
+    const setHandler = handlers.get(IPC_CHANNELS.GEMINI_SET_CREDENTIAL)!;
+    runtime.ownerPasswordService.requireValid.mockImplementation(() => { throw new Error('كلمة المرور غير صحيحة.'); });
+    const rejected: any = await setHandler(event, { apiKey: 'new-key', ownerPassword: 'wrong' });
+    expect(rejected.success).toBe(false);
+    expect(runtime.geminiCredentialService.save).not.toHaveBeenCalled();
+    const deleteHandler = handlers.get(IPC_CHANNELS.GEMINI_DELETE_CREDENTIAL)!;
+    const deleted: any = await deleteHandler(event, { ownerPassword: 'wrong' });
+    expect(deleted.success).toBe(false);
+    expect(runtime.geminiCredentialService.clear).not.toHaveBeenCalled();
+  });
+
+  it('permits an owner to set and delete after password verification', async () => {
+    const setHandler = handlers.get(IPC_CHANNELS.GEMINI_SET_CREDENTIAL)!;
+    expect((await setHandler(event, { apiKey: 'new-key', ownerPassword: 'correct' }) as any).success).toBe(true);
+    expect(runtime.geminiCredentialService.save).toHaveBeenCalledWith('new-key');
+    const deleteHandler = handlers.get(IPC_CHANNELS.GEMINI_DELETE_CREDENTIAL)!;
+    expect((await deleteHandler(event, { ownerPassword: 'correct' }) as any).success).toBe(true);
+    expect(runtime.geminiCredentialService.clear).toHaveBeenCalledOnce();
+  });
+
+  it('tests the saved key without returning it', async () => {
+    const testHandler = handlers.get(IPC_CHANNELS.GEMINI_TEST_CONNECTION);
+    expect(testHandler).toBeDefined();
+    runtime.geminiCredentialService.get.mockReturnValue(null);
+    const result: any = await testHandler!(event);
+    expect(result.success).toBe(false);
+    expect(JSON.stringify(result)).not.toContain('test-key');
   });
 });

@@ -13,6 +13,7 @@ import {
   DashboardError,
   BackupError,
   FinanceError,
+  OwnerPasswordError,
 } from '@tibyan/core';
 
 /**
@@ -20,6 +21,7 @@ import {
  * Prevents any leakage of stack traces, raw SQLite error strings, or internal filesystem paths.
  */
 export function mapErrorToIpcResult(err: unknown): IpcResult<never> {
+  if (err instanceof OwnerPasswordError) return errorResult(err.code, err.message);
   // 1. Zod schema validation errors
   if (err instanceof ZodError) {
     const sanitizedIssues = err.issues.map((issue) => {

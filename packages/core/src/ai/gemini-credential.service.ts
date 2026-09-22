@@ -13,6 +13,9 @@ export class GeminiCredentialService {
     const encrypted = this.store.get(GeminiCredentialService.key);
     return encrypted ? this.cipher.decryptString(encrypted) : null;
   }
-  status(): { configured: boolean } { return { configured: Boolean(this.store.get(GeminiCredentialService.key)) }; }
+  status(): { configured: boolean; maskedKey: string | null } {
+    const key = this.get();
+    return { configured: Boolean(key), maskedKey: key ? (key.length > 4 ? `****${key.slice(-4)}` : '****') : null };
+  }
   clear(): void { this.store.set(GeminiCredentialService.key, ''); }
 }

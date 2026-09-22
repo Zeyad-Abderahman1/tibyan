@@ -15,6 +15,7 @@ export interface GeminiGenerateRequest {
   model: string;
   fileData?: { data: Buffer; mimeType: string };
   signal?: AbortSignal;
+  maxOutputTokens?: number;
 }
 export interface GeminiProviderOptions { timeoutMs?: number; retryDelayMs?: number; }
 
@@ -29,6 +30,13 @@ export class GeminiExamProvider {
 
   async preview(request: GeminiPreviewRequest) {
     return this.generate({ ...request, fileData: undefined });
+  }
+
+  async testConnection(apiKey: string): Promise<void> {
+    const result = await this.generate({
+      apiKey, model: 'gemini-2.0-flash', prompt: 'Return {"ok":true} as JSON.', maxOutputTokens: 16,
+    }, { type: 'OBJECT', properties: { ok: { type: 'BOOLEAN' } }, required: ['ok'] });
+    if (result?.ok !== true) throw new Error('تعذر الاتصال بخدمة تِبيان.');
   }
 
   async generate(request: GeminiGenerateRequest, responseSchema?: Record<string, unknown>): Promise<any> {
@@ -56,7 +64,7 @@ export class GeminiExamProvider {
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': request.apiKey },
       body: JSON.stringify({
         contents: [{ role: 'user', parts }],
-        generationConfig: { responseMimeType: 'application/json', ...(responseSchema ? { responseSchema } : {}) },
+        generationConfig: { responseMimeType: 'application/json', ...(responseSchema ? { responseSchema } : {}), ...(request.maxOutputTokens ? { maxOutputTokens: request.maxOutputTokens } : {}) },
       }),
     };
     try {

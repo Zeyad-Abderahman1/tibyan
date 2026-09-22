@@ -71,6 +71,7 @@ export const IPC_CHANNELS = {
   GEMINI_GET_STATUS: 'gemini:getStatus',
   GEMINI_SET_CREDENTIAL: 'gemini:setCredential',
   GEMINI_DELETE_CREDENTIAL: 'gemini:deleteCredential',
+  GEMINI_TEST_CONNECTION: 'gemini:testConnection',
 
   // Finance
   FINANCE_RECORD_PAYMENT: 'finance:recordPayment',

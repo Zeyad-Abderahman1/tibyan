@@ -64,7 +64,7 @@ import {
   SwitchAcademicYearInput,
   UpdateThemeSettingInput,
 } from '../models/system.dto.js';
-import { GeminiCredentialInput, GeminiConfigurationStatus } from '../models/gemini-configuration.dto.js';
+import { GeminiCredentialInput, GeminiCredentialDeleteInput, GeminiConfigurationStatus, GeminiConnectionResult } from '../models/gemini-configuration.dto.js';
 import {
   PaymentDto,
   RecordPaymentInput,
@@ -274,7 +274,8 @@ export interface TibyanApi {
   gemini: {
     getStatus(): Promise<IpcResult<GeminiConfigurationStatus>>;
     setCredential(input: GeminiCredentialInput): Promise<IpcResult<void>>;
-    deleteCredential(): Promise<IpcResult<void>>;
+    deleteCredential(input: GeminiCredentialDeleteInput): Promise<IpcResult<void>>;
+    testConnection(): Promise<IpcResult<GeminiConnectionResult>>;
   };
   finance: {
     recordPayment(input: RecordPaymentInput): Promise<IpcResult<PaymentDto>>;

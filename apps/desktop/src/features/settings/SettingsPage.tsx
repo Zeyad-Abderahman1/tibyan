@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Palette, Calendar, Users, HardDrive } from 'lucide-react';
+import { Palette, Calendar, Users, HardDrive, Sparkles } from 'lucide-react';
 import { cn } from '@tibyan/design-system';
 import { ThemePreferencesTab } from './ThemePreferencesTab.js';
 import { AcademicYearManager } from './AcademicYearManager.js';
 import { UserManagementTab } from './UserManagementTab.js';
 import { BackupSettingsTab } from './BackupSettingsTab.js';
+import { AiSettingsTab } from './AiSettingsTab.js';
 
-type SettingsTab = 'theme' | 'academic-years' | 'users' | 'backup';
+type SettingsTab = 'theme' | 'academic-years' | 'users' | 'backup' | 'ai';
 
 interface TabItem {
   id: SettingsTab;
@@ -20,6 +21,7 @@ const TABS: TabItem[] = [
   { id: 'academic-years', label: 'الأعوام الدراسية', icon: Calendar },
   { id: 'users', label: 'إدارة المساعدين', icon: Users, requiresPermission: 'USERS_MANAGE' },
   { id: 'backup', label: 'النسخ الاحتياطي', icon: HardDrive, requiresPermission: 'BACKUP_MANAGE' },
+  { id: 'ai', label: 'إعدادات تِبيان الذكية', icon: Sparkles },
 ];
 
 export function SettingsPage() {
@@ -71,6 +73,7 @@ export function SettingsPage() {
         {activeTab === 'academic-years' && <AcademicYearManager />}
         {activeTab === 'users' && <UserManagementTab />}
         {activeTab === 'backup' && <BackupSettingsTab />}
+        {activeTab === 'ai' && <AiSettingsTab />}
       </div>
     </div>
   );

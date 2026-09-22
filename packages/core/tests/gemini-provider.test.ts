@@ -2,6 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { GeminiExamProvider } from '../src/index.js';
 
 describe('Gemini exam provider', () => {
+  it('tests connection with a small structured request through the provider', async () => {
+    let body: any;
+    const provider = new GeminiExamProvider(async (_url, init) => {
+      body = JSON.parse(String(init.body));
+      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }] }), { status: 200 });
+    });
+    await expect(provider.testConnection('test-key')).resolves.toBeUndefined();
+    expect(body.generationConfig.maxOutputTokens).toBe(16);
+    expect(body.contents[0].parts[0].text).not.toContain('test-key');
+  });
   it('sends structured schema through the secure provider boundary', async () => {
     let body: any;
     const provider = new GeminiExamProvider(async (_url, init) => {

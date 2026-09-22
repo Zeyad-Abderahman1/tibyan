@@ -352,8 +352,11 @@ export const tibyanApi: TibyanApi = {
     setCredential(input: GeminiCredentialInput): Promise<IpcResult<void>> {
       return ipcRenderer.invoke(IPC_CHANNELS.GEMINI_SET_CREDENTIAL, input);
     },
-    deleteCredential(): Promise<IpcResult<void>> {
-      return ipcRenderer.invoke(IPC_CHANNELS.GEMINI_DELETE_CREDENTIAL);
+    deleteCredential(input: { ownerPassword: string }): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GEMINI_DELETE_CREDENTIAL, input);
+    },
+    testConnection(): Promise<IpcResult<{ message: string }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GEMINI_TEST_CONNECTION);
     },
   },
 
