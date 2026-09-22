@@ -4,9 +4,122 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>تِبيان — نظام إدارة المعلم</title>
+    <style>
+      :root {
+        --splash-bg: #0C1422;
+        --splash-text: #F3F1EA;
+        --splash-secondary: #AAB3C2;
+        --splash-primary: #7893C5;
+        --splash-surface: #121D2E;
+        --splash-border: #26364E;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --splash-bg: #F7F6F2;
+          --splash-text: #172033;
+          --splash-secondary: #626B7B;
+          --splash-primary: #243B67;
+          --splash-surface: #FFFFFF;
+          --splash-border: #DDE1E8;
+        }
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: var(--splash-bg);
+        color: var(--splash-text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Cairo", Tahoma, sans-serif;
+        overflow: hidden;
+      }
+      .tibyan-startup-splash {
+        height: 100vh;
+        width: 100vw;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        padding: 32px;
+        box-sizing: border-box;
+      }
+      .tibyan-startup-mark {
+        width: 68px;
+        height: 68px;
+        margin: 0 auto 18px;
+        border: 1px solid var(--splash-border);
+        border-radius: 18px;
+        background: var(--splash-surface);
+        display: grid;
+        place-items: center;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+      }
+      .tibyan-startup-glyph {
+        font-size: 28px;
+        font-weight: 800;
+        color: var(--splash-primary);
+      }
+      .tibyan-startup-title {
+        font-size: 34px;
+        font-weight: 800;
+        line-height: 1.2;
+        margin: 0;
+        color: var(--splash-text);
+      }
+      .tibyan-startup-subtitle {
+        font-size: 14px;
+        margin: 6px 0 0;
+        color: var(--splash-secondary);
+      }
+      .tibyan-startup-loader {
+        height: 24px;
+        margin-top: 24px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 6px;
+        color: var(--splash-primary);
+      }
+      .tibyan-startup-loader i {
+        display: block;
+        width: 6px;
+        height: 12px;
+        border-radius: 8px;
+        background: currentColor;
+        animation: tibyan-pulse 1s ease-in-out infinite alternate;
+      }
+      .tibyan-startup-loader i:nth-child(2) {
+        height: 20px;
+        animation-delay: 0.15s;
+      }
+      .tibyan-startup-loader i:nth-child(3) {
+        animation-delay: 0.3s;
+      }
+      .tibyan-startup-status {
+        font-size: 14px;
+        margin: 18px 0 0;
+        color: var(--splash-secondary);
+      }
+      @keyframes tibyan-pulse {
+        from { opacity: 0.35; transform: scaleY(0.75); }
+        to { opacity: 1; transform: scaleY(1); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .tibyan-startup-loader i { animation: none; opacity: 0.8; }
+      }
+    </style>
   </head>
   <body class="bg-[var(--color-bg-app)] text-[var(--color-text-primary)] font-sans antialiased overflow-hidden select-none">
-    <div id="root" class="h-screen w-screen overflow-hidden"></div>
+    <div id="root" class="h-screen w-screen overflow-hidden">
+      <main class="tibyan-startup-splash" aria-label="جاري تحميل تِبيان">
+        <div>
+          <div class="tibyan-startup-mark"><span class="tibyan-startup-glyph">ت</span></div>
+          <h1 class="tibyan-startup-title">تِبيان</h1>
+          <p class="tibyan-startup-subtitle">نظام إدارة المعلم الذكي</p>
+          <div class="tibyan-startup-loader" aria-hidden="true"><i></i><i></i><i></i></div>
+          <p class="tibyan-startup-status">جاري تجهيز مساحة العمل...</p>
+        </div>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

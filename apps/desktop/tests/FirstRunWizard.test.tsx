@@ -247,6 +247,6 @@ describe('Task 11: First-Run Wizard & Interrupted Setup Suite', () => {
 
     // Initial query state is loading
     expect(loadingHtml).toContain('data-testid="app-loading"');
-    expect(loadingHtml).toContain('جاري تشغيل تِبيان...');
+    expect(loadingHtml).toContain('جاري تجهيز مساحة العمل...');
   });
 });

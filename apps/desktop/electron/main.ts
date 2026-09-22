@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { app, BrowserWindow, Menu, protocol } from 'electron';
+import { app, BrowserWindow, Menu, protocol, nativeTheme } from 'electron';
 import {
   SECURE_WEB_PREFERENCES,
   configureWindowSecurity,
@@ -45,6 +45,9 @@ async function createWindow(): Promise<BrowserWindow> {
     ? path.join(__dirname, 'preload.cjs')
     : path.join(__dirname, 'preload.js');
 
+  const earlyTheme = nativeTheme?.shouldUseDarkColors ? 'dark' : 'light';
+  const initialBg = earlyTheme === 'dark' ? '#0C1422' : '#F7F6F2';
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -52,7 +55,7 @@ async function createWindow(): Promise<BrowserWindow> {
     minHeight: 700,
     title: 'تِبيان — نظام إدارة المعلم',
     show: false,
-    backgroundColor: '#0C1422',
+    backgroundColor: initialBg,
     autoHideMenuBar: true,
     webPreferences: {
       ...SECURE_WEB_PREFERENCES,
@@ -71,7 +74,7 @@ async function createWindow(): Promise<BrowserWindow> {
 
   // Display meaningful local UI before migrations and session bootstrap begin.
   showWhenReady(mainWindow);
-  await mainWindow.loadURL(toStartupDataUrl({ theme: 'dark' }));
+  await mainWindow.loadURL(toStartupDataUrl({ theme: earlyTheme }));
 
   // Register typed IPC bridge with mainWindow sender validation
   try {

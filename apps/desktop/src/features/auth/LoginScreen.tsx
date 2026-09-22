@@ -164,7 +164,7 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
             className="p-8 flex flex-col items-center justify-center space-y-3 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-md"
             data-testid="login-loading"
           >
-            <Loader2 className="w-8 h-8 text-[var(--color-brand-primary)] dark:text-[#5CE1E6] animate-spin" />
+            <Loader2 className="w-8 h-8 text-[var(--color-brand-primary)] animate-spin" />
             <span className="text-sm text-[var(--color-text-secondary)]">جاري تحميل الحسابات...</span>
           </div>
         </div>
@@ -224,7 +224,7 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
         <div className="flex flex-col md:flex-row items-stretch">
           {/* 1. Identity & Branding Panel (RTL Right side) */}
           <div
-            className="w-full md:w-[48%] p-6 sm:p-8 flex flex-col justify-between border-b md:border-b-0 md:border-l border-[var(--color-border-subtle)] dark:border-[#1A423F]/40 bg-[var(--color-bg-surface-subtle)]/40 dark:bg-[#081817]/40"
+            className="w-full md:w-[48%] p-6 sm:p-8 flex flex-col justify-between border-b md:border-b-0 md:border-l border-[var(--color-border-subtle)] bg-[var(--color-bg-surface-subtle)]/40"
             data-testid="identity-panel"
           >
             <div>
@@ -236,10 +236,10 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
                   className="w-11 h-11 rounded-xl p-1.5 shadow-sm border border-slate-200/60 dark:border-white/10"
                 />
                 <div className="flex flex-col">
-                  <span className="text-xl font-extrabold text-[var(--color-brand-primary)] dark:text-[#5CE1E6] tracking-tight leading-tight">
+                  <span className="text-xl font-extrabold text-[var(--color-brand-primary)] tracking-tight leading-tight">
                     تِبيان
                   </span>
-                  <span className="text-xs text-[var(--color-text-secondary)] dark:text-[#95B5B2] font-medium leading-tight">
+                  <span className="text-xs text-[var(--color-text-secondary)] font-medium leading-tight">
                     مساعد المدرس الذكي — تِبيان
                   </span>
                 </div>
@@ -261,7 +261,7 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
                 <div className="mt-5 space-y-3" data-testid="account-picker-view">
                   <div className="flex items-center justify-between pb-1 border-b border-[var(--color-border-subtle)] dark:border-[#1E4D4A]/30">
                     <div className="flex items-center gap-1.5 text-sm font-bold text-[var(--color-text-primary)] dark:text-white">
-                      <Users className="w-4 h-4 text-[var(--color-brand-primary)] dark:text-[#5CE1E6]" />
+                      <Users className="w-4 h-4 text-[var(--color-brand-primary)]" />
                       <span>اختيار الحساب</span>
                     </div>
                     <Button
@@ -269,7 +269,7 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
                       variant="ghost"
                       size="sm"
                       onClick={() => setIsSelectingUser(false)}
-                      className="text-xs text-[var(--color-text-secondary)] dark:text-[#8EABA8] hover:text-[var(--color-text-primary)] dark:hover:text-white"
+                      className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                       data-testid="cancel-account-picker-btn"
                     >
                       رجوع
@@ -288,7 +288,7 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
                 </div>
               ) : selectedUser ? (
                 /* Selected User Card */
-                <div className="mt-5 p-4 rounded-2xl bg-[var(--color-bg-surface)] dark:bg-[#071716]/80 border border-[var(--color-border-subtle)] dark:border-[#1E4D4A]/40 shadow-xs">
+                <div className="mt-5 p-4 rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border-subtle)] shadow-xs">
                   <div className="flex items-center gap-3.5 min-w-0">
                     <TeacherAvatar
                       name={selectedUser.fullName}
@@ -302,7 +302,7 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
                         {selectedUser.fullName}
                       </span>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-[var(--color-text-secondary)] dark:text-[#8EABA8] truncate num-isolate" dir="ltr">
+                        <span className="text-xs text-[var(--color-text-secondary)] truncate num-isolate" dir="ltr">
                           @{selectedUser.username}
                         </span>
                         <Badge
@@ -325,7 +325,7 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
                         setIsSelectingUser(true);
                         setErrorMessage(null);
                       }}
-                      className="mt-3 w-full justify-center text-xs text-[var(--color-brand-primary)] dark:text-[#5CE1E6] hover:bg-[var(--color-brand-primary-subtle)]/30 dark:hover:bg-[#5CE1E6]/10 py-1.5 rounded-xl transition-colors"
+                      className="mt-3 w-full justify-center text-xs text-[var(--color-brand-primary)] hover:bg-[var(--color-brand-primary-subtle)]/30 py-1.5 rounded-xl transition-colors"
                       data-testid="switch-account-btn"
                     >
                       تبديل الحساب
@@ -336,8 +336,8 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
             </div>
 
             {/* Trust & Security Tagline at base of identity column */}
-            <div className="mt-6 pt-3 border-t border-[var(--color-border-subtle)]/60 dark:border-[#1E4D4A]/25 flex items-center gap-2 text-[11px] text-[var(--color-text-muted)] dark:text-[#6D8E8B]">
-              <ShieldCheck className="w-3.5 h-3.5 text-[var(--color-brand-primary)] dark:text-[#5CE1E6] shrink-0" />
+            <div className="mt-6 pt-3 border-t border-[var(--color-border-subtle)]/60 flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+              <ShieldCheck className="w-3.5 h-3.5 text-[var(--color-brand-primary)] shrink-0" />
               <span>نظام محلي مشفر ومستقل بالكامل</span>
             </div>
           </div>
@@ -353,7 +353,7 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
                 <h2 className="text-base sm:text-lg font-bold text-[var(--color-text-primary)] dark:text-white">
                   أدخل رمز PIN للمتابعة
                 </h2>
-                <p className="text-xs text-[var(--color-text-secondary)] dark:text-[#8EABA8]">
+                <p className="text-xs text-[var(--color-text-secondary)]">
                   رمز سري مكون من 4 أرقام لتأكيد الهوية
                 </p>
               </div>
@@ -390,7 +390,7 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
               {/* Submitting Spinner */}
               {submitting && (
                 <div
-                  className="flex items-center justify-center gap-2 text-xs text-[var(--color-brand-primary)] dark:text-[#5CE1E6] font-medium"
+                  className="flex items-center justify-center gap-2 text-xs text-[var(--color-brand-primary)] font-medium"
                   data-testid="login-verifying"
                 >
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -418,8 +418,8 @@ export function LoginScreen({ onLoginSuccess, initialUsers }: LoginScreenProps) 
       </div>
 
       {/* Integrated Local-First Footer Statement */}
-      <div className="mt-5 flex items-center justify-center gap-2 text-xs text-[var(--color-text-muted)] dark:text-[#6D8E8B] select-none z-10">
-        <ShieldCheck className="w-3.5 h-3.5 text-[var(--color-brand-primary)] dark:text-[#5CE1E6] shrink-0" />
+      <div className="mt-5 flex items-center justify-center gap-2 text-xs text-[var(--color-text-muted)] select-none z-10">
+        <ShieldCheck className="w-3.5 h-3.5 text-[var(--color-brand-primary)] shrink-0" />
         <span>يعمل تِبيان محلياً على جهازك • لا يحتاج اتصالاً بالإنترنت</span>
       </div>
     </div>

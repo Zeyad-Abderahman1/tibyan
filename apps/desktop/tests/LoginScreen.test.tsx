@@ -193,6 +193,8 @@ describe('Task 12: 4-Digit PIN Authentication & Session Store Suite', () => {
       expect(html).toContain('data-testid="lock-screen-avatar"');
       expect(html).toContain('الشاشة مقفلة');
       expect(html).toContain('أدخل رمز PIN لفتح مساحة العمل');
+      expect(html).not.toContain('#5CE1E6');
+      expect(html).not.toContain('teal-');
     });
 
     it('renders empty state when users array is empty', () => {
