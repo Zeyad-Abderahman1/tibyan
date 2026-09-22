@@ -118,23 +118,42 @@ export function parseCsv(buffer: Buffer): string[][] {
  * Pure zero-dependency parser for standard OpenXML XLSX files using Node's zlib.
  * Extracts XML sheet data and shared strings to return rows of string values.
  */
-export function parseXlsx(buffer: Buffer): string[][] {
+export interface XlsxParseResult {
+  rows: string[][];
+  sheetName: string;
+  availableSheets: string[];
+}
+
+/**
+ * Pure zero-dependency parser for standard OpenXML XLSX files using Node's zlib.
+ * Supports arbitrary XML namespace prefixes (e.g. <x:row>, <x:c>, <x:v>),
+ * shared strings, inline strings, cached formula strings, Arabic sheet names,
+ * and multi-sheet discovery.
+ */
+export function parseXlsx(buffer: Buffer, requestedSheetName?: string): XlsxParseResult {
+  if (!buffer || buffer.length === 0) {
+    throw new Error('الملف فارغ بحجم 0 بايت');
+  }
+
   const zipEntries = extractZipEntries(buffer);
+  if (zipEntries.length === 0) {
+    throw new Error('فشل قراءة ملف Excel (تنسيق ZIP/OpenXML غير صالح أو الملف تالف)');
+  }
 
   // 1. Parse shared strings if present
   const sharedStrings: string[] = [];
   const sharedStringsEntry = zipEntries.find(
-    (e) => e.path === 'xl/sharedStrings.xml' || e.path === 'xl/sharedstrings.xml'
+    (e) => e.path.toLowerCase() === 'xl/sharedstrings.xml'
   );
   if (sharedStringsEntry) {
     const xml = sharedStringsEntry.data.toString('utf8');
-    // Extract <si>...</si> entries
-    const siRegex = /<si\b[\s\S]*?<\/si>/g;
+    // Extract <si> or <x:si> entries
+    const siRegex = /<(?:\w+:)?si\b[\s\S]*?<\/(?:\w+:)?si>/gi;
     let match: RegExpExecArray | null;
     while ((match = siRegex.exec(xml)) !== null) {
       const siContent = match[0];
-      // Collect all <t>...</t> inside this <si>
-      const tRegex = /<t\b[^>]*>([\s\S]*?)<\/t>/g;
+      // Collect all <t> or <x:t> inside this <si>
+      const tRegex = /<(?:\w+:)?t\b[^>]*>([\s\S]*?)<\/(?:\w+:)?t>/gi;
       const tPieces: string[] = [];
       let tMatch: RegExpExecArray | null;
       while ((tMatch = tRegex.exec(siContent)) !== null) {
@@ -144,73 +163,144 @@ export function parseXlsx(buffer: Buffer): string[][] {
     }
   }
 
-  // 2. Find primary worksheet
-  const sheetEntry =
-    zipEntries.find((e) => /^xl\/worksheets\/sheet1\.xml$/i.test(e.path)) ??
-    zipEntries.find((e) => /^xl\/worksheets\/sheet\d+\.xml$/i.test(e.path));
+  // Helper function to parse rows from a single worksheet XML string
+  function parseSheetXml(sheetXml: string): string[][] {
+    const rows: string[][] = [];
+    // Parse <row ...> ... </row> with optional XML namespace prefix like <x:row>
+    const rowRegex = /<(?:\w+:)?row\b[^>]*>([\s\S]*?)<\/(?:\w+:)?row>/gi;
+    let rowMatch: RegExpExecArray | null;
 
-  if (!sheetEntry) {
-    throw new Error('لم يتم العثور على ورقة عمل صالحة في ملف Excel');
-  }
+    while ((rowMatch = rowRegex.exec(sheetXml)) !== null) {
+      const rowContent = rowMatch[1]!;
+      const cells: { colIndex: number; value: string }[] = [];
 
-  const sheetXml = sheetEntry.data.toString('utf8');
-  const rows: string[][] = [];
+      // Parse <c ...> ... </c> with optional XML namespace prefix like <x:c>
+      const cellRegex = /<(?:\w+:)?c\b([^>]*)>([\s\S]*?)<\/(?:\w+:)?c>/gi;
+      let cellMatch: RegExpExecArray | null;
 
-  // Parse <row ...> ... </row>
-  const rowRegex = /<row\b[^>]*>([\s\S]*?)<\/row>/g;
-  let rowMatch: RegExpExecArray | null;
+      while ((cellMatch = cellRegex.exec(rowContent)) !== null) {
+        const attrs = cellMatch[1] ?? '';
+        const cellBody = cellMatch[2] ?? '';
 
-  while ((rowMatch = rowRegex.exec(sheetXml)) !== null) {
-    const rowContent = rowMatch[1]!;
-    const cells: { colIndex: number; value: string }[] = [];
+        const rAttr = attrs.match(/\br="([A-Z]+)\d+"/)?.[1] ?? '';
+        const tAttr = attrs.match(/\bt="([a-z]+)"/)?.[1] ?? '';
+        const colIndex = rAttr ? columnLetterToIndex(rAttr) : cells.length;
 
-    // Parse <c r="A1" t="s"><v>0</v></c>
-    const cellRegex = /<c\b([^>]*)>([\s\S]*?)<\/c>/g;
-    let cellMatch: RegExpExecArray | null;
+        let cellVal = '';
+        const vMatch = cellBody.match(/<(?:\w+:)?v\b[^>]*>([\s\S]*?)<\/(?:\w+:)?v>/i);
+        const tMatch = cellBody.match(/<(?:\w+:)?t\b[^>]*>([\s\S]*?)<\/(?:\w+:)?t>/i);
 
-    while ((cellMatch = cellRegex.exec(rowContent)) !== null) {
-      const attrs = cellMatch[1] ?? '';
-      const cellBody = cellMatch[2] ?? '';
-
-      const rAttr = attrs.match(/\br="([A-Z]+)\d+"/)?.[1] ?? '';
-      const tAttr = attrs.match(/\bt="([a-z]+)"/)?.[1] ?? '';
-      const colIndex = rAttr ? columnLetterToIndex(rAttr) : cells.length;
-
-      let cellVal = '';
-      if (tAttr === 's') {
-        const vMatch = cellBody.match(/<v>(\d+)<\/v>/);
-        if (vMatch) {
+        if (tAttr === 's' && vMatch) {
           const sIdx = parseInt(vMatch[1]!, 10);
           cellVal = sharedStrings[sIdx] ?? '';
-        }
-      } else if (tAttr === 'inlineStr') {
-        const tMatch = cellBody.match(/<t\b[^>]*>([\s\S]*?)<\/t>/);
-        if (tMatch) {
-          cellVal = decodeXmlEntities(tMatch[1] ?? '');
-        }
-      } else {
-        const vMatch = cellBody.match(/<v>([\s\S]*?)<\/v>/);
-        if (vMatch) {
+        } else if (tAttr === 'inlineStr' || tMatch) {
+          cellVal = decodeXmlEntities(tMatch ? tMatch[1] ?? '' : '').trim();
+        } else if (tAttr === 'str' && vMatch) {
+          cellVal = decodeXmlEntities(vMatch[1] ?? '').trim();
+        } else if (tAttr === 'b' && vMatch) {
+          cellVal = vMatch[1] === '1' ? 'نعم' : 'لا';
+        } else if (vMatch) {
           cellVal = decodeXmlEntities(vMatch[1] ?? '').trim();
         }
+
+        cells.push({ colIndex, value: cellVal });
       }
 
-      cells.push({ colIndex, value: cellVal });
+      if (cells.length > 0) {
+        const maxCol = Math.max(...cells.map((c) => c.colIndex));
+        const rowArr: string[] = new Array(maxCol + 1).fill('');
+        for (const c of cells) {
+          rowArr[c.colIndex] = c.value.trim();
+        }
+        // Only push row if it contains at least one non-empty cell (ignoring formatting-only empty rows)
+        if (rowArr.some((c) => c.length > 0)) {
+          rows.push(rowArr);
+        }
+      }
     }
 
-    if (cells.length > 0) {
-      const maxCol = Math.max(...cells.map((c) => c.colIndex));
-      const rowArr: string[] = new Array(maxCol + 1).fill('');
-      for (const c of cells) {
-        rowArr[c.colIndex] = c.value.trim();
-      }
-      if (rowArr.some((c) => c.length > 0)) {
-        rows.push(rowArr);
+    return rows;
+  }
+
+  // 2. Discover sheets from xl/workbook.xml & xl/_rels/workbook.xml.rels
+  const workbookEntry = zipEntries.find((e) => e.path.toLowerCase() === 'xl/workbook.xml');
+  const relsEntry = zipEntries.find((e) => e.path.toLowerCase() === 'xl/_rels/workbook.xml.rels');
+
+  const relMap: Record<string, string> = {};
+  if (relsEntry) {
+    const relsXml = relsEntry.data.toString('utf8');
+    const relRegex = /<Relationship\b([^>]*)\/?>/gi;
+    let rm: RegExpExecArray | null;
+    while ((rm = relRegex.exec(relsXml)) !== null) {
+      const attrs = rm[1] ?? '';
+      const id = attrs.match(/\bId="([^"]+)"/)?.[1];
+      const target = attrs.match(/\bTarget="([^"]+)"/)?.[1];
+      if (id && target) {
+        const normTarget = target.replace(/^\/?xl\//, '').replace(/^\//, '');
+        relMap[id] = `xl/${normTarget}`;
       }
     }
   }
 
-  return rows;
+  interface SheetCandidate {
+    name: string;
+    path: string;
+  }
+  const sheetCandidates: SheetCandidate[] = [];
+
+  if (workbookEntry) {
+    const workbookXml = workbookEntry.data.toString('utf8');
+    const sheetRegex = /<(?:\w+:)?sheet\b([^>]*)\/?>/gi;
+    let sm: RegExpExecArray | null;
+    while ((sm = sheetRegex.exec(workbookXml)) !== null) {
+      const attrs = sm[1] ?? '';
+      const name = attrs.match(/\bname="([^"]+)"/)?.[1] ?? '';
+      const rId = attrs.match(/\br:id="([^"]+)"/)?.[1] ?? attrs.match(/\bid="([^"]+)"/)?.[1] ?? '';
+      const resolvedPath = relMap[rId] ?? `xl/worksheets/sheet${sheetCandidates.length + 1}.xml`;
+      sheetCandidates.push({ name, path: resolvedPath });
+    }
+  }
+
+  // Fallback: If no sheets found in workbook.xml, search all worksheet entries
+  if (sheetCandidates.length === 0) {
+    for (const entry of zipEntries) {
+      if (/^xl\/worksheets\/sheet\d+\.xml$/i.test(entry.path)) {
+        sheetCandidates.push({ name: `ورقة ${sheetCandidates.length + 1}`, path: entry.path });
+      }
+    }
+  }
+
+  if (sheetCandidates.length === 0) {
+    throw new Error('لم يتم العثور على أي ورقة عمل داخل ملف Excel');
+  }
+
+  const availableSheets = sheetCandidates.map((s) => s.name);
+
+  // If a specific sheet was requested, try that sheet first
+  if (requestedSheetName) {
+    const requested = sheetCandidates.find((s) => s.name === requestedSheetName);
+    if (requested) {
+      const entry = zipEntries.find((e) => e.path.toLowerCase() === requested.path.toLowerCase());
+      if (entry) {
+        const rows = parseSheetXml(entry.data.toString('utf8'));
+        return { rows, sheetName: requested.name, availableSheets };
+      }
+    }
+  }
+
+  // Default: Find the first non-empty worksheet
+  for (const candidate of sheetCandidates) {
+    const entry = zipEntries.find((e) => e.path.toLowerCase() === candidate.path.toLowerCase());
+    if (entry) {
+      const rows = parseSheetXml(entry.data.toString('utf8'));
+      if (rows.length > 0) {
+        return { rows, sheetName: candidate.name, availableSheets };
+      }
+    }
+  }
+
+  // If all worksheets are empty:
+  throw new Error('الملف لا يحتوي على صفوف بيانات داخل أي ورقة عمل');
 }
 
 /**
@@ -549,13 +639,44 @@ export class StudentImportService {
   async parseAndPreview(
     fileBuffer: Buffer,
     fileName: string,
-    defaultGradeLevel?: GradeLevel
+    defaultGradeLevelOrOptions?: GradeLevel | { defaultGradeLevel?: GradeLevel; sheetName?: string } | string,
+    requestedSheetName?: string
   ): Promise<StudentImportPreview> {
+    if (!fileBuffer || fileBuffer.length === 0) {
+      throw new Error('الملف المرفق فارغ بحجم 0 بايت');
+    }
+
+    let defaultGradeLevel: GradeLevel | undefined;
+    let targetSheetName = requestedSheetName;
+
+    if (defaultGradeLevelOrOptions) {
+      if (typeof defaultGradeLevelOrOptions === 'object') {
+        defaultGradeLevel = defaultGradeLevelOrOptions.defaultGradeLevel;
+        if (!targetSheetName) {
+          targetSheetName = defaultGradeLevelOrOptions.sheetName;
+        }
+      } else if (typeof defaultGradeLevelOrOptions === 'string') {
+        const isGrade = ['PREP_1', 'PREP_2', 'PREP_3', 'SEC_1', 'SEC_2', 'SEC_3'].includes(
+          defaultGradeLevelOrOptions
+        );
+        if (isGrade) {
+          defaultGradeLevel = defaultGradeLevelOrOptions as GradeLevel;
+        } else if (!targetSheetName) {
+          targetSheetName = defaultGradeLevelOrOptions;
+        }
+      }
+    }
+
     const ext = fileName.toLowerCase().slice(fileName.lastIndexOf('.'));
     let rawRows: string[][];
+    let sheetName: string | undefined;
+    let availableSheets: string[] | undefined;
 
     if (ext === '.xlsx' || ext === '.xls') {
-      rawRows = parseXlsx(fileBuffer);
+      const parsedXlsx = parseXlsx(fileBuffer, targetSheetName);
+      rawRows = parsedXlsx.rows;
+      sheetName = parsedXlsx.sheetName;
+      availableSheets = parsedXlsx.availableSheets;
     } else if (ext === '.csv' || ext === '.txt') {
       rawRows = parseCsv(fileBuffer);
     } else if (ext === '.pdf') {
@@ -565,7 +686,7 @@ export class StudentImportService {
     }
 
     if (rawRows.length === 0) {
-      throw new Error('الملف فارغ ولا يحتوي على بيانات');
+      throw new Error('ورقة العمل لا تحتوي على بيانات');
     }
 
     // Determine if first row is header
@@ -716,6 +837,8 @@ export class StudentImportService {
 
     return {
       fileName,
+      sheetName,
+      availableSheets,
       totalRows: parsedRows.length,
       validCount,
       duplicateCount,

@@ -35,6 +35,8 @@ export type ParsedStudentRow = z.infer<typeof ParsedStudentRowSchema>;
 
 export const StudentImportPreviewSchema = z.object({
   fileName: z.string(),
+  sheetName: z.string().optional(),
+  availableSheets: z.array(z.string()).optional(),
   totalRows: z.number(),
   validCount: z.number(),
   duplicateCount: z.number(),

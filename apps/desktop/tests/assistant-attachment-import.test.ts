@@ -6,10 +6,11 @@ import {
   StudentRepository,
   UserRepository,
 } from '@tibyan/db';
-import { StudentImportService } from '@tibyan/core';
-import { ALL_PERMISSION_CODES } from '@tibyan/core';
+import { StudentImportService, ALL_PERMISSION_CODES } from '@tibyan/core';
 import { attachmentStore, previewRowsCache } from '../electron/ipc/assistant.ipc.js';
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
 
 describe('Chat File Attachments & Authoritative Student Bulk Import Flow', () => {
   let systemDb: ReturnType<typeof openSystemDatabase>;
@@ -233,5 +234,129 @@ describe('Chat File Attachments & Authoritative Student Bulk Import Flow', () =>
     const nonExistentId = '00000000-0000-0000-0000-000000000000';
     const att = attachmentStore.get(nonExistentId);
     expect(att).toBeUndefined();
+  });
+
+  it('browse attachment path: loads real PO XLSX fixture into attachmentStore and previews 30 students', async () => {
+    const fixtureFile = path.resolve(__dirname, 'fixtures/tibyan_fake_students_test(1).xlsx');
+    expect(fs.existsSync(fixtureFile)).toBe(true);
+
+    const buffer = fs.readFileSync(fixtureFile);
+    expect(buffer.length).toBe(8624);
+
+    const attachmentId = crypto.randomUUID();
+    attachmentStore.set(attachmentId, {
+      attachmentId,
+      fileName: 'tibyan_fake_students_test(1).xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      sizeBytes: buffer.length,
+      buffer,
+      createdAt: Date.now(),
+    });
+
+    const stored = attachmentStore.get(attachmentId);
+    expect(stored).toBeDefined();
+    expect(stored?.sizeBytes).toBe(8624);
+
+    const service = new StudentImportService(academicDb.db);
+    const preview = await service.parseAndPreview(stored!.buffer, stored!.fileName);
+
+    expect(preview.sheetName).toBe('طلاب_جاهزون');
+    expect(preview.totalRows).toBe(30);
+    expect(preview.validCount).toBe(30);
+    expect(preview.invalidCount).toBe(0);
+    expect(preview.rows[0]?.fullName).toBe('أحمد سامح محمود النجار');
+    expect(preview.rows[0]?.guardianPhone).toBe('01010000000');
+  });
+
+  it('drag/drop attachment path: handles file drop and previews 30 students', async () => {
+    const fixtureFile = path.resolve(__dirname, 'fixtures/tibyan_fake_students_test(1).xlsx');
+    const buffer = fs.readFileSync(fixtureFile);
+
+    // Simulate drag/drop payload ingestion into attachmentStore
+    const attachmentId = crypto.randomUUID();
+    attachmentStore.set(attachmentId, {
+      attachmentId,
+      fileName: 'tibyan_fake_students_test(1).xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      sizeBytes: buffer.length,
+      buffer,
+      createdAt: Date.now(),
+    });
+
+    const service = new StudentImportService(academicDb.db);
+    const stored = attachmentStore.get(attachmentId)!;
+    const preview = await service.parseAndPreview(stored.buffer, stored.fileName);
+
+    expect(preview.totalRows).toBe(30);
+    expect(preview.validCount).toBe(30);
+    expect(preview.rows.length).toBe(30);
+  });
+
+  it('real PO XLSX fixture: parses Arabic sheet طلاب_جاهزون with 30 students, preserves phone leading 0, and persists on confirm', async () => {
+    const fixtureFile = path.resolve(__dirname, 'fixtures/tibyan_fake_students_test(1).xlsx');
+    const buffer = fs.readFileSync(fixtureFile);
+
+    const attachmentId = crypto.randomUUID();
+    attachmentStore.set(attachmentId, {
+      attachmentId,
+      fileName: 'tibyan_fake_students_test(1).xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      sizeBytes: buffer.length,
+      buffer,
+      createdAt: Date.now(),
+    });
+
+    const service = new StudentImportService(academicDb.db);
+    const stored = attachmentStore.get(attachmentId)!;
+    const preview = await service.parseAndPreview(stored.buffer, stored.fileName);
+
+    // Verify preview contents
+    expect(preview.sheetName).toBe('طلاب_جاهزون');
+    expect(preview.totalRows).toBe(30);
+    expect(preview.validCount).toBe(30);
+
+    // Verify first and second student names and leading zeros
+    expect(preview.rows[0]?.fullName).toBe('أحمد سامح محمود النجار');
+    expect(preview.rows[0]?.guardianPhone).toBe('01010000000');
+    expect(preview.rows[0]?.gradeLevel).toBe('PREP_1');
+
+    expect(preview.rows[1]?.fullName).toBe('محمد حسام أحمد منصور');
+    expect(preview.rows[1]?.guardianPhone).toBe('01110000001');
+
+    // Cache preview
+    const previewId = crypto.randomUUID();
+    previewRowsCache.set(previewId, {
+      previewId,
+      rows: preview.rows,
+      fileName: stored.fileName,
+      createdAt: Date.now(),
+    });
+
+    // Zero students in DB prior to confirmation
+    expect(studentRepo.list().length).toBe(0);
+
+    // Confirm execution
+    const cached = previewRowsCache.get(previewId)!;
+    const readyRows = cached.rows.filter((r) => r.status === 'READY');
+    expect(readyRows.length).toBe(30);
+
+    const actor = {
+      userId: testUserId,
+      fullName: 'أستاذ المادة',
+      role: 'OWNER' as const,
+      permissions: ALL_PERMISSION_CODES,
+    };
+
+    const importResult = await service.executeImport({ rows: readyRows as any }, actor);
+    expect(importResult.importedCount).toBe(30);
+    expect(importResult.skippedCount).toBe(0);
+    expect(importResult.failedCount).toBe(0);
+
+    // Verify persistence in SQLite
+    const savedStudents = studentRepo.list();
+    expect(savedStudents.length).toBe(30);
+    expect(savedStudents.find((s) => s.fullName === 'أحمد سامح محمود النجار')?.guardianPhone).toBe(
+      '01010000000'
+    );
   });
 });

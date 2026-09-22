@@ -365,7 +365,11 @@ export function getOrchestrator(runtime: Runtime): AssistantOrchestrator {
               return { success: false, error: 'محتوى الملف مفقود' };
             }
 
-            const preview = await service.parseAndPreview(buffer, fileName);
+            const sheetName = typeof input.sheetName === 'string' && input.sheetName.trim().length > 0
+              ? input.sheetName.trim()
+              : undefined;
+
+            const preview = await service.parseAndPreview(buffer, fileName, sheetName);
             const previewId = crypto.randomUUID();
             previewRowsCache.set(previewId, {
               previewId,
@@ -379,6 +383,8 @@ export function getOrchestrator(runtime: Runtime): AssistantOrchestrator {
               data: {
                 previewId,
                 fileName: preview.fileName,
+                sheetName: preview.sheetName,
+                availableSheets: preview.availableSheets,
                 totalRows: preview.totalRows,
                 validCount: preview.validCount,
                 duplicateCount: preview.duplicateCount,

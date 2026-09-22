@@ -386,7 +386,7 @@ export function registerStudentsIpcHandlers(runtime: Runtime, mainWindow: Browse
       }
 
       const importService = new StudentImportService(runtime.academicDb.db);
-      return importService.parseAndPreview(buffer, payload?.fileName || 'students.xlsx');
+      return importService.parseAndPreview(buffer, payload?.fileName || 'students.xlsx', payload?.sheetName);
     });
   });
 
