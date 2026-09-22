@@ -10,6 +10,7 @@ import {
 import { Runtime } from './runtime.js';
 import { registerAllIpcHandlers, unregisterAllIpcHandlers } from './ipc/index.js';
 import { registerMediaProtocol } from './media-protocol.js';
+import { showWhenReady, toStartupDataUrl } from './startup-splash.js';
 
 // Register privileged scheme for managed media (student photos)
 protocol.registerSchemesAsPrivileged([
@@ -50,7 +51,8 @@ async function createWindow(): Promise<BrowserWindow> {
     minWidth: 1024,
     minHeight: 700,
     title: 'تِبيان — نظام إدارة المعلم',
-    backgroundColor: '#0B3D3D',
+    show: false,
+    backgroundColor: '#0C1422',
     autoHideMenuBar: true,
     webPreferences: {
       ...SECURE_WEB_PREFERENCES,
@@ -67,14 +69,26 @@ async function createWindow(): Promise<BrowserWindow> {
   configureWindowSecurity(mainWindow, { allowedDevOrigin: devUrl });
   configureSessionSecurity(mainWindow.webContents.session, mainWindow);
 
-  // Register typed IPC bridge with mainWindow sender validation
-  registerAllIpcHandlers(runtime, mainWindow);
+  // Display meaningful local UI before migrations and session bootstrap begin.
+  showWhenReady(mainWindow);
+  await mainWindow.loadURL(toStartupDataUrl({ theme: 'dark' }));
 
-  // Load renderer
-  if (devUrl) {
-    await mainWindow.loadURL(devUrl);
-  } else {
-    await mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+  // Register typed IPC bridge with mainWindow sender validation
+  try {
+    runtime.initialize();
+    registerMediaProtocol(runtime);
+    registerAllIpcHandlers(runtime, mainWindow);
+
+    // Replace splash in the same hardened window as soon as bootstrap is ready.
+    if (devUrl) {
+      await mainWindow.loadURL(devUrl);
+    } else {
+      await mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'حدث خطأ غير متوقع أثناء التهيئة.';
+    console.error('Tibyan startup failed:', error);
+    await mainWindow.loadURL(toStartupDataUrl({ theme: 'dark', error: message }));
   }
 
   mainWindow.on('closed', () => {
@@ -109,11 +123,6 @@ if (gotTheLock) {
   app.whenReady().then(async () => {
     // Disable default native Electron application menu bar across production UI
     Menu.setApplicationMenu(null);
-
-    runtime.initialize();
-
-    // Register media handler for safe, sandboxed student photo serving
-    registerMediaProtocol(runtime);
 
     await createWindow();
 
