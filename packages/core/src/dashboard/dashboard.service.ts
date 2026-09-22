@@ -161,8 +161,9 @@ export class DashboardService {
     // - activeGroupsCount: Count of groups where status === 'ACTIVE' (archived excluded)
     const activeGroupsCount = this.groupRepo.countActive();
 
-    // - totalEnrolledStudents: Distinct active students with at least one active enrollment
-    const totalEnrolledStudents = this.enrollmentRepo.countDistinctActiveEnrolledStudents();
+    // - totalEnrolledStudents: All active students in the mounted academic-year database.
+    //   Group enrollment is intentionally irrelevant to this headline student count.
+    const totalEnrolledStudents = this.studentRepo.countActive();
 
     // 6. NeedsAttention items: active students with NEEDS_FOLLOW_UP notes (deduplicated, latest note first)
     const followUpRows = this.studentRepo.listFollowUpNotesWithActiveStudents();

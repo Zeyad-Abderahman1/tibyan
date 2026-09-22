@@ -348,6 +348,18 @@ describe('Task 8: Today Dashboard Aggregation Service (DashboardService)', () =>
     expect(dashboard.activeGroupsCount).toBe(2);
   });
 
+  it('counts every active student even when the student has no active group enrollment', async () => {
+    const enrolledStudent = createStudent({ fullName: 'طالب مقيد بمجموعة', status: 'ACTIVE' });
+    createStudent({ fullName: 'طالب نشط بلا مجموعة', status: 'ACTIVE' });
+    createStudent({ fullName: 'طالب غير نشط', status: 'INACTIVE' });
+    const group = createGroup();
+    createEnrollment(group.id, enrolledStudent.id, { status: 'ACTIVE' });
+
+    const dashboard = await dashboardService.getTodayDashboard('2026-10-15');
+
+    expect(dashboard.totalEnrolledStudents).toBe(2);
+  });
+
   // 14. NEEDS_FOLLOW_UP note causes the student to appear in needsAttention.
   it('14. NEEDS_FOLLOW_UP note causes the student to appear in needsAttention', async () => {
     const group = createGroup({ name: 'المجموعة الأولى' });
