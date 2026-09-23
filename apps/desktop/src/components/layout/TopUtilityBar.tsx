@@ -133,22 +133,68 @@ export function TopUtilityBar({ className }: TopUtilityBarProps) {
           </div>
         )}
 
-        {/* Theme Toggle Button */}
-        <Button
-          variant="ghost"
-          size="sm"
+        {/* Custom Animated Theme Toggle Switch */}
+        <button
+          type="button"
           onClick={handleToggleTheme}
+          dir="ltr"
           aria-label={resolvedTheme === 'dark' ? 'التبديل إلى الوضع الفاتح' : 'التبديل إلى الوضع الداكن'}
           title={resolvedTheme === 'dark' ? 'الوضع الفاتح' : 'الوضع الداكن'}
-          className="p-1.5 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface-subtle)] rounded-md transition-colors"
           data-testid="topbar-theme-toggle-btn"
-        >
-          {resolvedTheme === 'dark' ? (
-            <Sun className="w-[18px] h-[18px] text-[var(--color-brand-accent)] transition-transform duration-300 hover:rotate-45" aria-hidden="true" />
-          ) : (
-            <Moon className="w-[18px] h-[18px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-transform duration-300" aria-hidden="true" />
+          className={cn(
+            'relative inline-flex items-center w-14 h-7 p-0.5 rounded-full transition-colors duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] cursor-pointer select-none',
+            resolvedTheme === 'dark'
+              ? 'bg-slate-800/90 border border-slate-700/80 shadow-inner'
+              : 'bg-amber-50/80 border border-amber-200/80 shadow-inner'
           )}
-        </Button>
+        >
+          {/* Track background faint indicator icons */}
+          <div className="absolute inset-0 flex items-center justify-between px-1.5 pointer-events-none text-xs">
+            <Sun
+              className={cn(
+                'w-3 h-3 text-amber-500/50 transition-opacity duration-300',
+                resolvedTheme === 'dark' ? 'opacity-80' : 'opacity-0'
+              )}
+              aria-hidden="true"
+            />
+            <Moon
+              className={cn(
+                'w-3 h-3 text-indigo-400/50 transition-opacity duration-300',
+                resolvedTheme === 'dark' ? 'opacity-0' : 'opacity-80'
+              )}
+              aria-hidden="true"
+            />
+          </div>
+
+          {/* Smooth sliding thumb with rotating/scaling Sun and Moon */}
+          <span
+            className={cn(
+              'relative z-10 w-6 h-6 rounded-full flex items-center justify-center shadow-xs transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+              resolvedTheme === 'dark'
+                ? 'translate-x-7 bg-slate-900 text-indigo-300 shadow-slate-950/40'
+                : 'translate-x-0 bg-white text-amber-500 shadow-amber-900/10'
+            )}
+          >
+            <Sun
+              className={cn(
+                'w-3.5 h-3.5 absolute transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+                resolvedTheme === 'dark'
+                  ? 'opacity-0 rotate-90 scale-50 pointer-events-none'
+                  : 'opacity-100 rotate-0 scale-100'
+              )}
+              aria-hidden="true"
+            />
+            <Moon
+              className={cn(
+                'w-3.5 h-3.5 absolute transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+                resolvedTheme === 'dark'
+                  ? 'opacity-100 rotate-0 scale-100'
+                  : 'opacity-0 -rotate-90 scale-50 pointer-events-none'
+              )}
+              aria-hidden="true"
+            />
+          </span>
+        </button>
       </div>
     </header>
   );

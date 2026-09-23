@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Button } from '@tibyan/design-system';
+import { Button, cn } from '@tibyan/design-system';
 import {
   Send,
   Bot,
@@ -68,6 +68,7 @@ export interface PlatformControlChatProps {
 export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformControlChatProps = {}) {
   const [input, setInput] = useState('');
   const [attachment, setAttachment] = useState<AssistantAttachmentDto | null>(null);
+  const [isRemovingAttachment, setIsRemovingAttachment] = useState(false);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -445,9 +446,16 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
       {/* Composer */}
       <div className="border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-4">
         <div className="max-w-3xl mx-auto space-y-2">
-          {/* Removable Attachment Chip */}
+          {/* Removable Attachment Chip with smooth exit animation */}
           {attachment && (
-            <div className="flex items-center gap-2 mb-2 p-2 rounded-xl bg-[var(--color-bg-sunken)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-primary)] animate-fadeIn">
+            <div
+              className={cn(
+                'flex items-center gap-2 mb-2 p-2 rounded-xl bg-[var(--color-bg-sunken)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-primary)] transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                isRemovingAttachment
+                  ? 'opacity-0 scale-95 -translate-y-1 pointer-events-none'
+                  : 'opacity-100 scale-100 translate-y-0'
+              )}
+            >
               <FileSpreadsheet className="w-4 h-4 text-[var(--color-brand-primary)] flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <span className="font-semibold truncate block">{attachment.fileName}</span>
@@ -457,8 +465,14 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
               </div>
               <button
                 type="button"
-                onClick={() => setAttachment(null)}
-                className="p-1 hover:bg-[var(--color-bg-base)] rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-status-danger)] transition-colors"
+                onClick={() => {
+                  setIsRemovingAttachment(true);
+                  setTimeout(() => {
+                    setAttachment(null);
+                    setIsRemovingAttachment(false);
+                  }, 180);
+                }}
+                className="p-1 hover:bg-[var(--color-bg-base)] rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-status-danger)] hover:scale-105 active:scale-95 transition-all"
                 title="إزالة الملف"
                 data-testid="remove-attachment-btn"
               >

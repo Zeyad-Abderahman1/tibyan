@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { TopUtilityBar } from './TopUtilityBar.js';
 import { RightMainSidebar } from './RightMainSidebar.js';
 
@@ -13,6 +13,7 @@ import { RightMainSidebar } from './RightMainSidebar.js';
  */
 export function AppShell() {
   const [, setIsSidebarCollapsed] = useState(false);
+  const location = useLocation();
 
   return (
     <div
@@ -35,7 +36,9 @@ export function AppShell() {
           role="main"
           data-testid="workspace-stage"
         >
-          <Outlet />
+          <div key={location.pathname} className="page-workspace-enter min-h-full">
+            <Outlet />
+          </div>
         </main>
 
       </div>

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { Card, Button, Badge, Select, Input } from '@tibyan/design-system';
+import { Card, Button, Badge, Select, Input, cn } from '@tibyan/design-system';
 import {
   useCurriculumLibraryList,
   useCurriculumLibraryGrouped,
@@ -15,6 +15,8 @@ import {
   Layers,
   Upload,
   Eye,
+  Check,
+  Loader2,
 } from 'lucide-react';
 import { PdfViewer } from './PdfViewer.js';
 import { ImportDialog } from './ImportDialog.js';
@@ -150,15 +152,20 @@ export function CurriculumLibraryPage() {
     }
   };
 
-  const handleDelete = async (doc: { id: string; title: string }) => {
-    if (!window.confirm(`هل أنت متأكد من حذف "${doc.title}" من المكتبة؟`)) return;
+  const handleDelete = async (doc: { id: string; title: string }): Promise<boolean> => {
+    if (!window.confirm(`هل أنت متأكد من حذف "${doc.title}" من المكتبة؟`)) return false;
     try {
       await deleteMutation.mutateAsync(doc.id);
-      refetchList();
-      refetchGrouped();
+      return true;
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'فشل حذف الوثيقة');
+      return false;
     }
+  };
+
+  const handleAfterDeleted = () => {
+    refetchList();
+    refetchGrouped();
   };
 
   const handleViewPdf = (id: string) => {
@@ -321,9 +328,21 @@ export function CurriculumLibraryPage() {
           <div className="w-6 h-6 rounded-full border-2 border-[var(--color-brand-primary)] border-t-transparent animate-spin" />
         </div>
       ) : viewMode === 'grouped' ? (
-        <GroupedView grouped={grouped || []} onDelete={handleDelete} onViewPdf={handleViewPdf} onOpenExternal={handleOpenExternal} />
+        <GroupedView
+          grouped={grouped || []}
+          onDelete={handleDelete}
+          onAfterDeleted={handleAfterDeleted}
+          onViewPdf={handleViewPdf}
+          onOpenExternal={handleOpenExternal}
+        />
       ) : (
-        <ListView documents={filteredDocuments} onDelete={handleDelete} onViewPdf={handleViewPdf} onOpenExternal={handleOpenExternal} />
+        <ListView
+          documents={filteredDocuments}
+          onDelete={handleDelete}
+          onAfterDeleted={handleAfterDeleted}
+          onViewPdf={handleViewPdf}
+          onOpenExternal={handleOpenExternal}
+        />
       )}
     </div>
   );
@@ -332,11 +351,13 @@ export function CurriculumLibraryPage() {
 function GroupedView({
   grouped,
   onDelete,
+  onAfterDeleted,
   onViewPdf,
   onOpenExternal,
 }: {
   grouped: { gradeLevel: string | null; educationSystem: string | null; documents: any[]; count: number }[];
-  onDelete: (doc: { id: string; title: string }) => void;
+  onDelete: (doc: { id: string; title: string }) => Promise<boolean>;
+  onAfterDeleted: () => void;
   onViewPdf: (id: string) => void;
   onOpenExternal: (id: string) => void;
 }) {
@@ -377,7 +398,14 @@ function GroupedView({
             {isExpanded && (
               <div className="border-t border-[var(--color-border-subtle)] divide-y divide-[var(--color-border-subtle)]">
                 {group.documents.map((doc: any) => (
-                  <DocumentRow key={doc.id} doc={doc} onDelete={onDelete} onViewPdf={onViewPdf} onOpenExternal={onOpenExternal} />
+                  <DocumentRow
+                    key={doc.id}
+                    doc={doc}
+                    onDelete={onDelete}
+                    onAfterDeleted={onAfterDeleted}
+                    onViewPdf={onViewPdf}
+                    onOpenExternal={onOpenExternal}
+                  />
                 ))}
               </div>
             )}
@@ -391,11 +419,13 @@ function GroupedView({
 function ListView({
   documents,
   onDelete,
+  onAfterDeleted,
   onViewPdf,
   onOpenExternal,
 }: {
   documents: any[];
-  onDelete: (doc: { id: string; title: string }) => void;
+  onDelete: (doc: { id: string; title: string }) => Promise<boolean>;
+  onAfterDeleted: () => void;
   onViewPdf: (id: string) => void;
   onOpenExternal: (id: string) => void;
 }) {
@@ -411,7 +441,14 @@ function ListView({
   return (
     <Card variant="default" className="divide-y divide-[var(--color-border-subtle)]">
       {documents.map((doc) => (
-        <DocumentRow key={doc.id} doc={doc} onDelete={onDelete} onViewPdf={onViewPdf} onOpenExternal={onOpenExternal} />
+        <DocumentRow
+          key={doc.id}
+          doc={doc}
+          onDelete={onDelete}
+          onAfterDeleted={onAfterDeleted}
+          onViewPdf={onViewPdf}
+          onOpenExternal={onOpenExternal}
+        />
       ))}
     </Card>
   );
@@ -420,17 +457,51 @@ function ListView({
 function DocumentRow({
   doc,
   onDelete,
+  onAfterDeleted,
   onViewPdf,
   onOpenExternal,
 }: {
   doc: any;
-  onDelete: (doc: { id: string; title: string }) => void;
+  onDelete: (doc: { id: string; title: string }) => Promise<boolean>;
+  onAfterDeleted: () => void;
   onViewPdf: (id: string) => void;
   onOpenExternal: (id: string) => void;
 }) {
+  const [deleteStage, setDeleteStage] = useState<'idle' | 'executing' | 'success' | 'collapsing'>('idle');
+
+  const handleDeleteClick = async () => {
+    if (deleteStage !== 'idle') return;
+    setDeleteStage('executing');
+    try {
+      const ok = await onDelete(doc);
+      if (ok) {
+        // Backend confirmed deletion! Morph delete button to success checkmark
+        setDeleteStage('success');
+        setTimeout(() => {
+          setDeleteStage('collapsing');
+          setTimeout(() => {
+            onAfterDeleted();
+          }, 280);
+        }, 360);
+      } else {
+        // Cancelled or declined
+        setDeleteStage('idle');
+      }
+    } catch {
+      setDeleteStage('idle');
+    }
+  };
+
   return (
-    <div className="flex items-center gap-3 p-3 hover:bg-[var(--color-bg-elevated)] transition-colors">
-      <div className="w-10 h-10 rounded-lg bg-[var(--color-brand-primary-bg)] flex items-center justify-center flex-shrink-0">
+    <div
+      className={cn(
+        'flex items-center gap-3 p-3 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[var(--color-bg-elevated)]',
+        deleteStage === 'collapsing' && 'max-h-0 opacity-0 py-0 my-0 border-none pointer-events-none scale-95 overflow-hidden',
+        deleteStage === 'success' && 'bg-emerald-500/10 dark:bg-emerald-500/15'
+      )}
+      data-testid={`document-row-${doc.id}`}
+    >
+      <div className="w-10 h-10 rounded-lg bg-[var(--color-brand-primary-bg)] flex items-center justify-center flex-shrink-0 transition-transform duration-200">
         <FileText className="w-5 h-5 text-[var(--color-brand-primary)]" />
       </div>
       <div className="flex-1 min-w-0">
@@ -462,11 +533,26 @@ function DocumentRow({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => onDelete(doc)}
-          title="حذف"
-          className="text-[var(--color-status-danger)] hover:bg-[var(--color-status-danger-bg)]"
+          onClick={handleDeleteClick}
+          title={deleteStage === 'success' ? 'تم الحذف بنجاح' : 'حذف'}
+          disabled={deleteStage === 'executing' || deleteStage === 'collapsing'}
+          data-testid={`delete-doc-${doc.id}`}
+          className={cn(
+            'transition-all duration-200 min-w-8 justify-center',
+            deleteStage === 'success'
+              ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-900/30 hover:bg-emerald-100/70'
+              : 'text-[var(--color-status-danger)] hover:bg-[var(--color-status-danger-bg)] hover:scale-105 active:scale-95'
+          )}
         >
-          <Trash2 className="w-4 h-4" />
+          {deleteStage === 'executing' && (
+            <Loader2 className="w-4 h-4 animate-spin text-[var(--color-status-danger)]" aria-hidden="true" />
+          )}
+          {deleteStage === 'success' && (
+            <Check className="w-4 h-4 text-emerald-500 scale-110 transition-transform duration-200" aria-hidden="true" />
+          )}
+          {deleteStage !== 'executing' && deleteStage !== 'success' && (
+            <Trash2 className="w-4 h-4 transition-transform duration-150" aria-hidden="true" />
+          )}
         </Button>
       </div>
     </div>

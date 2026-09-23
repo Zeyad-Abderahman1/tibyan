@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -52,14 +52,20 @@ export interface RightMainSidebarProps {
   onCollapsedChange?: (collapsed: boolean) => void;
 }
 
+// Client-safe useLayoutEffect to prevent SSR warning in tests
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
 /**
  * Layer 2: Right Collapsible Main Navigation
  * Physical position: RIGHT in RTL layout.
  * Answers: "أين أنا في البرنامج؟"
  * Supports expanded and collapsed states, persists state across restarts.
+ * Features a single shared active-selection background indicator gliding smoothly with GPU transforms.
  */
 export function RightMainSidebar({ className, onCollapsedChange }: RightMainSidebarProps) {
   const location = useLocation();
+  const navRef = useRef<HTMLElement>(null);
+  const itemRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
 
   // Load persisted state from localStorage
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
@@ -70,6 +76,18 @@ export function RightMainSidebar({ className, onCollapsedChange }: RightMainSide
       return false;
     }
   });
+
+  const [indicatorStyle, setIndicatorStyle] = useState<{
+    top: number;
+    height: number;
+    visible: boolean;
+  }>({
+    top: 0,
+    height: 0,
+    visible: false,
+  });
+
+  const [hasMeasured, setHasMeasured] = useState(false);
 
   const toggleCollapsed = () => {
     setIsCollapsed((prev) => {
@@ -84,6 +102,37 @@ export function RightMainSidebar({ className, onCollapsedChange }: RightMainSide
   useEffect(() => {
     onCollapsedChange?.(isCollapsed);
   }, [isCollapsed, onCollapsedChange]);
+
+  // Find active item
+  const activeItem = APPROVED_NAV_ITEMS.find((item) =>
+    item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to)
+  );
+
+  // Measure active item position for smooth gliding
+  useIsomorphicLayoutEffect(() => {
+    if (!activeItem) {
+      setIndicatorStyle((prev) => ({ ...prev, visible: false }));
+      return;
+    }
+
+    const updateIndicator = () => {
+      const el = itemRefs.current[activeItem.key];
+      if (el) {
+        setIndicatorStyle({
+          top: el.offsetTop,
+          height: el.offsetHeight,
+          visible: true,
+        });
+        setHasMeasured(true);
+      }
+    };
+
+    updateIndicator();
+
+    // Re-check after sidebar expansion/collapse width transition completes
+    const timer = setTimeout(updateIndicator, 150);
+    return () => clearTimeout(timer);
+  }, [activeItem?.key, isCollapsed, location.pathname]);
 
   return (
     <aside
@@ -126,11 +175,29 @@ export function RightMainSidebar({ className, onCollapsedChange }: RightMainSide
 
         {/* Navigation list */}
         <nav
-          className="flex-1 px-2 py-3 space-y-1 overflow-y-auto"
+          ref={navRef}
+          className="relative flex-1 px-2 py-3 space-y-1 overflow-y-auto"
           role="navigation"
           aria-label="أقسام تِبيان الرئيسية"
           data-testid="sidebar-nav"
         >
+          {/* Shared animated gliding active indicator */}
+          {indicatorStyle.visible && (
+            <div
+              data-testid="sidebar-active-indicator"
+              className={cn(
+                'absolute start-2 end-2 rounded-xl bg-[var(--color-sidebar-active)] shadow-xs pointer-events-none z-0',
+                hasMeasured && 'transition-transform transition-[height] duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none'
+              )}
+              style={{
+                top: 0,
+                transform: `translateY(${indicatorStyle.top}px)`,
+                height: `${indicatorStyle.height}px`,
+              }}
+              aria-hidden="true"
+            />
+          )}
+
           {APPROVED_NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
@@ -138,6 +205,9 @@ export function RightMainSidebar({ className, onCollapsedChange }: RightMainSide
             return (
               <NavLink
                 key={item.to}
+                ref={(el) => {
+                  itemRefs.current[item.key] = el;
+                }}
                 to={item.to}
                 end={item.to === '/'}
                 title={isCollapsed ? item.label : undefined}
@@ -145,17 +215,23 @@ export function RightMainSidebar({ className, onCollapsedChange }: RightMainSide
                 data-active={isActive ? 'true' : undefined}
                 className={({ isActive: navActive }) =>
                   cn(
-                    'group flex items-center min-h-11 rounded-xl text-sm font-medium transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-accent)]',
+                    'group relative z-10 flex items-center min-h-11 rounded-xl text-sm font-medium transition-colors duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand-accent)]',
                     isCollapsed ? 'justify-center p-2.5' : 'gap-3 px-3.5 py-2.5',
                     navActive
-                      ? 'bg-[var(--color-sidebar-active)] text-white shadow-xs font-semibold'
+                      ? 'text-white font-semibold'
                       : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-black/[0.04] dark:hover:bg-white/[0.05]'
                   )
                 }
               >
-                <Icon className={cn('w-[18px] h-[18px] shrink-0 transition-transform duration-200', isActive && 'scale-105')} aria-hidden="true" />
+                <Icon
+                  className={cn(
+                    'w-[18px] h-[18px] shrink-0 transition-all duration-200',
+                    isActive ? 'scale-105 text-white' : 'text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)] group-hover:scale-[1.03]'
+                  )}
+                  aria-hidden="true"
+                />
                 {!isCollapsed && (
-                  <span className="tracking-tight truncate">{item.label}</span>
+                  <span className="tracking-tight truncate transition-colors duration-200">{item.label}</span>
                 )}
               </NavLink>
             );

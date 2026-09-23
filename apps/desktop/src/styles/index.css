@@ -23,6 +23,47 @@ html, body {
   unicode-bidi: isolate;
 }
 
+/* Page workspace subtle enter transition (190ms, GPU transform + opacity) */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-workspace-enter {
+  animation: pageEnter 190ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform;
+}
+
+/* Restrained micro-interactions */
+button:active:not(:disabled),
+[role="button"]:active:not([aria-disabled="true"]) {
+  transform: scale(0.985);
+}
+
+/* Strict prefers-reduced-motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .page-workspace-enter {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
 /* Print optimization for physical student cards and A4 sheets */
 @media print {
   html, body {
