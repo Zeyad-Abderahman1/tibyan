@@ -62,11 +62,12 @@ const TOOL_LABELS: Record<string, string> = {
 
 export interface PlatformControlChatProps {
   sessionId?: string | null;
+  initialPrompt?: string;
   onSessionCreated?: (sessionId: string) => void;
 }
 
-export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformControlChatProps = {}) {
-  const [input, setInput] = useState('');
+export function PlatformControlChat({ sessionId, initialPrompt, onSessionCreated }: PlatformControlChatProps = {}) {
+  const [input, setInput] = useState(initialPrompt || '');
   const [attachment, setAttachment] = useState<AssistantAttachmentDto | null>(null);
   const [isRemovingAttachment, setIsRemovingAttachment] = useState(false);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
@@ -102,6 +103,13 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, sending]);
+
+  useEffect(() => {
+    if (initialPrompt) {
+      setInput(initialPrompt);
+      inputRef.current?.focus();
+    }
+  }, [initialPrompt]);
 
   const handleProcessFile = useCallback(async (file: File) => {
     setFileError(null);
@@ -240,7 +248,7 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
 
   return (
     <div
-      className="relative flex flex-col h-full bg-[var(--color-bg-base)]"
+      className="relative flex flex-col h-full bg-[var(--color-bg-surface)] select-none"
       dir="rtl"
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
@@ -250,13 +258,13 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
       {/* Drag & Drop Visual Overlay */}
       {isDragging && (
         <div
-          className="absolute inset-0 z-50 bg-[var(--color-bg-base)]/90 backdrop-blur-sm border-2 border-dashed border-[var(--color-brand-primary)] rounded-2xl flex flex-col items-center justify-center p-6 text-center pointer-events-none transition-all"
+          className="absolute inset-0 z-50 bg-[var(--color-bg-surface)]/90 backdrop-blur-sm border-2 border-dashed border-[var(--color-brand-primary)] rounded-2xl flex flex-col items-center justify-center p-6 text-center pointer-events-none transition-all"
           data-testid="platform-chat-drop-overlay"
         >
-          <div className="w-16 h-16 rounded-2xl bg-[var(--color-brand-primary-bg)] flex items-center justify-center mb-4">
-            <UploadCloud className="w-8 h-8 text-[var(--color-brand-primary)]" />
+          <div className="w-16 h-16 rounded-2xl bg-[var(--color-brand-primary)]/10 text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))] flex items-center justify-center mb-4">
+            <UploadCloud className="w-8 h-8" />
           </div>
-          <p className="text-lg font-bold text-[var(--color-brand-primary)]">
+          <p className="text-lg font-bold text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))]">
             أفلت الملف هنا
           </p>
           <p className="text-xs text-[var(--color-text-secondary)] mt-1">
@@ -265,198 +273,215 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
         </div>
       )}
 
-      {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center max-w-sm">
-              <div className="w-16 h-16 rounded-2xl bg-[var(--color-brand-primary-bg)] flex items-center justify-center mx-auto mb-4">
-                <Bot className="w-8 h-8 text-[var(--color-brand-primary)]" />
+      {/* Messages Scroll Area (Single scroll container) */}
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 scrollbar-thin">
+        <div className="max-w-[960px] w-full mx-auto space-y-6">
+          {messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center min-h-[380px] text-center p-6 my-auto select-none">
+              <div className="w-16 h-16 rounded-2xl bg-[var(--color-brand-primary)]/10 border border-[var(--color-border-subtle)] flex items-center justify-center mb-4 shadow-xs">
+                <Bot className="w-8 h-8 text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))]" />
               </div>
-              <p className="text-base font-medium text-[var(--color-text-primary)]">
+              <h2 className="text-xl sm:text-2xl font-bold text-[var(--color-text-primary)] mb-2">
                 تِبيان — التحكم في المنصة
-              </p>
-              <p className="text-xs text-[var(--color-text-secondary)] mt-2 leading-relaxed">
+              </h2>
+              <p className="text-sm sm:text-base text-[var(--color-text-secondary)] max-w-md leading-relaxed">
                 اطرح أي سؤال عن المنصة باللغة العربية. يمكنني استعراض وإدارة الطلاب، المجموعات، الحضور، الدرجات، المالية، والخطط بأمان.
               </p>
             </div>
-          </div>
-        )}
+          )}
 
-        {messages.map((msg, idx) => (
-          <div
-            key={msg.id || idx}
-            className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            data-testid={`chat-message-${idx}`}
-          >
-            {msg.role !== 'user' && (
-              <div className="w-8 h-8 rounded-full bg-[var(--color-brand-primary-bg)] flex items-center justify-center flex-shrink-0 mt-1">
-                <Bot className="w-4 h-4 text-[var(--color-brand-primary)]" />
-              </div>
-            )}
-
-            <div className="max-w-[75%] space-y-2">
-              {/* Tool Execution Pill / Result */}
-              {(msg.role === 'tool-result' || msg.type === 'tool-result' || msg.type === 'tool-call') && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--color-bg-sunken)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-secondary)]">
-                  <Wrench className="w-3.5 h-3.5 text-[var(--color-brand-primary)]" />
-                  <span>
-                    استعلام المنصة: {msg.toolName ? (TOOL_LABELS[msg.toolName] || msg.toolName) : 'تم بنجاح'}
-                  </span>
+          {messages.map((msg, idx) => (
+            <div
+              key={msg.id || idx}
+              className={`flex items-start gap-3.5 sm:gap-4 ${
+                msg.role === 'user' ? 'justify-end' : 'justify-start'
+              }`}
+              data-testid={`chat-message-${idx}`}
+            >
+              {msg.role !== 'user' && (
+                <div className="w-9 h-9 rounded-xl bg-[var(--color-brand-primary)]/10 text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))] border border-[var(--color-border-subtle)] flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                  <Bot className="w-5 h-5" />
                 </div>
               )}
 
-              {/* Confirmation / Preview Card */}
-              {msg.type === 'preview' && (msg.previewId || msg.confirmationToken) && (
-                <div className="rounded-2xl border border-[var(--color-status-warning)] bg-[var(--color-status-warning-bg)] p-4 shadow-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="w-4 h-4 text-[var(--color-status-warning)]" />
-                    <span className="text-xs font-bold text-[var(--color-status-warning)]">
-                      يتطلب تأكيد المشرف
+              <div
+                className={cn(
+                  msg.role === 'user'
+                    ? 'flex flex-col items-end max-w-[85%] sm:max-w-[75%]'
+                    : 'flex-1 min-w-0 space-y-3'
+                )}
+              >
+                {/* Tool Execution Pill / Result */}
+                {(msg.role === 'tool-result' || msg.type === 'tool-result' || msg.type === 'tool-call') && (
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--color-bg-surface-subtle)] border border-[var(--color-border-subtle)] text-xs font-medium text-[var(--color-text-secondary)] shadow-2xs">
+                    <Wrench className="w-3.5 h-3.5 text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))]" />
+                    <span>
+                      استعلام المنصة: {msg.toolName ? (TOOL_LABELS[msg.toolName] || msg.toolName) : 'تم بنجاح'}
                     </span>
                   </div>
-                  <p className="text-sm text-[var(--color-text-primary)] mb-3 leading-relaxed whitespace-pre-wrap">
-                    {msg.content}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => handleConfirm((msg.previewId || msg.confirmationToken)!, true)}
-                      data-testid="confirm-action"
-                    >
-                      <CheckCircle className="w-3.5 h-3.5 ml-1" />
-                      تأكيد التنفيذ
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleConfirm((msg.previewId || msg.confirmationToken)!, false)}
-                      data-testid="reject-action"
-                    >
-                      <X className="w-3.5 h-3.5 ml-1" />
-                      إلغاء
-                    </Button>
-                  </div>
-                </div>
-              )}
+                )}
 
-              {/* Execution Receipt with Undo */}
-              {msg.type === 'execution-receipt' && (() => {
-                const isFailed = msg.content.startsWith('فشل التنفيذ') || msg.content.startsWith('حدث خطأ');
-                return (
-                  <div
-                    className={`rounded-2xl border p-4 shadow-sm ${
-                      isFailed
-                        ? 'border-[var(--color-status-danger)] bg-[var(--color-status-danger-bg)]'
-                        : 'border-[var(--color-status-success)] bg-[var(--color-status-success-bg)]'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        {isFailed ? (
-                          <AlertCircle className="w-4 h-4 text-[var(--color-status-danger)]" />
-                        ) : (
-                          <CheckCircle className="w-4 h-4 text-[var(--color-status-success)]" />
-                        )}
-                        <span
-                          className={`text-xs font-bold ${
-                            isFailed ? 'text-[var(--color-status-danger)]' : 'text-[var(--color-status-success)]'
-                          }`}
-                        >
-                          {isFailed ? 'فشل تنفيذ الإجراء' : 'تم التنفيذ بنجاح'}
-                        </span>
-                      </div>
-                      {!isFailed && msg.undoAvailable && msg.receiptId && msg.undoToken && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleUndo(msg.receiptId!, msg.undoToken!)}
-                          data-testid="undo-action"
-                          className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-                        >
-                          <Undo2 className="w-3.5 h-3.5 ml-1" />
-                          تراجع
-                        </Button>
-                      )}
+                {/* Confirmation / Preview Card */}
+                {msg.type === 'preview' && (msg.previewId || msg.confirmationToken) && (
+                  <div className="rounded-2xl border border-[var(--color-status-warning)] bg-[var(--color-status-warning-bg)]/80 p-5 shadow-xs">
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <AlertTriangle className="w-4 h-4 text-[var(--color-status-warning)] shrink-0" />
+                      <span className="text-xs font-bold text-[var(--color-status-warning)]">
+                        يتطلب تأكيد المشرف
+                      </span>
                     </div>
-                    <p className="text-sm text-[var(--color-text-primary)] whitespace-pre-wrap">
+                    <p className="text-sm sm:text-base text-[var(--color-text-primary)] mb-4 leading-relaxed whitespace-pre-wrap select-text">
                       {msg.content}
                     </p>
+                    <div className="flex gap-2.5">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => handleConfirm((msg.previewId || msg.confirmationToken)!, true)}
+                        data-testid="confirm-action"
+                        className="text-xs font-semibold px-4 py-2"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5 ms-1.5" />
+                        تأكيد التنفيذ
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleConfirm((msg.previewId || msg.confirmationToken)!, false)}
+                        data-testid="reject-action"
+                        className="text-xs font-medium px-4 py-2"
+                      >
+                        <X className="w-3.5 h-3.5 ms-1.5" />
+                        إلغاء
+                      </Button>
+                    </div>
                   </div>
-                );
-              })()}
+                )}
 
-              {/* Undo Result Notification */}
-              {msg.type === 'undo-result' && (
-                <div className="rounded-2xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-sunken)] p-3 text-xs text-[var(--color-text-secondary)] flex items-center gap-2">
-                  <RotateCcw className="w-4 h-4 text-[var(--color-brand-primary)]" />
-                  <span className="whitespace-pre-wrap">{msg.content}</span>
-                </div>
-              )}
+                {/* Execution Receipt with Undo */}
+                {msg.type === 'execution-receipt' && (() => {
+                  const isFailed = msg.content.startsWith('فشل التنفيذ') || msg.content.startsWith('حدث خطأ');
+                  return (
+                    <div
+                      className={cn(
+                        'rounded-2xl border p-4.5 shadow-xs',
+                        isFailed
+                          ? 'border-[var(--color-status-danger)] bg-[var(--color-status-danger-bg)]/70'
+                          : 'border-[var(--color-status-success)] bg-[var(--color-status-success-bg)]/70'
+                      )}
+                    >
+                      <div className="flex items-center justify-between mb-2.5">
+                        <div className="flex items-center gap-2">
+                          {isFailed ? (
+                            <AlertCircle className="w-4 h-4 text-[var(--color-status-danger)] shrink-0" />
+                          ) : (
+                            <CheckCircle className="w-4 h-4 text-[var(--color-status-success)] shrink-0" />
+                          )}
+                          <span
+                            className={cn(
+                              'text-xs font-bold',
+                              isFailed ? 'text-[var(--color-status-danger)]' : 'text-[var(--color-status-success)]'
+                            )}
+                          >
+                            {isFailed ? 'فشل تنفيذ الإجراء' : 'تم التنفيذ بنجاح'}
+                          </span>
+                        </div>
+                        {!isFailed && msg.undoAvailable && msg.receiptId && msg.undoToken && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleUndo(msg.receiptId!, msg.undoToken!)}
+                            data-testid="undo-action"
+                            className="text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] px-2.5 py-1"
+                          >
+                            <Undo2 className="w-3.5 h-3.5 ms-1" />
+                            تراجع
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-sm sm:text-base text-[var(--color-text-primary)] leading-relaxed whitespace-pre-wrap select-text">
+                        {msg.content}
+                      </p>
+                    </div>
+                  );
+                })()}
 
-              {/* Regular Text Bubble */}
-              {msg.type !== 'tool-result' && msg.type !== 'tool-call' && msg.type !== 'preview' && msg.type !== 'execution-receipt' && msg.type !== 'undo-result' && (
-                <div
-                  className={`rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-                    msg.role === 'user'
-                      ? 'bg-[var(--color-brand-primary)] text-white shadow-sm'
-                      : msg.type === 'error'
-                      ? 'bg-[var(--color-status-danger-bg)] text-[var(--color-status-danger)] border border-[var(--color-status-danger)]'
-                      : 'bg-[var(--color-bg-elevated)] text-[var(--color-text-primary)] border border-[var(--color-border-subtle)]'
-                  }`}
-                >
-                  {msg.content}
-                </div>
-              )}
-            </div>
+                {/* Undo Result Notification */}
+                {msg.type === 'undo-result' && (
+                  <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface-subtle)] p-3 text-xs sm:text-sm text-[var(--color-text-secondary)] flex items-center gap-2 shadow-2xs">
+                    <RotateCcw className="w-4 h-4 text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))] shrink-0" />
+                    <span className="whitespace-pre-wrap">{msg.content}</span>
+                  </div>
+                )}
 
-            {msg.role === 'user' && (
-              <div className="w-8 h-8 rounded-full bg-[var(--color-brand-primary)] text-white flex items-center justify-center flex-shrink-0 mt-1">
-                <User className="w-4 h-4" />
+                {/* Regular Message Text / Document Response */}
+                {msg.type !== 'tool-result' &&
+                  msg.type !== 'tool-call' &&
+                  msg.type !== 'preview' &&
+                  msg.type !== 'execution-receipt' &&
+                  msg.type !== 'undo-result' &&
+                  (msg.role === 'user' ? (
+                    <div className="rounded-2xl px-5 py-3.5 bg-[var(--color-brand-primary)] text-white shadow-2xs text-sm sm:text-base leading-relaxed whitespace-pre-wrap select-text">
+                      {msg.content}
+                    </div>
+                  ) : msg.type === 'error' ? (
+                    <div className="rounded-xl px-4 py-3 bg-[var(--color-status-danger-bg)] text-[var(--color-status-danger)] border border-[var(--color-status-danger)] text-sm leading-relaxed">
+                      {msg.content}
+                    </div>
+                  ) : (
+                    <div className="text-sm sm:text-base text-[var(--color-text-primary)] leading-loose whitespace-pre-wrap select-text py-1">
+                      {msg.content}
+                    </div>
+                  ))}
               </div>
-            )}
-          </div>
-        ))}
 
-        {/* Typing indicator */}
-        {sending && (
-          <div className="flex gap-3 justify-start" data-testid="chat-loading-indicator">
-            <div className="w-8 h-8 rounded-full bg-[var(--color-brand-primary-bg)] flex items-center justify-center flex-shrink-0 mt-1">
-              <Bot className="w-4 h-4 text-[var(--color-brand-primary)] animate-pulse" />
+              {msg.role === 'user' && (
+                <div className="w-9 h-9 rounded-xl bg-[var(--color-brand-primary)] text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                  <User className="w-5 h-5" />
+                </div>
+              )}
             </div>
-            <div className="rounded-2xl px-4 py-3 bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)] text-[var(--color-text-secondary)] text-sm flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-[var(--color-brand-primary)]" />
-              <span>تِبيان يبحث وينفذ الطلب...</span>
-            </div>
-          </div>
-        )}
+          ))}
 
-        {error && (
-          <div className="flex justify-center">
-            <div className="px-4 py-1.5 rounded-full bg-[var(--color-status-danger-bg)] text-[var(--color-status-danger)] text-xs border border-[var(--color-status-danger)]">
-              {error}
+          {/* Typing Indicator */}
+          {sending && (
+            <div className="flex items-start justify-start gap-3.5 sm:gap-4" data-testid="chat-loading-indicator">
+              <div className="w-9 h-9 rounded-xl bg-[var(--color-brand-primary)]/10 text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))] border border-[var(--color-border-subtle)] flex items-center justify-center shrink-0 mt-0.5">
+                <Bot className="w-5 h-5 animate-pulse" />
+              </div>
+              <div className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-[var(--color-bg-surface-subtle)] border border-[var(--color-border-subtle)] text-xs sm:text-sm text-[var(--color-text-secondary)] shadow-2xs">
+                <Loader2 className="w-4 h-4 animate-spin text-[var(--color-brand-primary)]" />
+                <span>تِبيان يبحث وينفذ الطلب...</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div ref={messagesEndRef} />
+          {error && (
+            <div className="flex justify-center">
+              <div className="px-4 py-2 rounded-full bg-[var(--color-status-danger-bg)] text-[var(--color-status-danger)] text-xs border border-[var(--color-status-danger)] shadow-2xs">
+                {error}
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      {/* Composer */}
-      <div className="border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-4">
-        <div className="max-w-3xl mx-auto space-y-2">
+      {/* Composer (Centered, max-w-[960px], comfortable height & padding) */}
+      <div className="border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] p-4 sm:p-5 shrink-0">
+        <div className="max-w-[960px] w-full mx-auto space-y-2.5">
           {/* Removable Attachment Chip with smooth exit animation */}
           {attachment && (
             <div
               className={cn(
-                'flex items-center gap-2 mb-2 p-2 rounded-xl bg-[var(--color-bg-sunken)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-primary)] transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]',
+                'flex items-center gap-2 mb-2 p-2.5 rounded-xl bg-[var(--color-bg-surface-subtle)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-primary)] transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] shadow-2xs',
                 isRemovingAttachment
                   ? 'opacity-0 scale-95 -translate-y-1 pointer-events-none'
                   : 'opacity-100 scale-100 translate-y-0'
               )}
             >
-              <FileSpreadsheet className="w-4 h-4 text-[var(--color-brand-primary)] flex-shrink-0" />
+              <FileSpreadsheet className="w-4 h-4 text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))] shrink-0" />
               <div className="flex-1 min-w-0">
                 <span className="font-semibold truncate block">{attachment.fileName}</span>
                 <span className="text-[10px] text-[var(--color-text-secondary)]">
@@ -472,7 +497,7 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
                     setIsRemovingAttachment(false);
                   }, 180);
                 }}
-                className="p-1 hover:bg-[var(--color-bg-base)] rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-status-danger)] hover:scale-105 active:scale-95 transition-all"
+                className="p-1 hover:bg-[var(--color-bg-surface)] rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-status-danger)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
                 title="إزالة الملف"
                 data-testid="remove-attachment-btn"
               >
@@ -482,16 +507,16 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
           )}
 
           {uploadingAttachment && (
-            <div className="flex items-center gap-2 mb-2 p-2 rounded-xl bg-[var(--color-bg-sunken)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-secondary)]">
+            <div className="flex items-center gap-2 mb-2 p-2.5 rounded-xl bg-[var(--color-bg-surface-subtle)] border border-[var(--color-border-subtle)] text-xs text-[var(--color-text-secondary)]">
               <Loader2 className="w-4 h-4 animate-spin text-[var(--color-brand-primary)]" />
               <span>جاري فحص ورفع المرفق بأمان...</span>
             </div>
           )}
 
           {fileError && (
-            <div className="flex items-center justify-between gap-2 mb-2 p-2 rounded-xl bg-[var(--color-status-danger-bg)] border border-[var(--color-status-danger)] text-xs text-[var(--color-status-danger)]">
+            <div className="flex items-center justify-between gap-2 mb-2 p-2.5 rounded-xl bg-[var(--color-status-danger-bg)] border border-[var(--color-status-danger)] text-xs text-[var(--color-status-danger)]">
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{fileError}</span>
               </div>
               <button
@@ -504,7 +529,7 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
             </div>
           )}
 
-          <div className="flex gap-2 items-end bg-[var(--color-bg-base)] rounded-2xl border border-[var(--color-border-subtle)] p-2 focus-within:ring-2 focus-within:ring-[var(--color-brand-primary)] transition-all">
+          <div className="relative flex items-end gap-2.5 bg-[var(--color-bg-surface-subtle)] rounded-2xl border border-[var(--color-border-subtle)] p-2.5 sm:p-3 shadow-2xs focus-within:ring-2 focus-within:ring-[var(--color-brand-primary)]/30 focus-within:border-[var(--color-brand-primary)] transition-all">
             <input
               ref={fileInputRef}
               type="file"
@@ -517,11 +542,11 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
               variant="ghost"
               size="sm"
               onClick={() => fileInputRef.current?.click()}
-              className="rounded-xl h-10 w-10 p-0 flex items-center justify-center flex-shrink-0 text-[var(--color-text-secondary)] hover:text-[var(--color-brand-primary)]"
+              className="rounded-xl h-11 w-11 p-0 flex items-center justify-center shrink-0 text-[var(--color-text-secondary)] hover:text-[var(--color-brand-primary)] hover:bg-[var(--color-bg-surface)] transition-colors cursor-pointer"
               title="إرفاق ملف طلاب (.xlsx, .csv, .pdf)"
               data-testid="platform-chat-attach-btn"
             >
-              <Paperclip className="w-4 h-4" />
+              <Paperclip className="w-5 h-5" />
             </Button>
             <textarea
               ref={inputRef}
@@ -529,7 +554,7 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="اكتب طلبك باللغة العربية (مثال: أنشئ مجموعة لكل صف دراسي)..."
-              className="flex-1 resize-none rounded-xl bg-transparent px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none min-h-[44px] max-h-[180px] leading-relaxed"
+              className="flex-1 resize-none rounded-xl bg-transparent px-3 py-2 text-sm sm:text-base text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] focus:outline-none min-h-[48px] max-h-[180px] leading-relaxed"
               rows={1}
               dir="rtl"
               data-testid="platform-chat-input"
@@ -539,15 +564,19 @@ export function PlatformControlChat({ sessionId, onSessionCreated }: PlatformCon
               size="sm"
               onClick={handleSend}
               disabled={(!input.trim() && !attachment) || sending || uploadingAttachment}
-              className="rounded-xl h-10 w-10 p-0 flex items-center justify-center flex-shrink-0"
+              className="rounded-xl h-11 w-11 p-0 flex items-center justify-center shrink-0 shadow-xs cursor-pointer"
               data-testid="platform-chat-send"
             >
               {sending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
-                <Send className="w-4 h-4" />
+                <Send className="w-5 h-5" />
               )}
             </Button>
+          </div>
+          <div className="flex items-center justify-between px-2 text-[11px] sm:text-xs text-[var(--color-text-tertiary)] select-none">
+            <span>اضغط Enter للإرسال، و Shift + Enter لسطر جديد</span>
+            <span className="font-mono">تِبيان 2.0</span>
           </div>
         </div>
       </div>
