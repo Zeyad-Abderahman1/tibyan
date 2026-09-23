@@ -31,16 +31,21 @@ import {
   FinanceService,
   ThermalReceiptService,
   CurriculumService,
+  CurriculumLibraryService,
   LessonPlannerService,
   SessionReflectionService,
   PdfSourceService,
   QuestionBankService,
   GeminiCredentialService,
+  createGeminiContentProvider,
+  OwnerPasswordService,
   ExamService,
   AiExamService,
   CaptureService,
   GradingService,
   AnalyticsService,
+  AiContentService,
+  SourceContextService,
   injectKatex,
   type AuthenticatedUser,
 } from '@tibyan/core';
@@ -102,6 +107,7 @@ export class Runtime {
   public systemAuditRepo!: SystemAuditRepository;
   public globalSettingsRepo!: GlobalSettingsRepository;
   public geminiCredentialService!: GeminiCredentialService;
+  public ownerPasswordService!: OwnerPasswordService;
   public authService!: AuthService;
   public backupService!: BackupService;
 
@@ -126,6 +132,9 @@ export class Runtime {
   public captureService: CaptureService | null = null;
   public gradingService: GradingService | null = null;
   public analyticsService: AnalyticsService | null = null;
+  public curriculumLibraryService!: CurriculumLibraryService;
+  public aiContentService!: AiContentService;
+  public assistantOrchestrator: import('@tibyan/core').AssistantOrchestrator | null = null;
 
   constructor(options: RuntimeOptions = {}) {
 
@@ -166,6 +175,10 @@ export class Runtime {
         decryptString: (value) => safeStorage.decryptString(Buffer.from(value, 'base64')),
       },
     );
+    this.ownerPasswordService = new OwnerPasswordService({
+      get: (key) => this.globalSettingsRepo.get(key),
+      set: (key, value) => this.globalSettingsRepo.set(key, value),
+    });
     this.authService = new AuthService(this.systemDb.db);
 
     this.backupService = new BackupService({
@@ -182,6 +195,14 @@ export class Runtime {
 
     const sourcesDir = path.join(this.paths.appDataDir, 'sources');
     this.pdfSourceService = new PdfSourceService(this.systemDb.db, sourcesDir);
+    this.curriculumLibraryService = new CurriculumLibraryService(this.systemDb.db, sourcesDir);
+    this.aiContentService = new AiContentService(
+      createGeminiContentProvider(this.geminiCredentialService),
+      new SourceContextService(
+        (id: string) => this.curriculumLibraryService.get(id),
+        async (id: string) => this.curriculumLibraryService.readFileBuffer(id),
+      )
+    );
     this.questionBankService = new QuestionBankService(this.systemDb.db);
     this.aiExamService = new AiExamService(this.geminiCredentialService);
 
@@ -337,6 +358,7 @@ export class Runtime {
    * Cleanly closes all database connections and resets state.
    */
   public close(): void {
+    this.assistantOrchestrator = null;
     this.clearSession();
     this.unmountAcademicYear();
     closeSystemDatabase();

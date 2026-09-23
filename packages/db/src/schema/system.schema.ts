@@ -194,12 +194,20 @@ export const sourceDocuments = sqliteTable(
       .notNull()
       .default('INDEXED'),
     metadataJson: text('metadata_json'),
+    gradeLevel: text('grade_level'),
+    educationSystem: text('education_system'),
+    subject: text('subject'),
+    description: text('description'),
+    academicYearId: text('academic_year_id'),
+    importSource: text('import_source').notNull().default('MANUAL'),
     createdAt: text('created_at').notNull(),
     updatedAt: text('updated_at').notNull(),
   },
   (t) => ({
     idxSourceDocumentHash: uniqueIndex('idx_source_document_hash').on(t.sha256Hash),
     idxSourceDocumentCatalog: index('idx_source_document_catalog').on(t.curriculumCatalogId),
+    idxSourceDocumentGrade: index('idx_source_document_grade').on(t.gradeLevel),
+    idxSourceDocumentSubject: index('idx_source_document_subject').on(t.subject),
   })
 );
 
@@ -309,3 +317,82 @@ export type QuestionCurriculumTagRow = typeof questionCurriculumTags.$inferSelec
 export type NewQuestionCurriculumTagRow = typeof questionCurriculumTags.$inferInsert;
 export type QuestionSourceReferenceRow = typeof questionSourceReferences.$inferSelect;
 export type NewQuestionSourceReferenceRow = typeof questionSourceReferences.$inferInsert;
+
+// ─── Phase 6: Assistant Tables ──────────────────────────────────────────────
+
+export const assistantSessions = sqliteTable('assistant_sessions', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title'),
+  contextScope: text('context_scope'),
+  contextEntityId: text('context_entity_id'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+}, (t) => ({
+  idxAssistantSessionUser: index('idx_assistant_session_user').on(t.userId),
+  idxAssistantSessionUpdated: index('idx_assistant_session_updated').on(t.updatedAt),
+}));
+
+export const assistantMessages = sqliteTable('assistant_messages', {
+  id: text('id').primaryKey(),
+  sessionId: text('session_id').notNull().references(() => assistantSessions.id, { onDelete: 'cascade' }),
+  role: text('role', { enum: ['user', 'assistant', 'tool-result'] }).notNull(),
+  type: text('type', { enum: ['text', 'tool-call', 'tool-result', 'preview', 'confirmation', 'execution-receipt', 'undo-result', 'error'] }).notNull(),
+  content: text('content').notNull(),
+  toolCallId: text('tool_call_id'),
+  toolName: text('tool_name'),
+  toolInputJson: text('tool_input_json'),
+  toolOutputJson: text('tool_output_json'),
+  confirmationToken: text('confirmation_token'),
+  previewId: text('preview_id'),
+  receiptId: text('receipt_id'),
+  undoAvailable: integer('undo_available', { mode: 'boolean' }).default(false),
+  undoToken: text('undo_token'),
+  createdAt: text('created_at').notNull(),
+}, (t) => ({
+  idxAssistantMsgSession: index('idx_assistant_msg_session').on(t.sessionId, t.createdAt),
+  idxAssistantMsgPreview: index('idx_assistant_msg_preview').on(t.previewId),
+  idxAssistantMsgReceipt: index('idx_assistant_msg_receipt').on(t.receiptId),
+}));
+
+export const assistantAuditLog = sqliteTable('assistant_audit_log', {
+  id: text('id').primaryKey(),
+  actorUserId: text('actor_user_id').notNull().references(() => users.id),
+  sessionId: text('session_id').notNull(),
+  toolName: text('tool_name').notNull(),
+  action: text('action').notNull(),
+  inputSummaryJson: text('input_summary_json'),
+  affectedEntitiesJson: text('affected_entities_json'),
+  outcome: text('outcome', { enum: ['SUCCESS', 'FAILED', 'CANCELED', 'UNDO'] }).notNull(),
+  receiptId: text('receipt_id'),
+  createdAt: text('created_at').notNull(),
+}, (t) => ({
+  idxAssistantAuditUser: index('idx_assistant_audit_user').on(t.actorUserId),
+  idxAssistantAuditSession: index('idx_assistant_audit_session').on(t.sessionId),
+  idxAssistantAuditTool: index('idx_assistant_audit_tool').on(t.toolName),
+  idxAssistantAuditCreated: index('idx_assistant_audit_created').on(t.createdAt),
+}));
+
+export const assistantConfirmations = sqliteTable('assistant_confirmations', {
+  id: text('id').primaryKey(),
+  previewId: text('preview_id').notNull(),
+  toolName: text('tool_name').notNull(),
+  toolInputJson: text('tool_input_json').notNull(),
+  summary: text('summary').notNull(),
+  requiresConfirmation: integer('requires_confirmation', { mode: 'boolean' }).notNull().default(true),
+  confirmed: integer('confirmed', { mode: 'boolean' }).notNull().default(false),
+  executed: integer('executed', { mode: 'boolean' }).notNull().default(false),
+  expiresAt: text('expires_at').notNull(),
+  createdAt: text('created_at').notNull(),
+}, (t) => ({
+  idxAssistantConfirmPreview: uniqueIndex('idx_assistant_confirm_preview').on(t.previewId),
+}));
+
+export type AssistantSessionRow = typeof assistantSessions.$inferSelect;
+export type NewAssistantSessionRow = typeof assistantSessions.$inferInsert;
+export type AssistantMessageRow = typeof assistantMessages.$inferSelect;
+export type NewAssistantMessageRow = typeof assistantMessages.$inferInsert;
+export type AssistantAuditLogRow = typeof assistantAuditLog.$inferSelect;
+export type NewAssistantAuditLogRow = typeof assistantAuditLog.$inferInsert;
+export type AssistantConfirmationRow = typeof assistantConfirmations.$inferSelect;
+export type NewAssistantConfirmationRow = typeof assistantConfirmations.$inferInsert;

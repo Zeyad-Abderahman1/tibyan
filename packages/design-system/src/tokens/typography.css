@@ -38,13 +38,13 @@
   --font-size-subsection: 1.125rem;     /* 18px */
   --line-height-subsection: 1.5;
 
-  --font-size-body: 0.9375rem;          /* 15px */
+  --font-size-body: 1rem;               /* 16px */
   --line-height-body: 1.6;              /* Comfortable line-height for Arabic script */
 
-  --font-size-body-sm: 0.875rem;        /* 14px */
+  --font-size-body-sm: 0.9375rem;       /* 15px */
   --line-height-body-sm: 1.5;
 
-  --font-size-caption: 0.75rem;         /* 12px */
+  --font-size-caption: 0.8125rem;       /* 13px */
   --line-height-caption: 1.4;
 
   /* Numeric / Code / Tabular */

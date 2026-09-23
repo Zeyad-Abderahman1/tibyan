@@ -1,4 +1,4 @@
-import { eq, and, desc, asc, like, or } from 'drizzle-orm';
+import { eq, and, desc, asc, like, or, sql } from 'drizzle-orm';
 import { type AcademicDrizzle, getAcademicDatabase } from '../../connection.js';
 import {
   students,
@@ -101,6 +101,15 @@ export class StudentRepository {
     return this.client.select().from(students).all();
   }
 
+  countActive(): number {
+    const result = this.client
+      .select({ count: sql<number>`count(*)` })
+      .from(students)
+      .where(eq(students.status, 'ACTIVE'))
+      .get();
+    return result?.count ?? 0;
+  }
+
   addNote(note: NewStudentNoteRow): StudentNoteRow {
     this.client.insert(studentNotes).values(note).run();
     const created = this.client
@@ -141,4 +150,3 @@ export class StudentRepository {
       .all();
   }
 }
-

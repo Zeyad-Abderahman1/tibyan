@@ -21,6 +21,8 @@ export const IPC_CHANNELS = {
   STUDENTS_CHOOSE_PHOTO_DIALOG: 'students:choosePhotoDialog',
   STUDENTS_PRINT_CARDS: 'students:printCards',
   STUDENTS_EXPORT_CARDS_PDF: 'students:exportCardsPdf',
+  STUDENTS_IMPORT_PREVIEW: 'students:importPreview',
+  STUDENTS_IMPORT_EXECUTE: 'students:importExecute',
 
   // Groups
   GROUPS_LIST: 'groups:list',
@@ -71,6 +73,7 @@ export const IPC_CHANNELS = {
   GEMINI_GET_STATUS: 'gemini:getStatus',
   GEMINI_SET_CREDENTIAL: 'gemini:setCredential',
   GEMINI_DELETE_CREDENTIAL: 'gemini:deleteCredential',
+  GEMINI_TEST_CONNECTION: 'gemini:testConnection',
 
   // Finance
   FINANCE_RECORD_PAYMENT: 'finance:recordPayment',
@@ -194,6 +197,68 @@ export const IPC_CHANNELS = {
   ANALYTICS_GET_SKILL_PERFORMANCE: 'analytics:getSkillPerformance',
   ANALYTICS_GET_STUDENT_RESULT: 'analytics:getStudentResult',
   ANALYTICS_LIST_STUDENT_RESULTS: 'analytics:listStudentResults',
+
+  // Assistant (Phase 6)
+  ASSISTANT_CREATE_SESSION: 'assistant:createSession',
+  ASSISTANT_LIST_SESSIONS: 'assistant:listSessions',
+  ASSISTANT_GET_SESSION: 'assistant:getSession',
+  ASSISTANT_DELETE_SESSION: 'assistant:deleteSession',
+  ASSISTANT_SEND_MESSAGE: 'assistant:sendMessage',
+  ASSISTANT_GET_HISTORY: 'assistant:getHistory',
+  ASSISTANT_CONFIRM_ACTION: 'assistant:confirmAction',
+  ASSISTANT_CANCEL_ACTION: 'assistant:cancelAction',
+  ASSISTANT_UNDO_ACTION: 'assistant:undoAction',
+  ASSISTANT_GET_TOOLS: 'assistant:getTools',
+  ASSISTANT_UPLOAD_ATTACHMENT: 'assistant:uploadAttachment',
+
+  // Slides (Phase 6)
+  SLIDES_LIST_DECKS: 'slides:listDecks',
+  SLIDES_GET_DECK: 'slides:getDeck',
+  SLIDES_CREATE_DECK: 'slides:createDeck',
+  SLIDES_UPDATE_DECK: 'slides:updateDeck',
+  SLIDES_DELETE_DECK: 'slides:deleteDeck',
+  SLIDES_ADD_SLIDE: 'slides:addSlide',
+  SLIDES_UPDATE_SLIDE: 'slides:updateSlide',
+  SLIDES_DELETE_SLIDE: 'slides:deleteSlide',
+  SLIDES_DUPLICATE_SLIDE: 'slides:duplicateSlide',
+  SLIDES_REORDER_SLIDES: 'slides:reorderSlides',
+  SLIDES_ADD_BLOCK: 'slides:addBlock',
+  SLIDES_UPDATE_BLOCK: 'slides:updateBlock',
+  SLIDES_DELETE_BLOCK: 'slides:deleteBlock',
+  SLIDES_REORDER_BLOCKS: 'slides:reorderBlocks',
+  SLIDES_MOVE_BLOCK: 'slides:moveBlock',
+  SLIDES_GET_PRESENTATION: 'slides:getPresentation',
+
+  // Curriculum Library (Phase 6 redesign)
+  CURRICULUM_LIBRARY_LIST: 'curriculumLibrary:list',
+  CURRICULUM_LIBRARY_LIST_GROUPED: 'curriculumLibrary:listGrouped',
+  CURRICULUM_LIBRARY_IMPORT: 'curriculumLibrary:import',
+  CURRICULUM_LIBRARY_UPDATE: 'curriculumLibrary:update',
+  CURRICULUM_LIBRARY_DELETE: 'curriculumLibrary:delete',
+  CURRICULUM_LIBRARY_GET: 'curriculumLibrary:get',
+  CURRICULUM_LIBRARY_VIEW_PDF: 'curriculumLibrary:viewPdf',
+  CURRICULUM_LIBRARY_OPEN_EXTERNAL: 'curriculumLibrary:openExternal',
+  CURRICULUM_LIBRARY_BROWSE_AND_IMPORT: 'curriculumLibrary:browseAndImport',
+  CURRICULUM_LIBRARY_RESOLVE_DATA_URL: 'curriculumLibrary:resolveDataUrl',
+
+  // Tibyan Workspace (Phase 6 central AI)
+  TIBYAN_CREATE_TASK_SESSION: 'tibyan:createTaskSession',
+  TIBYAN_LIST_HISTORY: 'tibyan:listHistory',
+  TIBYAN_GET_HISTORY_ITEM: 'tibyan:getHistoryItem',
+  TIBYAN_DELETE_HISTORY_ITEM: 'tibyan:deleteHistoryItem',
+  TIBYAN_RENAME_HISTORY_ITEM: 'tibyan:renameHistoryItem',
+
+  // AI Content Generation
+  AI_GENERATE_REVIEW: 'ai:generateReview',
+  AI_GENERATE_NOTES: 'ai:generateNotes',
+  AI_GENERATE_SLIDES: 'ai:generateSlides',
+  AI_GENERATE_EXAM: 'ai:generateExam',
+  AI_LIST_REVIEWS: 'ai:listReviews',
+  AI_GET_REVIEW: 'ai:getReview',
+  AI_SAVE_REVIEW: 'ai:saveReview',
+  AI_LIST_NOTES: 'ai:listNotes',
+  AI_GET_NOTES: 'ai:getNotes',
+  AI_SAVE_NOTES: 'ai:saveNotes',
 } as const;
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS];

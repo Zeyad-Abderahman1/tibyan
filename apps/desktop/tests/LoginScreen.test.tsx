@@ -190,6 +190,11 @@ describe('Task 12: 4-Digit PIN Authentication & Session Store Suite', () => {
       expect(html).toContain('aria-label="حذف رقم"');
       expect(html).toContain('data-testid="switch-account-btn"');
       expect(html).toContain('تبديل الحساب');
+      expect(html).toContain('data-testid="lock-screen-avatar"');
+      expect(html).toContain('الشاشة مقفلة');
+      expect(html).toContain('أدخل رمز PIN لفتح مساحة العمل');
+      expect(html).not.toContain('#5CE1E6');
+      expect(html).not.toContain('teal-');
     });
 
     it('renders empty state when users array is empty', () => {
@@ -215,6 +220,9 @@ describe('Task 12: 4-Digit PIN Authentication & Session Store Suite', () => {
         </QueryClientProvider>
       );
       expect(pendingHtml).toContain('data-testid="app-loading"');
+      expect(pendingHtml).toContain('نظام إدارة المعلم الذكي');
+      expect(pendingHtml).toContain('جاري تجهيز مساحة العمل...');
+      expect(pendingHtml).toContain('data-testid="startup-loading-indicator"');
       expect(pendingHtml).not.toContain('data-testid="login-screen"');
       expect(pendingHtml).not.toContain('data-testid="app-shell"');
 
@@ -534,7 +542,7 @@ describe('Task 12: 4-Digit PIN Authentication & Session Store Suite', () => {
 
       // Right Column: Identity Panel
       expect(html).toContain('data-testid="identity-panel"');
-      expect(html).toContain('مرحباً بعودتك');
+      expect(html).toContain('الشاشة مقفلة');
       expect(html).toContain('الأستاذ أحمد الشريف');
       expect(html).toContain('@teacher');
 

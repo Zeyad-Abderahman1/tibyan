@@ -238,19 +238,16 @@ test.describe('Phase 5 — Paper Correction & Analytics Visual Gate', () => {
       }, submissionId);
     }
 
-    // ── 3. Verify Phase 5 Dashboard Banner ──
-    const phase5Banner = page.locator('[data-testid="banner-paper-correction"]');
-    await expect(phase5Banner).toBeVisible({ timeout: 10000 });
-    await expect(phase5Banner).toContainText('تصحيح الأوراق والتحليلات');
-
-    const captureBtn = page.locator('[data-testid="btn-open-capture-from-dashboard"]');
-    await expect(captureBtn).toBeVisible();
+    // ── 3. Verify Today Dashboard (Phase 6 UI: banner and shortcut button removed) ──
+    const dashboardPage = page.locator('[data-testid="page-today"]');
+    await expect(dashboardPage).toBeVisible({ timeout: 10000 });
 
     // Screenshot 1: 01-phase5-navigation.png
     await page.screenshot({ path: path.join(docsDir, '01-phase5-navigation.png') });
 
-    // ── 4. Navigate to Capture Session Page via banner ──
-    await captureBtn.click();
+    // ── 4. Navigate to Capture Session Page via direct route ──
+    await page.evaluate(() => { window.location.hash = '#/capture'; });
+    await page.waitForTimeout(800);
 
     const capturePage = page.locator('[data-testid="page-capture-session"]');
     await expect(capturePage).toBeVisible({ timeout: 10000 });
@@ -422,16 +419,12 @@ test.describe('Phase 5 — Paper Correction & Analytics Visual Gate', () => {
     const todayPage = page.locator('[data-testid="page-today"]');
     await expect(todayPage).toBeVisible({ timeout: 10000 });
 
-    // Verify all nav items
+    // Verify nav items
     await expect(page.locator('[data-testid="nav-item-today"]')).toBeVisible();
     await expect(page.locator('[data-testid="nav-item-students"]')).toBeVisible();
     await expect(page.locator('[data-testid="nav-item-groups"]')).toBeVisible();
-    await expect(page.locator('[data-testid="nav-item-exams"]')).toBeVisible();
     await expect(page.locator('[data-testid="nav-item-finance"]')).toBeVisible();
     await expect(page.locator('[data-testid="nav-item-settings"]')).toBeVisible();
-
-    // Verify Phase 5 banner is still visible on dashboard
-    await expect(phase5Banner).toBeVisible();
 
     // ── 12. Verify Electron Security ──
     const apiExposed = await page.evaluate(() => {

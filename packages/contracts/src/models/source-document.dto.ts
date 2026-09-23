@@ -15,6 +15,12 @@ export const SourceDocumentDtoSchema = z.object({
   pageCount: z.number().int().positive(),
   status: SourceDocumentStatusSchema.default('INDEXED'),
   metadata: z.record(z.unknown()).optional(),
+  gradeLevel: z.string().nullable().optional(),
+  educationSystem: z.string().nullable().optional(),
+  subject: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  academicYearId: z.string().nullable().optional(),
+  importSource: z.string().default('MANUAL'),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -27,6 +33,10 @@ export const ImportSourceDocumentSchema = z.object({
   publisher: z.string().max(100).optional(),
   editionYear: z.string().max(20).optional(),
   curriculumCatalogId: z.string().uuid().optional(),
+  gradeLevel: z.string().max(50).optional(),
+  educationSystem: z.string().max(50).optional(),
+  subject: z.string().max(100).optional(),
+  description: z.string().max(1000).optional(),
 });
 export type ImportSourceDocumentDto = z.infer<typeof ImportSourceDocumentSchema>;
 

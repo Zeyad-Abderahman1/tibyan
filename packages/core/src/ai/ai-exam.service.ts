@@ -5,6 +5,7 @@ import {
 } from '@tibyan/contracts';
 import { GeminiExamProvider } from './gemini-provider.js';
 import { GeminiCredentialService } from './gemini-credential.service.js';
+import { DEFAULT_TIBYAN_AI_MODEL } from './model-config.js';
 import { requirePermission } from '../auth/permissions.js';
 import { type AuthActor } from '../sources/pdf-source.service.js';
 
@@ -22,7 +23,7 @@ export class AiExamService {
     options: AiExamServiceOptions = {}
   ) {
     this.provider = options.provider ?? new GeminiExamProvider();
-    this.model = options.model ?? 'gemini-flash-latest';
+    this.model = options.model ?? DEFAULT_TIBYAN_AI_MODEL;
   }
 
   /**

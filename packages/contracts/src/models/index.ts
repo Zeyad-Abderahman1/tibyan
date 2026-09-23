@@ -21,3 +21,8 @@ export * from './gemini-configuration.dto.js';
 export * from './capture.dto.js';
 export * from './grading.dto.js';
 export * from './analytics.dto.js';
+export * from './assistant.dto.js';
+export * from './slide.dto.js';
+export * from './curriculum-library.dto.js';
+export * from './ai-generation.dto.js';
+export * from './student-import.dto.js';

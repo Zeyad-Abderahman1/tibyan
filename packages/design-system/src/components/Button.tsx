@@ -15,7 +15,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-[var(--color-brand-primary)] text-white hover:bg-[var(--color-brand-primary-hover)] active:bg-[var(--color-brand-primary-active)] dark:bg-[#175754] dark:hover:bg-[#1D6C68] dark:border dark:border-[#2F8580]/40 border border-transparent shadow-xs',
+    'bg-[var(--color-brand-primary)] text-white hover:bg-[var(--color-brand-primary-hover)] active:bg-[var(--color-brand-primary-active)] border border-transparent shadow-xs',
   secondary:
     'bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] hover:bg-[var(--color-bg-surface-subtle)] active:bg-[var(--color-border-subtle)] shadow-xs',
   accent:
@@ -27,9 +27,9 @@ const variantStyles: Record<ButtonVariant, string> = {
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: 'text-xs px-2.5 py-1.5 gap-1.5 rounded-[var(--radius-sm)]',
-  md: 'text-sm px-4 py-2 gap-2 rounded-[var(--radius-md)]',
-  lg: 'text-base px-5 py-2.5 gap-2.5 rounded-[var(--radius-lg)]',
+  sm: 'min-h-[var(--control-height-compact)] text-[13px] px-3 py-1.5 gap-1.5 rounded-[var(--radius-sm)]',
+  md: 'min-h-[var(--control-height-default)] text-[15px] px-4 py-2 gap-2 rounded-[var(--radius-md)]',
+  lg: 'min-h-[var(--control-height-large)] text-base px-5 py-2.5 gap-2.5 rounded-[var(--radius-lg)]',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(

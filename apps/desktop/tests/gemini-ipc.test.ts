@@ -19,6 +19,8 @@ vi.mock('electron', () => ({
 vi.mock('../electron/security.js', () => ({ validateIpcSender: vi.fn(() => senderValid) }));
 
 import { registerGeminiIpcHandlers, unregisterGeminiIpcHandlers } from '../electron/ipc/gemini.ipc.js';
+import { mapGeminiConnectionError } from '../electron/ipc/errors.js';
+import { GeminiProviderHttpError } from '@tibyan/core';
 
 describe('Gemini credential IPC', () => {
   const event = { sender: { id: 1 }, senderFrame: { parent: null } };
@@ -29,8 +31,10 @@ describe('Gemini credential IPC', () => {
     senderValid = true;
     runtime = {
       requireAuthenticatedActor: vi.fn(() => ({ role: 'OWNER', permissions: [] })),
+      ownerPasswordService: { requireValid: vi.fn() },
       geminiCredentialService: {
-        status: vi.fn(() => ({ configured: true })),
+        status: vi.fn(() => ({ configured: true, maskedKey: '****-key' })),
+        get: vi.fn(() => 'test-key'),
         save: vi.fn(),
         clear: vi.fn(),
       },
@@ -42,7 +46,7 @@ describe('Gemini credential IPC', () => {
     const handler = handlers.get(IPC_CHANNELS.GEMINI_GET_STATUS)!;
     const result: any = await handler(event);
 
-    expect(result).toEqual({ success: true, data: { configured: true } });
+    expect(result).toEqual({ success: true, data: { configured: true, maskedKey: '****-key' } });
     expect(JSON.stringify(result)).not.toContain('apiKey');
   });
 
@@ -58,5 +62,54 @@ describe('Gemini credential IPC', () => {
   it('removes registered handlers at shutdown', () => {
     unregisterGeminiIpcHandlers();
     expect(handlers.size).toBe(0);
+  });
+
+  it('requires the owner password before replacing or removing a key', async () => {
+    const setHandler = handlers.get(IPC_CHANNELS.GEMINI_SET_CREDENTIAL)!;
+    runtime.ownerPasswordService.requireValid.mockImplementation(() => { throw new Error('كلمة المرور غير صحيحة.'); });
+    const rejected: any = await setHandler(event, { apiKey: 'new-key', ownerPassword: 'wrong' });
+    expect(rejected.success).toBe(false);
+    expect(runtime.geminiCredentialService.save).not.toHaveBeenCalled();
+    const deleteHandler = handlers.get(IPC_CHANNELS.GEMINI_DELETE_CREDENTIAL)!;
+    const deleted: any = await deleteHandler(event, { ownerPassword: 'wrong' });
+    expect(deleted.success).toBe(false);
+    expect(runtime.geminiCredentialService.clear).not.toHaveBeenCalled();
+  });
+
+  it('permits an owner to set and delete after password verification', async () => {
+    const setHandler = handlers.get(IPC_CHANNELS.GEMINI_SET_CREDENTIAL)!;
+    expect((await setHandler(event, { apiKey: 'new-key', ownerPassword: 'correct' }) as any).success).toBe(true);
+    expect(runtime.geminiCredentialService.save).toHaveBeenCalledWith('new-key');
+    const deleteHandler = handlers.get(IPC_CHANNELS.GEMINI_DELETE_CREDENTIAL)!;
+    expect((await deleteHandler(event, { ownerPassword: 'correct' }) as any).success).toBe(true);
+    expect(runtime.geminiCredentialService.clear).toHaveBeenCalledOnce();
+  });
+
+  it('tests the saved key without returning it', async () => {
+    const testHandler = handlers.get(IPC_CHANNELS.GEMINI_TEST_CONNECTION);
+    expect(testHandler).toBeDefined();
+    runtime.geminiCredentialService.get.mockReturnValue(null);
+    const result: any = await testHandler!(event);
+    expect(result.success).toBe(false);
+    expect(JSON.stringify(result)).not.toContain('test-key');
+  });
+
+  it.each([
+    [429, 'AI_RATE_LIMIT', 'حصة'],
+    [401, 'AI_CREDENTIAL_ACCESS', 'المفتاح'],
+    [403, 'AI_CREDENTIAL_ACCESS', 'المفتاح'],
+    [404, 'AI_MODEL_CONFIGURATION', 'النموذج'],
+    [503, 'AI_SERVICE_UNAVAILABLE', 'مشغولة'],
+  ])('maps HTTP %s to a safe, distinct Arabic error', (status, code, fragment) => {
+    const secret = 'secret-key-must-not-leak';
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const error = new GeminiProviderHttpError(Number(status), 'PROVIDER_ERROR', `Provider failure ${secret}`, secret);
+      const result: any = mapGeminiConnectionError(error);
+      expect(result.error.code).toBe(code);
+      expect(result.error.message).toContain(fragment);
+      expect(JSON.stringify(warn.mock.calls)).not.toContain(secret);
+      expect(JSON.stringify(result)).not.toContain(secret);
+    } finally { warn.mockRestore(); }
   });
 });

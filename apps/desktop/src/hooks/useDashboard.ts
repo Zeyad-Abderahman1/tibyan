@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, type QueryClient } from '@tanstack/react-query';
 import type { TodayDashboardDto } from '@tibyan/contracts';
 
 /**
@@ -9,6 +9,12 @@ export const dashboardKeys = {
   all: ['dashboard'] as const,
   today: () => [...dashboardKeys.all, 'today'] as const,
 };
+
+export function invalidateDashboardQueries(
+  queryClient: Pick<QueryClient, 'invalidateQueries'>
+): Promise<unknown> {
+  return queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
+}
 
 /**
  * Fetches the live Today Dashboard summary from the Main process.

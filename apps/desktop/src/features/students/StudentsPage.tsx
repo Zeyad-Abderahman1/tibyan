@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   UserPlus,
@@ -9,6 +10,7 @@ import {
   AlertCircle,
   RefreshCw,
   CreditCard,
+  Upload,
 } from 'lucide-react';
 import {
   Card,
@@ -32,9 +34,13 @@ import type {
   StudentFilterInput,
 } from '@tibyan/contracts';
 import { useStudentsList } from '../../hooks/useStudents.js';
+import { invalidateDashboardQueries } from '../../hooks/useDashboard.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { StudentCreateModal } from './StudentCreateModal.js';
 import { StudentCardPreviewModal } from './cards/StudentCardPreviewModal.js';
+import { StudentImportModal } from './StudentImportModal.js';
+import { ContextualDynamicIsland } from '../../components/layout/ContextualDynamicIsland.js';
+import { Filter, List } from 'lucide-react';
 
 const SYSTEM_OPTIONS = [
   { value: '', label: 'جميع الأنظمة' },
@@ -85,6 +91,7 @@ const TRACK_LABELS: Record<string, string> = {
 
 export function StudentsPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { session } = useAuth();
   const canWrite = session?.role === 'OWNER' || session?.permissions?.includes('STUDENTS_WRITE');
 
@@ -96,6 +103,7 @@ export function StudentsPage() {
   const [status, setStatus] = useState<string>('ACTIVE');
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
   const [cardPreviewStudents, setCardPreviewStudents] = useState<StudentDto[]>([]);
   const [isCardPreviewOpen, setIsCardPreviewOpen] = useState(false);
@@ -151,14 +159,66 @@ export function StudentsPage() {
     }
   };
 
+  const handleOpenAllCards = () => {
+    if (students.length > 0) {
+      setCardPreviewStudents(students);
+      setIsCardPreviewOpen(true);
+    }
+  };
+
   const handleOpenSingleCard = (student: StudentDto, e: React.MouseEvent) => {
     e.stopPropagation();
     setCardPreviewStudents([student]);
     setIsCardPreviewOpen(true);
   };
 
+  const islandActions = [
+    {
+      id: 'student-list',
+      label: 'قائمة الطلاب',
+      icon: List,
+      active: true,
+      badge: students.length,
+      onClick: () => {},
+    },
+    ...(canWrite
+      ? [
+          {
+            id: 'add-student',
+            label: 'إضافة طالب',
+            icon: UserPlus,
+            onClick: () => setIsCreateModalOpen(true),
+          },
+          {
+            id: 'import-students',
+            label: 'استيراد طلاب',
+            icon: Upload,
+            onClick: () => setIsImportModalOpen(true),
+          },
+        ]
+      : []),
+    {
+      id: 'print-cards',
+      label: 'طباعة البطاقات',
+      icon: CreditCard,
+      onClick: () => handleOpenAllCards(),
+    },
+    {
+      id: 'filters',
+      label: 'فلاتر',
+      icon: Filter,
+      onClick: () => {
+        const el = document.getElementById('students-filter-bar');
+        el?.scrollIntoView({ behavior: 'smooth' });
+      },
+    },
+  ];
+
   return (
     <div className="space-y-4" data-testid="page-students">
+      {/* Layer 3: Contextual Dynamic Island */}
+      <ContextualDynamicIsland title="شؤون الطلاب" actions={islandActions} />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b border-[var(--color-border-subtle)]">
         <div>
@@ -181,16 +241,39 @@ export function StudentsPage() {
             </Button>
           )}
 
-          {canWrite && (
+          {students.length > 0 && (
             <Button
-              variant="primary"
+              variant="secondary"
               size="sm"
-              onClick={() => setIsCreateModalOpen(true)}
-              data-testid="add-student-btn"
+              onClick={handleOpenAllCards}
+              data-testid="print-all-cards-btn"
             >
-              <UserPlus size={16} className="me-1.5" />
-              إضافة طالب جديد
+              <CreditCard size={15} className="me-1.5 text-[var(--color-brand-primary)]" />
+              طباعة كل البطاقات
             </Button>
+          )}
+
+          {canWrite && (
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsImportModalOpen(true)}
+                data-testid="import-students-btn"
+              >
+                <Upload size={16} className="me-1.5 text-[var(--color-brand-primary)]" />
+                استيراد طلاب
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsCreateModalOpen(true)}
+                data-testid="add-student-btn"
+              >
+                <UserPlus size={16} className="me-1.5" />
+                إضافة طالب جديد
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -500,6 +583,18 @@ export function StudentsPage() {
         onClose={() => setIsCardPreviewOpen(false)}
         students={cardPreviewStudents}
       />
+
+      {/* Student Bulk Import Modal */}
+      {canWrite && (
+        <StudentImportModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={() => {
+            refetch();
+            void invalidateDashboardQueries(queryClient);
+          }}
+        />
+      )}
     </div>
   );
 }

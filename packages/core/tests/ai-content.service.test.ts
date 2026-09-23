@@ -1,0 +1,96 @@
+import { describe, expect, it } from 'vitest';
+import { AiContentService, SourceContextService } from '../src/index.js';
+import { deflateSync } from 'node:zlib';
+
+const source = { id: 'source-id', title: 'Physics', pageCount: 2, gradeLevel: null, subject: null } as any;
+const slideRequest = { sourceDocumentId: source.id, title: 'Motion', gradeLevel: 'SEC_1' as const, slideCount: 1, detailLevel: 'MODERATE' as const, includeInteractive: false, includeExamples: true, includeSummary: false, theme: 'LIGHT' as const, layoutTemplate: 'SIMPLE_EDUCATIONAL' as const };
+const pdf = Buffer.from('%PDF-1.4\n1 0 obj << /Type /Page >> endobj\nstream\nBT (Newton laws of motion) Tj ET\nendstream\n2 0 obj << /Type /Page >> endobj\nstream\nBT (Force equals mass times acceleration) Tj ET\nendstream');
+
+describe('AI source generation boundary', () => {
+  it('passes note style and exercise settings with real source text', async () => {
+    let prompt = '';
+    const context = new SourceContextService(() => source, async () => ({ data: pdf, mimeType: 'application/pdf' }));
+    const service = new AiContentService({ generate: async (request) => { prompt = request.prompt; return { sections: [{ title: 'القوة', content: 'F=ma', type: 'content', sourcePage: 2 }] }; } }, context);
+    await service.generateNotes({ sourceDocumentId: source.id, title: 'ملخص', gradeLevel: 'SEC_2', detailStyle: 'EXPLAIN_EXAMPLES_PRACTICE', includeExercises: true, includeModelSolutions: true, scope: 'الفصل الأول' } as any);
+    expect(prompt).toContain('Newton laws of motion');
+    expect(prompt).toContain('EXPLAIN_EXAMPLES_PRACTICE');
+  });
+  it('sends actual page text to the provider and retains source page provenance', async () => {
+    let seen = '';
+    let fileData: Buffer | undefined;
+    const context = new SourceContextService(() => source, async () => ({ data: pdf, mimeType: 'application/pdf' }));
+    const service = new AiContentService({ generate: async (request) => {
+      seen = request.prompt;
+      fileData = request.fileData?.data;
+      return { questions: [{ body: 'What is force?', type: 'SHORT_ANSWER', correctAnswer: 'Mass times acceleration', marks: 1, sourcePage: 2 }] };
+    } }, context);
+    const result = await service.generateExamFromSource({ sourceDocumentId: source.id });
+    expect(seen).toContain('Newton laws of motion');
+    expect(seen).toContain('صفحة 2');
+    expect(fileData).toEqual(pdf);
+    expect(result.data.questions[0]?.sourcePage).toBe(2);
+  });
+
+  it('rejects image-only sources before the provider is called', async () => {
+    let called = false;
+    const context = new SourceContextService(() => source, async () => ({ data: Buffer.from('%PDF-1.4\n/Image'), mimeType: 'application/pdf' }));
+    const service = new AiContentService({ generate: async () => { called = true; return {}; } }, context);
+    await expect(service.generateNotes({ sourceDocumentId: source.id })).rejects.toThrow('لا يحتوي على نص قابل للاستخراج');
+    expect(called).toBe(false);
+  });
+
+  it('rejects malformed provider output in Core', async () => {
+    const context = new SourceContextService(() => source, async () => ({ data: pdf, mimeType: 'application/pdf' }));
+    const service = new AiContentService({ generate: async () => ({ slides: [{ title: 'Missing content' }] }) }, context);
+    await expect(service.generateSlides(slideRequest)).rejects.toThrow('استجابة الذكاء الاصطناعي غير صالحة');
+  });
+
+  it('rejects invented page provenance', async () => {
+    const context = new SourceContextService(() => source, async () => ({ data: pdf, mimeType: 'application/pdf' }));
+    const service = new AiContentService({ generate: async () => ({ sections: [{ title: 'Claim', content: 'Text', type: 'content', sourcePage: 99 }] }) }, context);
+    await expect(service.generateReview({ sourceDocumentId: source.id })).rejects.toThrow('استجابة الذكاء الاصطناعي غير صالحة');
+  });
+
+  it('extracts text from a separately referenced compressed PDF content stream', async () => {
+    const compressed = deflateSync(Buffer.from('BT (Velocity changes with time) Tj ET'));
+    const file = Buffer.concat([
+      Buffer.from('%PDF-1.4\n1 0 obj << /Type /Page /Contents 2 0 R >> endobj\n2 0 obj << /Filter /FlateDecode /Length ' + compressed.length + ' >>\nstream\n'),
+      compressed,
+      Buffer.from('\nendstream\nendobj'),
+    ]);
+    const context = new SourceContextService(() => source, async () => ({ data: file, mimeType: 'application/pdf' }));
+    const result = await context.load(source.id);
+    expect(result.pages).toEqual([{ page: 1, text: 'Velocity changes with time' }]);
+  });
+
+  it('rejects a provider response that does not meet exact MCQ and written counts', async () => {
+    const context = new SourceContextService(() => source, async () => ({ data: pdf, mimeType: 'application/pdf' }));
+    const service = new AiContentService({ generate: async () => ({ questions: [{ body: 'Q', type: 'SHORT_ANSWER', correctAnswer: 'A', marks: 1, sourcePage: 1 }] }) }, context);
+    await expect(service.generateExamFromSource({ sourceDocumentId: source.id }, { mcqCount: 5, writtenCount: 3, questionCount: 8 })).rejects.toThrow('تعذر توليد العدد المطلوب');
+  });
+
+  it('accepts exactly five MCQ and three written questions', async () => {
+    const context = new SourceContextService(() => source, async () => ({ data: pdf, mimeType: 'application/pdf' }));
+    const questions = [
+      ...Array.from({ length: 5 }, (_, index) => ({ body: `MCQ ${index}`, type: 'MULTIPLE_CHOICE', options: ['A', 'B', 'C', 'D'], correctAnswer: 'A', marks: 1, sourcePage: 1 })),
+      ...Array.from({ length: 3 }, (_, index) => ({ body: `Written ${index}`, type: 'WRITTEN', correctAnswer: 'Answer', marks: 1, sourcePage: 1 })),
+    ];
+    const service = new AiContentService({ generate: async () => ({ questions }) }, context);
+    const result = await service.generateExamFromSource({ sourceDocumentId: source.id }, { mcqCount: 5, writtenCount: 3, questionCount: 8 });
+    expect(result.data.questions).toHaveLength(8);
+    expect(result.data.questions.filter((question) => question.type === 'MULTIPLE_CHOICE')).toHaveLength(5);
+  });
+
+  it('sends slide settings with actual source text and rejects a short deck', async () => {
+    let seen = '';
+    const context = new SourceContextService(() => source, async () => ({ data: pdf, mimeType: 'application/pdf' }));
+    const service = new AiContentService({ generate: async ({ prompt }) => {
+      seen = prompt;
+      return { slides: [{ title: 'Motion', content: 'Newton laws', sourcePage: 1 }] };
+    } }, context);
+    await expect(service.generateSlides({ sourceDocumentId: source.id, title: 'Motion deck', gradeLevel: 'SEC_1', slideCount: 8, detailLevel: 'DETAILED', includeInteractive: true, includeExamples: true, includeSummary: true, theme: 'DARK', layoutTemplate: 'EXPLAIN_EXAMPLE' })).rejects.toThrow('عدد الشرائح');
+    expect(seen).toContain('Newton laws of motion');
+    expect(seen).toContain('DARK');
+    expect(seen).toContain('EXPLAIN_EXAMPLE');
+  });
+});

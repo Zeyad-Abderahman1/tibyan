@@ -126,8 +126,9 @@ export const ConfirmAssemblyInputSchema = z.object({
     position: z.number().int().nonnegative(),
   })).min(1),
   sectionTitle: z.string().min(1).max(200).default('القسم الرئيسي'),
+  status: ExamStatusSchema.default('CONFIRMED'),
 });
-export type ConfirmAssemblyInput = z.infer<typeof ConfirmAssemblyInputSchema>;
+export type ConfirmAssemblyInput = z.input<typeof ConfirmAssemblyInputSchema>;
 
 export const AiGenerateCandidatesInputSchema = z.object({
   topicOrStandard: z.string().min(1).max(500),

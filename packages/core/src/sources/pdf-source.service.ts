@@ -350,6 +350,12 @@ export class PdfSourceService {
       pageCount: row.pageCount,
       status: row.status as any,
       metadata: row.metadataJson ? JSON.parse(row.metadataJson) : undefined,
+      gradeLevel: (row as any).gradeLevel ?? null,
+      educationSystem: (row as any).educationSystem ?? null,
+      subject: (row as any).subject ?? null,
+      description: (row as any).description ?? null,
+      academicYearId: (row as any).academicYearId ?? null,
+      importSource: (row as any).importSource ?? 'MANUAL',
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

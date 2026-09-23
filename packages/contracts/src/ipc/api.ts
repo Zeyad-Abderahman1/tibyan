@@ -21,6 +21,11 @@ import {
   PhotoSelectionDto,
 } from '../models/student.dto.js';
 import {
+  StudentImportPreviewDto,
+  StudentImportRowDto,
+  StudentImportResultDto,
+} from '../models/student-import.dto.js';
+import {
   GroupDto,
   CreateGroupInput,
   UpdateGroupInput,
@@ -64,7 +69,7 @@ import {
   SwitchAcademicYearInput,
   UpdateThemeSettingInput,
 } from '../models/system.dto.js';
-import { GeminiCredentialInput, GeminiConfigurationStatus } from '../models/gemini-configuration.dto.js';
+import { GeminiCredentialInput, GeminiCredentialDeleteInput, GeminiConfigurationStatus, GeminiConnectionResult } from '../models/gemini-configuration.dto.js';
 import {
   PaymentDto,
   RecordPaymentInput,
@@ -165,6 +170,40 @@ import {
   SkillPerformanceDto,
   StudentExamResultDto,
 } from '../models/analytics.dto.js';
+import {
+  AssistantSession,
+  ConversationHistory,
+  AssistantResponse,
+  SendMessageInput,
+  CreateSessionInput,
+  ConfirmationInput,
+  UndoInput,
+  AssistantAttachmentDto,
+  UploadAssistantAttachmentInput,
+} from '../models/assistant.dto.js';
+import type { ExamGenerationRequest, SlidesGenerationRequest, ReviewGenerationRequest, NotesGenerationRequest, GeneratedExamContent, ReviewArtifactDto, NotesArtifactDto, ReviewGenerationResult, NotesGenerationResult } from '../models/ai-generation.dto.js';
+import {
+  CurriculumGradeGroup,
+  ImportCurriculumLibraryInput,
+  UpdateCurriculumLibraryInput,
+  CurriculumLibraryFilter,
+} from '../models/curriculum-library.dto.js';
+import {
+  SlideDeckDto,
+  SlideDeckWithSlides,
+  CreateSlideDeckInput,
+  UpdateSlideDeckInput,
+  SlideDto,
+  CreateSlideInput,
+  UpdateSlideInput,
+  ReorderSlidesInput,
+  SlideBlockDto,
+  CreateSlideBlockInput,
+  UpdateSlideBlockInput,
+  ReorderSlideBlocksInput,
+  MoveSlideBlockInput,
+  SlidePresentation,
+} from '../models/slide.dto.js';
 
 import { CurriculumProgressStatus } from '../enums/curriculum.js';
 import { FinancialStatus } from '../enums/payment.js';
@@ -192,6 +231,8 @@ export interface TibyanApi {
     choosePhotoDialog(): Promise<IpcResult<PhotoSelectionDto | null>>;
     printCards(): Promise<IpcResult<void>>;
     exportCardsPdf(input?: { defaultFilename?: string; targetPath?: string }): Promise<IpcResult<{ canceled: boolean; filePath: string }>>;
+    importPreview(payload: { fileContentBase64?: string; filePath?: string; fileName: string }): Promise<IpcResult<StudentImportPreviewDto>>;
+    importExecute(payload: { approvedRows: StudentImportRowDto[] }): Promise<IpcResult<StudentImportResultDto>>;
   };
   groups: {
     list(): Promise<IpcResult<GroupDto[]>>;
@@ -241,7 +282,8 @@ export interface TibyanApi {
   gemini: {
     getStatus(): Promise<IpcResult<GeminiConfigurationStatus>>;
     setCredential(input: GeminiCredentialInput): Promise<IpcResult<void>>;
-    deleteCredential(): Promise<IpcResult<void>>;
+    deleteCredential(input: GeminiCredentialDeleteInput): Promise<IpcResult<void>>;
+    testConnection(): Promise<IpcResult<GeminiConnectionResult>>;
   };
   finance: {
     recordPayment(input: RecordPaymentInput): Promise<IpcResult<PaymentDto>>;
@@ -366,6 +408,68 @@ export interface TibyanApi {
     getSkillPerformance(examId: string): Promise<IpcResult<SkillPerformanceDto[]>>;
     getStudentResult(submissionId: string): Promise<IpcResult<StudentExamResultDto>>;
     listStudentResults(examId: string): Promise<IpcResult<StudentExamResultDto[]>>;
+  };
+  assistant: {
+    createSession(input?: CreateSessionInput): Promise<IpcResult<AssistantSession>>;
+    listSessions(): Promise<IpcResult<AssistantSession[]>>;
+    getSession(sessionId: string): Promise<IpcResult<AssistantSession>>;
+    deleteSession(sessionId: string): Promise<IpcResult<void>>;
+    sendMessage(input: SendMessageInput): Promise<IpcResult<AssistantResponse>>;
+    uploadAttachment(input: UploadAssistantAttachmentInput): Promise<IpcResult<AssistantAttachmentDto>>;
+    getHistory(sessionId: string, cursor?: string): Promise<IpcResult<ConversationHistory>>;
+    confirmAction(input: ConfirmationInput): Promise<IpcResult<AssistantResponse>>;
+    cancelAction(previewId: string): Promise<IpcResult<void>>;
+    undoAction(input: UndoInput): Promise<IpcResult<AssistantResponse>>;
+    getTools(): Promise<IpcResult<Array<{ name: string; description: string; riskLevel: string }>>>;
+  };
+  slides: {
+    listDecks(): Promise<IpcResult<SlideDeckDto[]>>;
+    getDeck(id: string): Promise<IpcResult<SlideDeckWithSlides>>;
+    createDeck(input: CreateSlideDeckInput): Promise<IpcResult<SlideDeckDto>>;
+    updateDeck(id: string, input: UpdateSlideDeckInput): Promise<IpcResult<SlideDeckDto>>;
+    deleteDeck(id: string): Promise<IpcResult<void>>;
+    addSlide(input: CreateSlideInput): Promise<IpcResult<SlideDto>>;
+    updateSlide(id: string, input: UpdateSlideInput): Promise<IpcResult<SlideDto>>;
+    deleteSlide(id: string): Promise<IpcResult<void>>;
+    duplicateSlide(id: string): Promise<IpcResult<SlideDto>>;
+    reorderSlides(input: ReorderSlidesInput): Promise<IpcResult<void>>;
+    addBlock(input: CreateSlideBlockInput): Promise<IpcResult<SlideBlockDto>>;
+    updateBlock(id: string, input: UpdateSlideBlockInput): Promise<IpcResult<SlideBlockDto>>;
+    deleteBlock(id: string): Promise<IpcResult<void>>;
+    reorderBlocks(input: ReorderSlideBlocksInput): Promise<IpcResult<void>>;
+    moveBlock(input: MoveSlideBlockInput): Promise<IpcResult<SlideBlockDto>>;
+    getPresentation(deckId: string): Promise<IpcResult<SlidePresentation>>;
+  };
+  curriculumLibrary: {
+    list(filter?: CurriculumLibraryFilter): Promise<IpcResult<SourceDocumentDto[]>>;
+    listGrouped(): Promise<IpcResult<CurriculumGradeGroup[]>>;
+    import(input: ImportCurriculumLibraryInput): Promise<IpcResult<SourceDocumentDto>>;
+    update(input: UpdateCurriculumLibraryInput): Promise<IpcResult<SourceDocumentDto>>;
+    delete(id: string): Promise<IpcResult<void>>;
+    get(id: string): Promise<IpcResult<SourceDocumentDto>>;
+    viewPdf(request: { id: string; page?: number }): Promise<IpcResult<{ filePath: string; pageCount: number }>>;
+    openExternal(id: string): Promise<IpcResult<void>>;
+    browseAndImport(): Promise<IpcResult<{ filePath: string; fileName: string } | null>>;
+    resolveDataUrl(id: string): Promise<IpcResult<{ dataUrl: string; pageCount: number; title: string }>>;
+  };
+  tibyan: {
+    createTaskSession(input: { taskType: string; title?: string }): Promise<IpcResult<AssistantSession>>;
+    listHistory(): Promise<IpcResult<AssistantSession[]>>;
+    getHistoryItem(sessionId: string): Promise<IpcResult<ConversationHistory>>;
+    deleteHistoryItem(sessionId: string): Promise<IpcResult<void>>;
+    renameHistoryItem(sessionId: string, title: string): Promise<IpcResult<void>>;
+  };
+  ai: {
+    generateReview(input: ReviewGenerationRequest): Promise<IpcResult<ReviewArtifactDto>>;
+    generateNotes(input: NotesGenerationRequest): Promise<IpcResult<NotesArtifactDto>>;
+    listReviews(): Promise<IpcResult<ReviewArtifactDto[]>>;
+    getReview(id: string): Promise<IpcResult<ReviewArtifactDto | null>>;
+    saveReview(id: string, content: ReviewGenerationResult): Promise<IpcResult<ReviewArtifactDto>>;
+    listNotes(): Promise<IpcResult<NotesArtifactDto[]>>;
+    getNotes(id: string): Promise<IpcResult<NotesArtifactDto | null>>;
+    saveNotes(id: string, content: NotesGenerationResult): Promise<IpcResult<NotesArtifactDto>>;
+    generateSlides(input: SlidesGenerationRequest): Promise<IpcResult<SlideDeckWithSlides>>;
+    generateExam(input: ExamGenerationRequest): Promise<IpcResult<GeneratedExamContent>>;
   };
 }
 

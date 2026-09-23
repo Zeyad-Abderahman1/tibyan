@@ -7,12 +7,10 @@ import {
   CalendarCheck,
   Settings,
   CreditCard,
-  GraduationCap,
-  Sigma,
-  FileText,
   HelpCircle,
-  FileCheck,
   ClipboardCheck,
+  Bot,
+  BookMarked,
 } from 'lucide-react';
 
 import { cn } from '@tibyan/design-system';
@@ -28,8 +26,10 @@ export const DEFAULT_NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'اليوم', icon: LayoutDashboard },
   { to: '/students', label: 'الطلاب', icon: Users },
   { to: '/groups', label: 'المجموعات', icon: BookOpen },
-  { to: '/exams', label: 'الاختبارات', icon: FileCheck },
+  { to: '/attendance', label: 'تحضير الطلاب', icon: CalendarCheck },
+  { to: '/curriculum-library', label: 'مكتبة المناهج', icon: BookMarked },
   { to: '/finance', label: 'المالية', icon: CreditCard },
+  { to: '/assistant', label: 'تِبيان', icon: Bot },
   { to: '/settings', label: 'الإعدادات', icon: Settings },
 ];
 
@@ -43,35 +43,18 @@ export function DynamicIslandNav({ items = DEFAULT_NAV_ITEMS, className }: Dynam
 
   const activeItems = React.useMemo(() => {
     if (items !== DEFAULT_NAV_ITEMS) return items;
-    if (location.pathname.startsWith('/attendance')) {
-      const copy = [...DEFAULT_NAV_ITEMS];
-      copy.splice(3, 0, { to: '/attendance', label: 'الحضور', icon: CalendarCheck });
-      return copy;
-    }
-    if (location.pathname.startsWith('/curriculum')) {
-      const copy = [...DEFAULT_NAV_ITEMS];
-      copy.splice(3, 0, { to: '/curriculum', label: 'المناهج', icon: GraduationCap });
-      return copy;
-    }
     if (location.pathname.startsWith('/questions')) {
       const copy = [...DEFAULT_NAV_ITEMS];
       copy.splice(3, 0, { to: '/questions', label: 'بنك الأسئلة', icon: HelpCircle });
-      return copy;
-    }
-    if (location.pathname.startsWith('/sources')) {
-      const copy = [...DEFAULT_NAV_ITEMS];
-      copy.splice(3, 0, { to: '/sources', label: 'المصادر', icon: FileText });
-      return copy;
-    }
-    if (location.pathname.startsWith('/math-editor')) {
-      const copy = [...DEFAULT_NAV_ITEMS];
-      copy.splice(4, 0, { to: '/math-editor', label: 'محرر الرياضيات', icon: Sigma });
       return copy;
     }
     if (location.pathname.startsWith('/capture') || location.pathname.startsWith('/grading') || location.pathname.startsWith('/analytics') || location.pathname.startsWith('/student-result')) {
       const copy = [...DEFAULT_NAV_ITEMS];
       copy.splice(3, 0, { to: '/capture', label: 'تصحيح الأوراق', icon: ClipboardCheck });
       return copy;
+    }
+    if (location.pathname.startsWith('/assistant')) {
+      return items;
     }
     return items;
 

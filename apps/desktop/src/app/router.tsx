@@ -21,7 +21,7 @@ import { AttendancePage } from '../features/attendance/AttendancePage.js';
 import { SettingsPage } from '../features/settings/SettingsPage.js';
 import { FinancePage } from '../features/finance/index.js';
 import { CurriculumCatalogsPage } from '../features/curriculum/CurriculumCatalogsPage.js';
-import { MathEditorPage } from '../features/math/MathEditorPage.js';
+
 import { SourcesPage } from '../features/sources/SourcesPage.js';
 import { QuestionBankPage } from '../features/questions/QuestionBankPage.js';
 import { ExamBuilderPage } from '../features/exams/ExamBuilderPage.js';
@@ -29,6 +29,10 @@ import { CaptureSessionPage } from '../features/capture/CaptureSessionPage.js';
 import { CorrectionWorkspace } from '../features/grading/CorrectionWorkspace.js';
 import { AnalyticsDashboard } from '../features/analytics/AnalyticsDashboard.js';
 import { StudentResultPage } from '../features/analytics/StudentResultPage.js';
+import { TibyanWorkspacePage } from '../features/tibyan-workspace/TibyanWorkspacePage.js';
+import { SlidesPage } from '../features/slides/SlidesPage.js';
+import { CurriculumLibraryPage } from '../features/curriculum-library/CurriculumLibraryPage.js';
+import { StartupLoadingScreen } from '../components/feedback/StartupLoadingScreen.js';
 
 
 /**
@@ -113,18 +117,7 @@ export function RootLayout() {
 
   // 2. Authoritative resolution loading / splash state
   if (isSetupLoading || isSessionLoading) {
-    return (
-      <div
-        className="h-screen w-screen flex items-center justify-center bg-[var(--color-bg-app)] text-[var(--color-text-primary)]"
-        dir="rtl"
-        data-testid="app-loading"
-      >
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-[var(--color-brand-primary)] border-t-transparent animate-spin" />
-          <span className="text-sm text-[var(--color-text-secondary)] font-medium">جاري تشغيل تِبيان...</span>
-        </div>
-      </div>
-    );
+    return <StartupLoadingScreen />;
   }
 
   // 3. If setup is incomplete, render FirstRunWizard
@@ -236,10 +229,6 @@ export const routes: RouteObject[] = [
         element: <CurriculumCatalogsPage />,
       },
       {
-        path: 'math-editor',
-        element: <MathEditorPage />,
-      },
-      {
         path: 'sources',
         element: <SourcesPage />,
       },
@@ -274,6 +263,18 @@ export const routes: RouteObject[] = [
       {
         path: 'student-result/:submissionId',
         element: <StudentResultPage />,
+      },
+      {
+        path: 'assistant',
+        element: <TibyanWorkspacePage />,
+      },
+      {
+        path: 'slides',
+        element: <SlidesPage />,
+      },
+      {
+        path: 'curriculum-library',
+        element: <CurriculumLibraryPage />,
       },
 
       {

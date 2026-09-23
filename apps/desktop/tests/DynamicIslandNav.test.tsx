@@ -16,12 +16,15 @@ describe('DynamicIslandNav Component Suite', () => {
     expect(html).toContain('اليوم');
     expect(html).toContain('الطلاب');
     expect(html).toContain('المجموعات');
-    expect(html).toContain('الاختبارات');
+    expect(html).toContain('تحضير الطلاب');
+    expect(html).toContain('مكتبة المناهج');
     expect(html).toContain('المالية');
+    expect(html).toContain('تِبيان');
     expect(html).toContain('الإعدادات');
 
-    // Contextual routes must not be displayed on home
-    expect(html).not.toContain('الحضور');
+    // Exams and Slides removed from primary nav (accessible via Tibyan workspace)
+    expect(html).not.toContain('الاختبارات');
+    expect(html).not.toContain('الشرائح');
   });
 
   it('marks active navigation destination with accessible indicator and styling', () => {
@@ -36,7 +39,7 @@ describe('DynamicIslandNav Component Suite', () => {
   });
 
   it('supports configuration-driven items without hardcoding', () => {
-    expect(DEFAULT_NAV_ITEMS).toHaveLength(6);
-    expect(DEFAULT_NAV_ITEMS.map((i) => i.to)).toEqual(['/', '/students', '/groups', '/exams', '/finance', '/settings']);
+    expect(DEFAULT_NAV_ITEMS).toHaveLength(8);
+    expect(DEFAULT_NAV_ITEMS.map((i) => i.to)).toEqual(['/', '/students', '/groups', '/attendance', '/curriculum-library', '/finance', '/assistant', '/settings']);
   });
 });

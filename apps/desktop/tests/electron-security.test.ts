@@ -210,12 +210,15 @@ describe('Task 10 — Preload Bridge Surface & Isolation Verification', () => {
   it('exposes exactly the canonical domains in TibyanApi', () => {
     const exposedDomains = Object.keys(tibyanApi).sort();
     expect(exposedDomains).toEqual([
+      'ai',
       'analytics',
+      'assistant',
       'attendance',
       'auth',
       'backup',
       'capture',
       'curriculum',
+      'curriculumLibrary',
       'dashboard',
       'enrollments',
       'exams',
@@ -228,9 +231,11 @@ describe('Task 10 — Preload Bridge Surface & Isolation Verification', () => {
       'questionBank',
       'sessionReflection',
       'sessions',
+      'slides',
       'students',
       'system',
       'thermal',
+      'tibyan',
     ].sort());
   });
 

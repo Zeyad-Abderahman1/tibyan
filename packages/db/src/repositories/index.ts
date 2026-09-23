@@ -8,6 +8,7 @@ export * from './system/curriculum-node.repository.js';
 export * from './system/source-document.repository.js';
 export * from './system/source-reference.repository.js';
 export * from './system/question.repository.js';
+export * from './system/assistant.repository.js';
 
 export * from './academic/student.repository.js';
 export * from './academic/group.repository.js';
@@ -23,4 +24,7 @@ export * from './academic/session-reflection.repository.js';
 export * from './academic/exam.repository.js';
 export * from './academic/capture.repository.js';
 export * from './academic/grading.repository.js';
+export * from './academic/slide.repository.js';
+export * from './academic/review.repository.js';
+export * from './academic/notes-artifact.repository.js';
 

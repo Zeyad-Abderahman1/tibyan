@@ -15,6 +15,7 @@ import { AddPaymentModal } from './AddPaymentModal.js';
 import { ApplyDiscountModal } from './ApplyDiscountModal.js';
 import { InvoicePreviewModal } from './InvoicePreviewModal.js';
 import { ThermalReceiptModal } from './thermal/ThermalReceiptModal.js';
+import { ContextualDynamicIsland } from '../../components/layout/ContextualDynamicIsland.js';
 import type { StudentFinancialSummaryDto, FinancialStatus, InvoiceDto } from '@tibyan/contracts';
 import {
   CreditCard,
@@ -99,8 +100,50 @@ export function FinancePage() {
     setInvoicePreviewData({ student: studentSummary, invoice: generatedInvoice });
   };
 
+  const islandActions = [
+    {
+      id: 'finance-overview',
+      label: 'نظرة عامة',
+      icon: TrendingUp,
+      active: selectedStatus === 'ALL',
+      onClick: () => setSelectedStatus('ALL'),
+    },
+    {
+      id: 'finance-payments',
+      label: 'المدفوعات',
+      icon: CheckCircle2,
+      active: selectedStatus === 'PAID',
+      onClick: () => setSelectedStatus('PAID'),
+    },
+    {
+      id: 'finance-invoices',
+      label: 'الفواتير',
+      icon: FileText,
+      onClick: () => {
+        if (summaries[0]) handleOpenInvoice(summaries[0]);
+      },
+    },
+    {
+      id: 'finance-due',
+      label: 'المستحقات',
+      icon: AlertCircle,
+      active: selectedStatus === 'UNPAID',
+      onClick: () => setSelectedStatus('UNPAID'),
+    },
+    {
+      id: 'finance-expenses',
+      label: 'المصروفات',
+      icon: CreditCard,
+      active: selectedStatus === 'PARTIALLY_PAID',
+      onClick: () => setSelectedStatus('PARTIALLY_PAID'),
+    },
+  ];
+
   return (
     <div className="space-y-6" data-testid="page-finance">
+      {/* Layer 3: Contextual Dynamic Island */}
+      <ContextualDynamicIsland title="الإدارة المالية" actions={islandActions} />
+
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[var(--color-border-subtle)]">
         <div>

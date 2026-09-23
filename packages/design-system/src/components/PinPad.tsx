@@ -126,23 +126,23 @@ export function PinPad({
               className={cn(
                 'w-11 h-12 sm:w-12 sm:h-13 rounded-2xl flex items-center justify-center text-xl font-bold transition-all duration-200 select-none border',
                 isCurrent &&
-                  'border-[var(--color-brand-primary)] dark:border-[#5CE1E6] ring-2 ring-[var(--color-brand-primary)]/20 dark:ring-[#5CE1E6]/25 bg-[var(--color-bg-surface)] dark:bg-[#0B1E1D] shadow-xs',
+                  'border-[var(--color-brand-primary)] ring-2 ring-[var(--color-brand-primary)]/20 bg-[var(--color-bg-surface)] shadow-xs',
                 isFilled && !isCurrent &&
-                  'border-[var(--color-brand-primary)]/50 dark:border-[#5CE1E6]/50 bg-[var(--color-bg-surface)] dark:bg-[#0D2423] text-[var(--color-text-primary)] shadow-xs',
+                  'border-[var(--color-brand-primary)]/50 bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] shadow-xs',
                 !isFilled && !isCurrent &&
-                  'border-[var(--color-border-subtle)] dark:border-[#1E4D4A]/30 bg-[var(--color-bg-surface-subtle)]/60 dark:bg-[#071716]/40 text-[var(--color-text-muted)]',
+                  'border-[var(--color-border-subtle)] bg-[var(--color-bg-surface-subtle)]/60 text-[var(--color-text-muted)]',
                 error && 'border-[var(--color-status-danger)] ring-2 ring-[rgba(220,38,38,0.2)]',
                 disabled && 'opacity-50 cursor-not-allowed'
               )}
             >
               {isFilled ? (
                 masked ? (
-                  <span className="w-3.5 h-3.5 rounded-full bg-[var(--color-brand-primary)] dark:bg-[#5CE1E6] shadow-sm transition-transform duration-150" />
+                  <span className="w-3.5 h-3.5 rounded-full bg-[var(--color-brand-primary)] shadow-sm transition-transform duration-150" />
                 ) : (
                   <span>{digitChar}</span>
                 )
               ) : isCurrent ? (
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-primary)]/40 dark:bg-[#5CE1E6]/40 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-primary)]/40 animate-pulse" />
               ) : (
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-border-strong)]/40 dark:bg-[#2A5C59]/40" />
               )}
@@ -168,11 +168,11 @@ export function PinPad({
             onClick={() => handleDigit(String(d))}
             className={cn(
               'h-12 sm:h-13 rounded-2xl text-xl font-semibold transition-all duration-150',
-              'bg-[var(--color-bg-surface)] dark:bg-[#0D2423]/80 text-[var(--color-text-primary)] dark:text-teal-50',
-              'border border-[var(--color-border-subtle)] dark:border-[#1E4D4A]/40 shadow-xs',
-              'hover:bg-[var(--color-bg-surface-subtle)] dark:hover:bg-[#163D3A] dark:hover:border-[#2E7A75]/60 hover:shadow-sm',
+              'bg-[var(--color-bg-surface)] text-[var(--color-text-primary)]',
+              'border border-[var(--color-border-subtle)] shadow-xs',
+              'hover:bg-[var(--color-bg-surface-subtle)] hover:border-[var(--color-border-strong)] hover:shadow-sm',
               'active:scale-95 motion-reduce:active:scale-100 motion-reduce:transition-none',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] dark:focus-visible:ring-[#5CE1E6]',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]',
               'disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100'
             )}
           >
@@ -188,10 +188,10 @@ export function PinPad({
           aria-label="حذف رقم"
           className={cn(
             'h-12 sm:h-13 rounded-2xl flex items-center justify-center text-sm font-medium transition-all duration-150',
-            'bg-[var(--color-bg-surface-subtle)]/80 dark:bg-[#0A1D1C]/60 text-[var(--color-text-secondary)] dark:text-[#8EABA8] border border-transparent',
-            'hover:bg-[var(--color-border-subtle)] dark:hover:bg-[#163D3A]/60 hover:text-[var(--color-text-primary)] dark:hover:text-white',
+            'bg-[var(--color-bg-surface-subtle)]/80 text-[var(--color-text-secondary)] border border-transparent',
+            'hover:bg-[var(--color-border-subtle)] hover:text-[var(--color-text-primary)]',
             'active:scale-95 motion-reduce:active:scale-100 motion-reduce:transition-none',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] dark:focus-visible:ring-[#5CE1E6]',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]',
             'disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100'
           )}
         >
@@ -205,11 +205,11 @@ export function PinPad({
           onClick={() => handleDigit('0')}
           className={cn(
             'h-12 sm:h-13 rounded-2xl text-xl font-semibold transition-all duration-150',
-            'bg-[var(--color-bg-surface)] dark:bg-[#0D2423]/80 text-[var(--color-text-primary)] dark:text-teal-50',
-            'border border-[var(--color-border-subtle)] dark:border-[#1E4D4A]/40 shadow-xs',
-            'hover:bg-[var(--color-bg-surface-subtle)] dark:hover:bg-[#163D3A] dark:hover:border-[#2E7A75]/60 hover:shadow-sm',
+              'bg-[var(--color-bg-surface)] text-[var(--color-text-primary)]',
+              'border border-[var(--color-border-subtle)] shadow-xs',
+              'hover:bg-[var(--color-bg-surface-subtle)] hover:border-[var(--color-border-strong)] hover:shadow-sm',
             'active:scale-95 motion-reduce:active:scale-100 motion-reduce:transition-none',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] dark:focus-visible:ring-[#5CE1E6]',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]',
             'disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100'
           )}
         >
@@ -224,10 +224,10 @@ export function PinPad({
           aria-label="مسح الكل"
           className={cn(
             'h-12 sm:h-13 rounded-2xl flex items-center justify-center text-sm font-medium transition-all duration-150',
-            'bg-[var(--color-bg-surface-subtle)]/80 dark:bg-[#0A1D1C]/60 text-[var(--color-text-secondary)] dark:text-[#8EABA8] border border-transparent',
-            'hover:bg-[var(--color-border-subtle)] dark:hover:bg-[#163D3A]/60 hover:text-[var(--color-text-primary)] dark:hover:text-white',
+            'bg-[var(--color-bg-surface-subtle)]/80 text-[var(--color-text-secondary)] border border-transparent',
+            'hover:bg-[var(--color-border-subtle)] hover:text-[var(--color-text-primary)]',
             'active:scale-95 motion-reduce:active:scale-100 motion-reduce:transition-none',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] dark:focus-visible:ring-[#5CE1E6]',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)]',
             'disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100'
           )}
         >

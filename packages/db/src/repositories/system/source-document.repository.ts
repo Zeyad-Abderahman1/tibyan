@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { type SystemDrizzle } from '../../connection.js';
 import {
   sourceDocuments,
@@ -39,6 +39,47 @@ export class SourceDocumentRepository {
     return this.db
       .select()
       .from(sourceDocuments)
+      .orderBy(desc(sourceDocuments.createdAt))
+      .all();
+  }
+
+  listGroupedByGrade(): Array<{
+    gradeLevel: string | null;
+    educationSystem: string | null;
+    documents: SourceDocumentRow[];
+    count: number;
+  }> {
+    const all = this.db
+      .select()
+      .from(sourceDocuments)
+      .orderBy(desc(sourceDocuments.createdAt))
+      .all();
+
+    const groups = new Map<string, SourceDocumentRow[]>();
+    for (const doc of all) {
+      const key = doc.gradeLevel || 'غير محدد';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(doc);
+    }
+
+    return Array.from(groups.entries()).map(([grade, docs]) => ({
+      gradeLevel: grade === 'غير محدد' ? null : grade,
+      educationSystem: docs[0]?.educationSystem ?? null,
+      documents: docs,
+      count: docs.length,
+    }));
+  }
+
+  findByFilter(filter: { gradeLevel?: string; subject?: string; educationSystem?: string }): SourceDocumentRow[] {
+    const conditions = [];
+    if (filter.gradeLevel) conditions.push(eq(sourceDocuments.gradeLevel, filter.gradeLevel));
+    if (filter.subject) conditions.push(eq(sourceDocuments.subject, filter.subject));
+    if (filter.educationSystem) conditions.push(eq(sourceDocuments.educationSystem, filter.educationSystem));
+
+    return this.db
+      .select()
+      .from(sourceDocuments)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(sourceDocuments.createdAt))
       .all();
   }

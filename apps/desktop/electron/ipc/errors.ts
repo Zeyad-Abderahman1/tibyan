@@ -13,13 +13,39 @@ import {
   DashboardError,
   BackupError,
   FinanceError,
+  OwnerPasswordError,
+  GeminiProviderHttpError,
 } from '@tibyan/core';
+
+/** Teacher-safe response; only bounded, redacted provider details reach internal logs. */
+export function mapGeminiConnectionError(error: unknown): IpcResult<never> {
+  if (error instanceof GeminiProviderHttpError) {
+    console.warn('[Tibyan AI connection]', {
+      httpStatus: error.httpStatus,
+      providerCode: error.providerCode,
+      providerMessage: error.providerMessage,
+    });
+    if (error.httpStatus === 429) return errorResult('AI_RATE_LIMIT', 'تم تجاوز حصة الاستخدام أو حد الطلبات. حاول لاحقاً.');
+    if (error.httpStatus === 401 || error.httpStatus === 403) return errorResult('AI_CREDENTIAL_ACCESS', 'تعذر الوصول إلى الخدمة بالمفتاح المحفوظ.');
+    if (error.httpStatus === 404) return errorResult('AI_MODEL_CONFIGURATION', 'تعذر العثور على النموذج. يوجد خطأ في إعداد النموذج الداخلي.');
+    if (error.httpStatus >= 500) return errorResult('AI_SERVICE_UNAVAILABLE', 'خدمة تِبيان الذكية مشغولة حالياً. حاول لاحقاً.');
+    return errorResult('AI_PROVIDER_ERROR', 'تعذر الاتصال بخدمة تِبيان الذكية.');
+  }
+  const kind = error instanceof Error && error.message === 'استجابة الذكاء الاصطناعي غير صالحة' ? 'invalid-response'
+    : error instanceof Error && error.message === 'تعذر الاتصال بخدمة تِبيان.' ? 'unexpected-response'
+    : error instanceof Error && error.message.includes('انتهت مهلة الاتصال') ? 'timeout'
+    : 'transport';
+  console.warn('[Tibyan AI connection]', { kind });
+  return errorResult('AI_CONNECTION_FAILED', 'تعذر الاتصال بخدمة تِبيان. تحقق من الاتصال بالإنترنت.');
+}
 
 /**
  * Maps known domain errors and validation failures to safe, sanitized IpcResult objects.
  * Prevents any leakage of stack traces, raw SQLite error strings, or internal filesystem paths.
  */
 export function mapErrorToIpcResult(err: unknown): IpcResult<never> {
+  if (err instanceof GeminiProviderHttpError) return mapGeminiConnectionError(err);
+  if (err instanceof OwnerPasswordError) return errorResult(err.code, err.message);
   // 1. Zod schema validation errors
   if (err instanceof ZodError) {
     const sanitizedIssues = err.issues.map((issue) => {

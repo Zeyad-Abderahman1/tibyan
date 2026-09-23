@@ -26,8 +26,8 @@ const variantStyles: Record<BadgeVariant, { container: string; dot: string }> = 
   },
   primary: {
     container:
-      'bg-[var(--color-bg-surface-subtle)] text-[var(--color-brand-primary)] border-[rgba(11,61,61,0.2)] dark:bg-[rgba(31,110,104,0.3)] dark:text-[#5EEAD4] dark:border-[rgba(45,212,191,0.35)]',
-    dot: 'bg-[var(--color-brand-primary)] dark:bg-[#5EEAD4]',
+      'bg-[var(--color-bg-surface-subtle)] text-[var(--color-brand-primary-emphasis,var(--color-brand-primary))] border-[var(--color-border-strong)]',
+    dot: 'bg-[var(--color-brand-primary-emphasis,var(--color-brand-primary))]',
   },
   accent: {
     container:

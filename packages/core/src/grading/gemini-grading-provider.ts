@@ -1,5 +1,6 @@
 import { type AiGradingResponse, AiGradingResponseSchema } from '@tibyan/contracts';
 import { type GeminiCredentialService } from '../ai/gemini-credential.service.js';
+import { DEFAULT_TIBYAN_AI_MODEL } from '../ai/model-config.js';
 
 export type GeminiGradingFetch = (input: string, init: RequestInit) => Promise<Response>;
 
@@ -24,10 +25,8 @@ export class GeminiGradingProvider {
   ) {}
 
   async getCredential(): Promise<{ apiKey: string; model: string } | null> {
-    const status = this.credentialService.status();
-    if (!status.configured) return null;
-    // In production, we'd decrypt here. For now, return placeholder.
-    return { apiKey: '', model: 'gemini-1.5-flash' };
+    const apiKey = this.credentialService.get();
+    return apiKey ? { apiKey, model: DEFAULT_TIBYAN_AI_MODEL } : null;
   }
 
   async generateGrading(request: GeminiGradingRequest): Promise<AiGradingResponse> {

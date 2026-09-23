@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
-import { MathEditorPage } from '../src/features/math/MathEditorPage.js';
 import {
-  MathRichContentEditor,
   MathRichContentViewer,
 } from '@tibyan/design-system';
 import {
@@ -13,35 +11,29 @@ import {
   createGeometryEnvelopeBlock,
   MathRichContent,
 } from '@tibyan/contracts';
+import { DynamicIslandNav } from '../src/components/layout/DynamicIslandNav.js';
+import { routes } from '../src/app/router.js';
 
-describe('Phase 3 — Task 2: Math Editor & Viewer UI Suite', () => {
-  it('renders MathEditorPage with offline KaTeX and BiDi badges', () => {
-    const markup = renderToStaticMarkup(
-      <MemoryRouter initialEntries={['/math-editor']}>
-        <MathEditorPage />
+describe('Math Engine — Hidden from Teacher UI', () => {
+  it('navigation does NOT contain Math Editor entry', () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter initialEntries={['/']}>
+        <DynamicIslandNav />
       </MemoryRouter>
     );
 
-    expect(markup).toContain('محرر الرياضيات والصيغ الأكاديمية');
-    expect(markup).toContain('KaTeX مدمج دون إنترنت');
-    expect(markup).toContain('عزل BiDi (LTR/RTL) نشط');
-    expect(markup).toContain('لوحة الرموز الرياضية (للمرحلة الثانوية العامة)');
-    expect(markup).toContain('ملخص المستند النصي');
-    expect(markup).toContain('مخرجات التسلسل المتطابق');
+    expect(html).not.toContain('محرر الرياضيات');
+    expect(html).not.toContain('math-editor');
   });
 
-  it('renders initial secondary math problem with KaTeX formula', () => {
-    const markup = renderToStaticMarkup(
-      <MemoryRouter initialEntries={['/math-editor']}>
-        <MathEditorPage />
-      </MemoryRouter>
-    );
-
-    expect(markup).toContain('مسألة نموذجية في التفاضل والتكامل');
-    expect(markup).toContain('class="katex"');
+  it('router does NOT contain math-editor route', () => {
+    const mainRoute = routes[0];
+    expect(mainRoute).toBeDefined();
+    const childPaths = mainRoute!.children?.map((r) => r.path).filter(Boolean) ?? [];
+    expect(childPaths).not.toContain('math-editor');
   });
 
-  it('renders MathRichContentViewer with complex secondary formulas and LTR isolation', () => {
+  it('MathRichContentViewer still renders complex formulas correctly (backend preserved)', () => {
     const doc: MathRichContent = {
       version: 1,
       blocks: [
@@ -74,24 +66,5 @@ describe('Phase 3 — Task 2: Math Editor & Viewer UI Suite', () => {
     expect(markup).toContain('مصفوفة مربعة من الرتبة الثانية');
     expect(markup).toContain('مخطط تحليل المتجهات');
     expect(markup).toContain('القطاع الدائري');
-  });
-
-  it('renders MathRichContentEditor with custom blocks and active math block', () => {
-    const doc: MathRichContent = {
-      version: 1,
-      blocks: [
-        createTextBlock('نص تجريبي'),
-        createMathBlock('x^2 + y^2 = 25'),
-      ],
-    };
-
-    const markup = renderToStaticMarkup(
-      <MathRichContentEditor initialContent={doc} />
-    );
-
-    expect(markup).toContain('تحرير ومعاينة');
-    expect(markup).toContain('نص تجريبي');
-    expect(markup).toContain('x^2 + y^2 = 25');
-    expect(markup).toContain('الصيغة الرياضية سليمة ومطابقة لمعايير TeX');
   });
 });

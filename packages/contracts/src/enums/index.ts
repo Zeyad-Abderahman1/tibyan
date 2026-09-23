@@ -1,4 +1,5 @@
 export * from './academic.js';
+export * from './academic-metadata.js';
 export * from './auth.js';
 export * from './payment.js';
 export * from './student.js';

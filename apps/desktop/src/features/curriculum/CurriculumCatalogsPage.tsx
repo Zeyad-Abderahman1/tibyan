@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import {
   Card,
   Button,
@@ -13,7 +12,6 @@ import {
   BookOpen,
   CheckCircle2,
   Copy,
-  Sigma,
 } from 'lucide-react';
 import type {
   CurriculumCatalogDto,
@@ -119,18 +117,6 @@ export function CurriculumCatalogsPage() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <Link to="/math-editor">
-            <Button
-              variant="secondary"
-              size="md"
-              className="gap-2 shrink-0 shadow-sm font-semibold text-sm px-4 py-2"
-              data-testid="btn-open-math-editor"
-            >
-              <Sigma className="w-4 h-4 text-emerald-600" />
-              <span>محرر الرياضيات</span>
-            </Button>
-          </Link>
-
           {canWrite && (
             <Button
               variant="primary"

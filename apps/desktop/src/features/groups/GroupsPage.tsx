@@ -12,10 +12,11 @@ import {
   TableHead,
   TableCell,
 } from '@tibyan/design-system';
-import { Plus, BookOpen, Clock, Users, AlertCircle, ChevronLeft, GraduationCap } from 'lucide-react';
+import { Plus, BookOpen, Clock, Users, AlertCircle, ChevronLeft, GraduationCap, Calendar } from 'lucide-react';
 import { useGroupsList } from '../../hooks/useGroups.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { GroupCreateModal, WEEKDAY_LABELS } from './GroupCreateModal.js';
+import { ContextualDynamicIsland } from '../../components/layout/ContextualDynamicIsland.js';
 
 export function GroupsPage() {
   const navigate = useNavigate();
@@ -82,8 +83,50 @@ export function GroupsPage() {
     setFilterStatus('ALL');
   };
 
+  const islandActions = [
+    {
+      id: 'groups-list',
+      label: 'المجموعات',
+      icon: BookOpen,
+      active: true,
+      badge: groups.length,
+      onClick: () => {},
+    },
+    ...(canWrite
+      ? [
+          {
+            id: 'add-group',
+            label: 'إضافة مجموعة',
+            icon: Plus,
+            onClick: () => setIsCreateModalOpen(true),
+          },
+        ]
+      : []),
+    {
+      id: 'manage-students',
+      label: 'إدارة الطلاب',
+      icon: Users,
+      onClick: () => navigate('/students'),
+    },
+    {
+      id: 'schedule',
+      label: 'الجدول',
+      icon: Calendar,
+      onClick: () => navigate('/attendance'),
+    },
+    {
+      id: 'curriculum',
+      label: 'المنهج',
+      icon: GraduationCap,
+      onClick: () => navigate('/curriculum'),
+    },
+  ];
+
   return (
     <div className="space-y-6" data-testid="page-groups">
+      {/* Layer 3: Contextual Dynamic Island */}
+      <ContextualDynamicIsland title="الحلقات والمجموعات" actions={islandActions} />
+
       {/* Professional Page Header: Title + Subtitle on Right, Primary CTA on Left in Same Row */}
       <div className="flex flex-row items-center justify-between gap-6 pb-6 border-b border-[var(--color-border-subtle)]">
         <div className="space-y-1">

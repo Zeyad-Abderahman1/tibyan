@@ -134,6 +134,33 @@ import {
   type QuestionPerformanceDto,
   type SkillPerformanceDto,
   type StudentExamResultDto,
+  type AssistantSession,
+  type ConversationHistory,
+  type AssistantResponse,
+  type SendMessageInput,
+  type CreateSessionInput,
+  type ConfirmationInput,
+  type UndoInput,
+  type AssistantAttachmentDto,
+  type UploadAssistantAttachmentInput,
+  type SlideDeckDto,
+  type SlideDeckWithSlides,
+  type CreateSlideDeckInput,
+  type UpdateSlideDeckInput,
+  type SlideDto,
+  type CreateSlideInput,
+  type UpdateSlideInput,
+  type ReorderSlidesInput,
+  type SlideBlockDto,
+  type CreateSlideBlockInput,
+  type UpdateSlideBlockInput,
+  type ReorderSlideBlocksInput,
+  type MoveSlideBlockInput,
+  type SlidePresentation,
+  type ImportCurriculumLibraryInput,
+  type UpdateCurriculumLibraryInput,
+  type CurriculumGradeGroup,
+  type CurriculumLibraryFilter,
 } from '@tibyan/contracts';
 
 
@@ -202,6 +229,12 @@ export const tibyanApi: TibyanApi = {
     },
     exportCardsPdf(input?: { defaultFilename?: string; targetPath?: string }): Promise<IpcResult<{ canceled: boolean; filePath: string }>> {
       return ipcRenderer.invoke(IPC_CHANNELS.STUDENTS_EXPORT_CARDS_PDF, input);
+    },
+    importPreview(payload: any): any {
+      return ipcRenderer.invoke(IPC_CHANNELS.STUDENTS_IMPORT_PREVIEW, payload);
+    },
+    importExecute(payload: any): any {
+      return ipcRenderer.invoke(IPC_CHANNELS.STUDENTS_IMPORT_EXECUTE, payload);
     },
   },
 
@@ -326,8 +359,11 @@ export const tibyanApi: TibyanApi = {
     setCredential(input: GeminiCredentialInput): Promise<IpcResult<void>> {
       return ipcRenderer.invoke(IPC_CHANNELS.GEMINI_SET_CREDENTIAL, input);
     },
-    deleteCredential(): Promise<IpcResult<void>> {
-      return ipcRenderer.invoke(IPC_CHANNELS.GEMINI_DELETE_CREDENTIAL);
+    deleteCredential(input: { ownerPassword: string }): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GEMINI_DELETE_CREDENTIAL, input);
+    },
+    testConnection(): Promise<IpcResult<{ message: string }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.GEMINI_TEST_CONNECTION);
     },
   },
 
@@ -662,6 +698,164 @@ export const tibyanApi: TibyanApi = {
     listStudentResults(examId: string): Promise<IpcResult<StudentExamResultDto[]>> {
       return ipcRenderer.invoke(IPC_CHANNELS.ANALYTICS_LIST_STUDENT_RESULTS, examId);
     },
+  },
+
+  assistant: {
+    createSession(input?: CreateSessionInput): Promise<IpcResult<AssistantSession>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_CREATE_SESSION, input);
+    },
+    listSessions(): Promise<IpcResult<AssistantSession[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_LIST_SESSIONS);
+    },
+    getSession(sessionId: string): Promise<IpcResult<AssistantSession>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_GET_SESSION, sessionId);
+    },
+    deleteSession(sessionId: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_DELETE_SESSION, sessionId);
+    },
+    sendMessage(input: SendMessageInput): Promise<IpcResult<AssistantResponse>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_SEND_MESSAGE, input);
+    },
+    uploadAttachment(input: UploadAssistantAttachmentInput): Promise<IpcResult<AssistantAttachmentDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_UPLOAD_ATTACHMENT, input);
+    },
+    getHistory(sessionId: string, cursor?: string): Promise<IpcResult<ConversationHistory>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_GET_HISTORY, sessionId, cursor);
+    },
+    confirmAction(input: ConfirmationInput): Promise<IpcResult<AssistantResponse>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_CONFIRM_ACTION, input);
+    },
+    cancelAction(previewId: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_CANCEL_ACTION, previewId);
+    },
+    undoAction(input: UndoInput): Promise<IpcResult<AssistantResponse>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_UNDO_ACTION, input);
+    },
+    getTools(): Promise<IpcResult<Array<{ name: string; description: string; riskLevel: string }>>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.ASSISTANT_GET_TOOLS);
+    },
+  },
+  slides: {
+    listDecks(): Promise<IpcResult<SlideDeckDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_LIST_DECKS);
+    },
+    getDeck(id: string): Promise<IpcResult<SlideDeckWithSlides>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_GET_DECK, id);
+    },
+    createDeck(input: CreateSlideDeckInput): Promise<IpcResult<SlideDeckDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_CREATE_DECK, input);
+    },
+    updateDeck(id: string, input: UpdateSlideDeckInput): Promise<IpcResult<SlideDeckDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_UPDATE_DECK, { id, input });
+    },
+    deleteDeck(id: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_DELETE_DECK, id);
+    },
+    addSlide(input: CreateSlideInput): Promise<IpcResult<SlideDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_ADD_SLIDE, input);
+    },
+    updateSlide(id: string, input: UpdateSlideInput): Promise<IpcResult<SlideDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_UPDATE_SLIDE, { id, input });
+    },
+    deleteSlide(id: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_DELETE_SLIDE, id);
+    },
+    duplicateSlide(id: string): Promise<IpcResult<SlideDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_DUPLICATE_SLIDE, id);
+    },
+    reorderSlides(input: ReorderSlidesInput): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_REORDER_SLIDES, input);
+    },
+    addBlock(input: CreateSlideBlockInput): Promise<IpcResult<SlideBlockDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_ADD_BLOCK, input);
+    },
+    updateBlock(id: string, input: UpdateSlideBlockInput): Promise<IpcResult<SlideBlockDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_UPDATE_BLOCK, { id, input });
+    },
+    deleteBlock(id: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_DELETE_BLOCK, id);
+    },
+    reorderBlocks(input: ReorderSlideBlocksInput): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_REORDER_BLOCKS, input);
+    },
+    moveBlock(input: MoveSlideBlockInput): Promise<IpcResult<SlideBlockDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_MOVE_BLOCK, input);
+    },
+    getPresentation(deckId: string): Promise<IpcResult<SlidePresentation>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.SLIDES_GET_PRESENTATION, deckId);
+    },
+  },
+
+  curriculumLibrary: {
+    list(filter?: CurriculumLibraryFilter): Promise<IpcResult<SourceDocumentDto[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_LIST, filter);
+    },
+    listGrouped(): Promise<IpcResult<CurriculumGradeGroup[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_LIST_GROUPED);
+    },
+    import(input: ImportCurriculumLibraryInput): Promise<IpcResult<SourceDocumentDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_IMPORT, input);
+    },
+    update(input: UpdateCurriculumLibraryInput): Promise<IpcResult<SourceDocumentDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_UPDATE, input);
+    },
+    delete(id: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_DELETE, id);
+    },
+    get(id: string): Promise<IpcResult<SourceDocumentDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_GET, id);
+    },
+    viewPdf(request: { id: string; page?: number }): Promise<IpcResult<{ filePath: string; pageCount: number }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_VIEW_PDF, request);
+    },
+    openExternal(id: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_OPEN_EXTERNAL, id);
+    },
+    browseAndImport(): Promise<IpcResult<{ filePath: string; fileName: string } | null>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_BROWSE_AND_IMPORT);
+    },
+    resolveDataUrl(id: string): Promise<IpcResult<{ dataUrl: string; pageCount: number; title: string }>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.CURRICULUM_LIBRARY_RESOLVE_DATA_URL, id);
+    },
+  },
+
+  tibyan: {
+    createTaskSession(input: { taskType: string; title?: string }): Promise<IpcResult<AssistantSession>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.TIBYAN_CREATE_TASK_SESSION, input);
+    },
+    listHistory(): Promise<IpcResult<AssistantSession[]>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.TIBYAN_LIST_HISTORY);
+    },
+    getHistoryItem(sessionId: string): Promise<IpcResult<ConversationHistory>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.TIBYAN_GET_HISTORY_ITEM, sessionId);
+    },
+    deleteHistoryItem(sessionId: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.TIBYAN_DELETE_HISTORY_ITEM, sessionId);
+    },
+    renameHistoryItem(sessionId: string, title: string): Promise<IpcResult<void>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.TIBYAN_RENAME_HISTORY_ITEM, { sessionId, title });
+    },
+  },
+
+  ai: {
+    generateReview(input: import('@tibyan/contracts').ReviewGenerationRequest): Promise<IpcResult<import('@tibyan/contracts').ReviewArtifactDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_REVIEW, input);
+    },
+    generateNotes(input: import('@tibyan/contracts').NotesGenerationRequest): Promise<IpcResult<import('@tibyan/contracts').NotesArtifactDto>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_NOTES, input);
+    },
+    generateSlides(input: import('@tibyan/contracts').SlidesGenerationRequest): Promise<IpcResult<SlideDeckWithSlides>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_SLIDES, input);
+    },
+    generateExam(input: import('@tibyan/contracts').ExamGenerationRequest): Promise<IpcResult<import('@tibyan/contracts').GeneratedExamContent>> {
+      return ipcRenderer.invoke(IPC_CHANNELS.AI_GENERATE_EXAM, input);
+    },
+    listReviews(): Promise<IpcResult<import('@tibyan/contracts').ReviewArtifactDto[]>> { return ipcRenderer.invoke(IPC_CHANNELS.AI_LIST_REVIEWS); },
+    getReview(id: string): Promise<IpcResult<import('@tibyan/contracts').ReviewArtifactDto | null>> { return ipcRenderer.invoke(IPC_CHANNELS.AI_GET_REVIEW, id); },
+    saveReview(id: string, content: import('@tibyan/contracts').ReviewGenerationResult): Promise<IpcResult<import('@tibyan/contracts').ReviewArtifactDto>> { return ipcRenderer.invoke(IPC_CHANNELS.AI_SAVE_REVIEW, {id, content}); },
+    listNotes(): Promise<IpcResult<import('@tibyan/contracts').NotesArtifactDto[]>> { return ipcRenderer.invoke(IPC_CHANNELS.AI_LIST_NOTES); },
+    getNotes(id: string): Promise<IpcResult<import('@tibyan/contracts').NotesArtifactDto | null>> { return ipcRenderer.invoke(IPC_CHANNELS.AI_GET_NOTES, id); },
+    saveNotes(id: string, content: import('@tibyan/contracts').NotesGenerationResult): Promise<IpcResult<import('@tibyan/contracts').NotesArtifactDto>> { return ipcRenderer.invoke(IPC_CHANNELS.AI_SAVE_NOTES, {id, content}); },
   },
 };
 

@@ -755,3 +755,79 @@ export type NewGradingRunRow = typeof gradingRuns.$inferInsert;
 export type GradingDecisionRow = typeof gradingDecisions.$inferSelect;
 export type NewGradingDecisionRow = typeof gradingDecisions.$inferInsert;
 
+// ─── Slide Decks ─────────────────────────────────────────────────────────────
+
+export const slideDecks = sqliteTable(
+  'slide_decks',
+  {
+    id: text('id').primaryKey(),
+    title: text('title').notNull(),
+    description: text('description'),
+    curriculumNodeId: text('curriculum_node_id'),
+    groupId: text('group_id'),
+    status: text('status').notNull().default('DRAFT'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({
+    idxSlideDecksStatus: index('idx_slide_decks_status').on(t.status),
+    idxSlideDecksCurriculum: index('idx_slide_decks_curriculum').on(t.curriculumNodeId),
+    idxSlideDecksGroup: index('idx_slide_decks_group').on(t.groupId),
+  })
+);
+
+export const slides = sqliteTable(
+  'slides',
+  {
+    id: text('id').primaryKey(),
+    deckId: text('deck_id').notNull().references(() => slideDecks.id, { onDelete: 'cascade' }),
+    title: text('title'),
+    position: integer('position').notNull().default(0),
+    notes: text('notes'),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => ({
+    idxSlidesDeck: index('idx_slides_deck').on(t.deckId),
+  })
+);
+
+export const slideBlocks = sqliteTable(
+  'slide_blocks',
+  {
+    id: text('id').primaryKey(),
+    slideId: text('slide_id').notNull().references(() => slides.id, { onDelete: 'cascade' }),
+    blockType: text('block_type').notNull(),
+    contentJson: text('content_json').notNull(),
+    questionId: text('question_id'),
+    position: integer('position').notNull().default(0),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => ({
+    idxSlideBlocksSlide: index('idx_slide_blocks_slide').on(t.slideId),
+  })
+);
+
+export type SlideDeckRow = typeof slideDecks.$inferSelect;
+export type NewSlideDeckRow = typeof slideDecks.$inferInsert;
+export type SlideRow = typeof slides.$inferSelect;
+export type NewSlideRow = typeof slides.$inferInsert;
+export type SlideBlockRow = typeof slideBlocks.$inferSelect;
+export type NewSlideBlockRow = typeof slideBlocks.$inferInsert;
+
+export const reviewArtifacts = sqliteTable('review_artifacts', {
+  id: text('id').primaryKey(), sourceDocumentId: text('source_document_id').notNull(),
+  title: text('title').notNull(), reviewType: text('review_type').notNull(), detailLevel: text('detail_level').notNull(),
+  scope: text('scope'), questionCount: integer('question_count').notNull(), includeModelAnswers: integer('include_model_answers', { mode: 'boolean' }).notNull(),
+  contentJson: text('content_json').notNull(), createdAt: text('created_at').notNull(), updatedAt: text('updated_at').notNull(),
+});
+export type ReviewArtifactRow = typeof reviewArtifacts.$inferSelect;
+export type NewReviewArtifactRow = typeof reviewArtifacts.$inferInsert;
+
+export const notesArtifacts = sqliteTable('notes_artifacts', {
+  id: text('id').primaryKey(), sourceDocumentId: text('source_document_id').notNull(), title: text('title').notNull(),
+  gradeLevel: text('grade_level').notNull(), scope: text('scope'), detailStyle: text('detail_style').notNull(),
+  includeExercises: integer('include_exercises', { mode: 'boolean' }).notNull(), includeModelSolutions: integer('include_model_solutions', { mode: 'boolean' }).notNull(),
+  contentJson: text('content_json').notNull(), createdAt: text('created_at').notNull(), updatedAt: text('updated_at').notNull(),
+});
+export type NotesArtifactRow = typeof notesArtifacts.$inferSelect;
+

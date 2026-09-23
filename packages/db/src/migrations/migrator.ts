@@ -235,6 +235,92 @@ export const SYSTEM_MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS \`idx_question_source_ref\` ON \`question_source_references\` (\`source_reference_id\`);
     `,
   },
+  // 0005: Assistant tables (sessions, messages, audit, confirmations)
+  {
+    id: '0005_assistant_tables',
+    sql: `
+      CREATE TABLE IF NOT EXISTS \`assistant_sessions\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`user_id\` text NOT NULL,
+        \`title\` text,
+        \`context_scope\` text,
+        \`context_entity_id\` text,
+        \`created_at\` text NOT NULL,
+        \`updated_at\` text NOT NULL,
+        FOREIGN KEY (\`user_id\`) REFERENCES \`users\`(\`id\`) ON UPDATE no action ON DELETE cascade
+      );
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_session_user\` ON \`assistant_sessions\` (\`user_id\`);
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_session_updated\` ON \`assistant_sessions\` (\`updated_at\`);
+
+      CREATE TABLE IF NOT EXISTS \`assistant_messages\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`session_id\` text NOT NULL,
+        \`role\` text NOT NULL,
+        \`type\` text NOT NULL,
+        \`content\` text NOT NULL,
+        \`tool_call_id\` text,
+        \`tool_name\` text,
+        \`tool_input_json\` text,
+        \`tool_output_json\` text,
+        \`confirmation_token\` text,
+        \`preview_id\` text,
+        \`receipt_id\` text,
+        \`undo_available\` integer DEFAULT false,
+        \`undo_token\` text,
+        \`created_at\` text NOT NULL,
+        FOREIGN KEY (\`session_id\`) REFERENCES \`assistant_sessions\`(\`id\`) ON UPDATE no action ON DELETE cascade
+      );
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_msg_session\` ON \`assistant_messages\` (\`session_id\`,\`created_at\`);
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_msg_preview\` ON \`assistant_messages\` (\`preview_id\`);
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_msg_receipt\` ON \`assistant_messages\` (\`receipt_id\`);
+
+      CREATE TABLE IF NOT EXISTS \`assistant_audit_log\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`actor_user_id\` text NOT NULL,
+        \`session_id\` text NOT NULL,
+        \`tool_name\` text NOT NULL,
+        \`action\` text NOT NULL,
+        \`input_summary_json\` text,
+        \`affected_entities_json\` text,
+        \`outcome\` text NOT NULL,
+        \`receipt_id\` text,
+        \`created_at\` text NOT NULL,
+        FOREIGN KEY (\`actor_user_id\`) REFERENCES \`users\`(\`id\`) ON UPDATE no action ON DELETE no action
+      );
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_audit_user\` ON \`assistant_audit_log\` (\`actor_user_id\`);
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_audit_session\` ON \`assistant_audit_log\` (\`session_id\`);
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_audit_tool\` ON \`assistant_audit_log\` (\`tool_name\`);
+      CREATE INDEX IF NOT EXISTS \`idx_assistant_audit_created\` ON \`assistant_audit_log\` (\`created_at\`);
+
+      CREATE TABLE IF NOT EXISTS \`assistant_confirmations\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`preview_id\` text NOT NULL,
+        \`tool_name\` text NOT NULL,
+        \`tool_input_json\` text NOT NULL,
+        \`summary\` text NOT NULL,
+        \`requires_confirmation\` integer DEFAULT true NOT NULL,
+        \`confirmed\` integer DEFAULT false NOT NULL,
+        \`executed\` integer DEFAULT false NOT NULL,
+        \`expires_at\` text NOT NULL,
+        \`created_at\` text NOT NULL
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS \`idx_assistant_confirm_preview\` ON \`assistant_confirmations\` (\`preview_id\`);
+    `,
+  },
+  // 0006: Curriculum library metadata columns
+  {
+    id: '0006_curriculum_library_metadata',
+    sql: `
+      ALTER TABLE \`source_documents\` ADD COLUMN \`grade_level\` text;
+      ALTER TABLE \`source_documents\` ADD COLUMN \`education_system\` text;
+      ALTER TABLE \`source_documents\` ADD COLUMN \`subject\` text;
+      ALTER TABLE \`source_documents\` ADD COLUMN \`description\` text;
+      ALTER TABLE \`source_documents\` ADD COLUMN \`academic_year_id\` text;
+      ALTER TABLE \`source_documents\` ADD COLUMN \`import_source\` text DEFAULT 'MANUAL' NOT NULL;
+      CREATE INDEX IF NOT EXISTS \`idx_source_document_grade\` ON \`source_documents\` (\`grade_level\`);
+      CREATE INDEX IF NOT EXISTS \`idx_source_document_subject\` ON \`source_documents\` (\`subject\`);
+    `,
+  },
 ];
 
 export const ACADEMIC_MIGRATIONS: Migration[] = [
@@ -781,6 +867,66 @@ export const ACADEMIC_MIGRATIONS: Migration[] = [
       CREATE INDEX IF NOT EXISTS \`idx_grading_decisions_status\` ON \`grading_decisions\` (\`status\`);
     `,
   },
+  // 0011: Slide decks, slides, and slide blocks
+  {
+    id: '0011_slide_decks',
+    sql: `
+      CREATE TABLE IF NOT EXISTS \`slide_decks\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`title\` text NOT NULL,
+        \`description\` text,
+        \`curriculum_node_id\` text,
+        \`group_id\` text,
+        \`status\` text DEFAULT 'DRAFT' NOT NULL,
+        \`created_at\` text NOT NULL,
+        \`updated_at\` text NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS \`idx_slide_decks_status\` ON \`slide_decks\` (\`status\`);
+      CREATE INDEX IF NOT EXISTS \`idx_slide_decks_curriculum\` ON \`slide_decks\` (\`curriculum_node_id\`);
+      CREATE INDEX IF NOT EXISTS \`idx_slide_decks_group\` ON \`slide_decks\` (\`group_id\`);
+
+      CREATE TABLE IF NOT EXISTS \`slides\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`deck_id\` text NOT NULL,
+        \`title\` text,
+        \`position\` integer DEFAULT 0 NOT NULL,
+        \`notes\` text,
+        \`created_at\` text NOT NULL,
+        FOREIGN KEY (\`deck_id\`) REFERENCES \`slide_decks\`(\`id\`) ON UPDATE no action ON DELETE cascade
+      );
+      CREATE INDEX IF NOT EXISTS \`idx_slides_deck\` ON \`slides\` (\`deck_id\`);
+
+      CREATE TABLE IF NOT EXISTS \`slide_blocks\` (
+        \`id\` text PRIMARY KEY NOT NULL,
+        \`slide_id\` text NOT NULL,
+        \`block_type\` text NOT NULL,
+        \`content_json\` text NOT NULL,
+        \`question_id\` text,
+        \`position\` integer DEFAULT 0 NOT NULL,
+        \`created_at\` text NOT NULL,
+        FOREIGN KEY (\`slide_id\`) REFERENCES \`slides\`(\`id\`) ON UPDATE no action ON DELETE cascade
+      );
+      CREATE INDEX IF NOT EXISTS \`idx_slide_blocks_slide\` ON \`slide_blocks\` (\`slide_id\`);
+    `,
+  },
+  {
+    id: '0012_review_artifacts',
+    sql: `CREATE TABLE IF NOT EXISTS review_artifacts (
+      id text PRIMARY KEY NOT NULL, source_document_id text NOT NULL, title text NOT NULL,
+      review_type text NOT NULL, detail_level text NOT NULL, scope text,
+      question_count integer NOT NULL, include_model_answers integer NOT NULL,
+      content_json text NOT NULL, created_at text NOT NULL, updated_at text NOT NULL
+    );`,
+  },
+  {
+    id: '0013_notes_artifacts',
+    sql: `CREATE TABLE IF NOT EXISTS notes_artifacts (
+      id text PRIMARY KEY NOT NULL, source_document_id text NOT NULL, title text NOT NULL,
+      grade_level text NOT NULL, scope text, detail_style text NOT NULL,
+      include_exercises integer NOT NULL, include_model_solutions integer NOT NULL,
+      content_json text NOT NULL, created_at text NOT NULL, updated_at text NOT NULL
+    );`,
+  },
 ];
 
 
@@ -799,10 +945,36 @@ export function getAppliedMigrations(db: Database.Database): string[] {
   return rows.map((r) => r.id);
 }
 
+const LEGACY_MIGRATION_ALIASES: Record<string, string[]> = {
+  // Legacy interim Phase 6 build used 0011_curriculum_library_metadata
+  // which performed the same ALTER TABLE statements now in 0006_curriculum_library_metadata.
+  // If the legacy ID was already applied, mark the canonical ID as also applied
+  // to prevent duplicate ALTER TABLE ADD COLUMN crashes.
+  '0006_curriculum_library_metadata': ['0011_curriculum_library_metadata'],
+};
+
+function reconcileLegacyMigrations(db: Database.Database, applied: Set<string>): void {
+  const insertStmt = db.prepare('INSERT OR IGNORE INTO __tibyan_migrations (id, applied_at) VALUES (?, ?)');
+  const now = new Date().toISOString();
+
+  for (const [canonicalId, legacyIds] of Object.entries(LEGACY_MIGRATION_ALIASES)) {
+    if (!applied.has(canonicalId)) {
+      const legacyFound = legacyIds.some((lid) => applied.has(lid));
+      if (legacyFound) {
+        insertStmt.run(canonicalId, now);
+        applied.add(canonicalId);
+      }
+    }
+  }
+}
+
 export function runMigrations(db: Database.Database, migrations: Migration[]): string[] {
   initMigrationTrackingTable(db);
   const applied = new Set(getAppliedMigrations(db));
   const newlyApplied: string[] = [];
+
+  // Reconcile legacy migration IDs before running new migrations
+  reconcileLegacyMigrations(db, applied);
 
   for (const migration of migrations) {
     if (!applied.has(migration.id)) {

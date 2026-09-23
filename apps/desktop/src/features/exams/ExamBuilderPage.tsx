@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Card, Button, Input, Select, Badge } from '@tibyan/design-system';
 import {
   FileCheck,
@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Eye,
   Trash2,
+  GripVertical,
 } from 'lucide-react';
 import {
   useExams,
@@ -23,6 +24,7 @@ import {
   usePrintExam,
 } from '../../hooks/useExams.js';
 import { useCurriculumCatalogs, useCurriculumTree } from '../../hooks/useCurriculum.js';
+import { ExamSourceChoice, type SelectedSource } from '../tibyan-workspace/ExamSourceChoice.js';
 import { MathRichContentViewer } from '@tibyan/design-system';
 import type {
   ExamBlueprint,
@@ -64,6 +66,13 @@ export function ExamBuilderPage() {
   const [aiDifficulty, setAiDifficulty] = useState<'EASY' | 'MEDIUM' | 'HARD'>('MEDIUM');
   const [aiCandidates, setAiCandidates] = useState<AiExamCandidate[]>([]);
 
+  // Drag-and-drop state for question reorder
+  const dragItemRef = useRef<number | null>(null);
+  const dragOverItemRef = useRef<number | null>(null);
+
+  // Source choice state
+  const [selectedSource, setSelectedSource] = useState<SelectedSource | null>(null);
+
   // Queries & Mutations
   const { data: exams = [] } = useExams();
   const { data: catalogs = [] } = useCurriculumCatalogs();
@@ -81,6 +90,39 @@ export function ExamBuilderPage() {
     previewKind,
     previewVersion
   );
+
+  // ─── Drag-and-drop handlers for question reorder ──────────────────────────
+
+  const handleQuestionDragStart = useCallback((e: React.DragEvent, index: number) => {
+    dragItemRef.current = index;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  }, []);
+
+  const handleQuestionDragOver = useCallback((e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    dragOverItemRef.current = index;
+  }, []);
+
+  const handleQuestionDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    const fromIndex = dragItemRef.current;
+    const toIndex = dragOverItemRef.current;
+    if (fromIndex === null || toIndex === null || fromIndex === toIndex) return;
+
+    setStagedPlacements((prev) => {
+      const updated = [...prev];
+      const moved = updated.splice(fromIndex, 1)[0];
+      if (moved) {
+        updated.splice(toIndex, 0, moved);
+      }
+      return updated;
+    });
+
+    dragItemRef.current = null;
+    dragOverItemRef.current = null;
+  }, []);
 
   const handleRunAssembly = async () => {
     setAssemblyConflicts([]);
@@ -222,7 +264,7 @@ export function ExamBuilderPage() {
               منشئ الاختبارات الذكي (Exam Builder)
             </h1>
             <p className="text-xs text-[var(--color-text-secondary)]">
-              بناء وتنسيق نماذج الاختبارات A/B/C/D استناداً لبنك الأسئلة ومساعد الذكاء الاصطناعي
+              بناء وتنسيق نماذج الاختبارات A/B/C/D استناداً لبنك الأسئلة وتِبيان
             </p>
           </div>
         </div>
@@ -322,6 +364,31 @@ export function ExamBuilderPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left / Top Blueprint Form */}
           <div className="lg:col-span-4 space-y-4">
+            {!selectedSource ? (
+              <ExamSourceChoice onSourceSelected={setSelectedSource} />
+            ) : (
+              <Card className="p-4 space-y-3">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="font-bold text-sm text-[var(--color-text-primary)] border-b pb-2">
+                    مصدر الاختبار
+                  </h2>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedSource(null)}
+                  >
+                    تغيير
+                  </Button>
+                </div>
+                <div className="flex items-center gap-2 p-2 bg-[var(--color-brand-primary-bg)] rounded-lg">
+                  <FileCheck className="w-4 h-4 text-[var(--color-brand-primary)]" />
+                  <span className="text-sm font-medium text-[var(--color-text-primary)]">
+                    {selectedSource.title}
+                  </span>
+                </div>
+              </Card>
+            )}
+
             <Card className="p-4 space-y-3">
               <h2 className="font-bold text-sm text-[var(--color-text-primary)] border-b pb-2">
                 محددات المخطط (مخطط الاختبار)
@@ -511,7 +578,7 @@ export function ExamBuilderPage() {
             <Card className="p-4 space-y-3 border-emerald-500/30">
               <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-bold text-sm">
                 <Sparkles className="w-4 h-4" />
-                توليد أسئلة بالذكاء الاصطناعي (Gemini)
+                توليد أسئلة بالذكاء الاصطناعي (تِبيان)
               </div>
               <p className="text-xs text-[var(--color-text-secondary)]">
                 توليد مقترحات متوافقة بدقة مع المخطط لا تعتمد مباشرة إلا بعد مراجعتك.
@@ -650,11 +717,18 @@ export function ExamBuilderPage() {
                   {stagedPlacements.map((p, idx) => (
                     <div
                       key={p.id}
-                      className="p-4 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] space-y-2"
+                      draggable
+                      onDragStart={(e) => handleQuestionDragStart(e, idx)}
+                      onDragOver={(e) => handleQuestionDragOver(e, idx)}
+                      onDrop={handleQuestionDrop}
+                      className="group p-4 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-bg-surface)] space-y-2 cursor-grab active:cursor-grabbing hover:border-[var(--color-border-bold)] transition-all"
                       data-testid={`staged-question-${idx}`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-sm">س {idx + 1}.</span>
+                        <div className="flex items-center gap-2">
+                          <GripVertical className="w-4 h-4 text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <span className="font-bold text-sm">س {idx + 1}.</span>
+                        </div>
                         <div className="flex items-center gap-2">
                           <Badge variant={p.provenance === 'AI_CANDIDATE' ? 'info' : 'neutral'}>
                             {p.provenance === 'AI_CANDIDATE' ? 'اقتراح AI' : 'بنك الأسئلة'}
